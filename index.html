@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>YUTORI v0.3.3c</title>
+<link rel="icon" type="image/svg+xml" href="assets/yutori-symbol.svg">
+<link rel="apple-touch-icon" href="assets/yutori-app-icon.svg">
 <style>
 :root {
   --mint:#8CCBC2; --green:#A8D08D; --orange:#FFB463; --blue:#8BB7E8;
@@ -1643,21 +1645,28 @@ body{
   gap:12px;
   color:var(--brown);
 }
-.brand-logo{
+.brand-symbol{
   width:58px;
   height:58px;
   flex:0 0 58px;
-  display:grid;
-  place-items:center;
-  border-radius:50% 46% 48% 42%;
-  background:linear-gradient(145deg,#9EDDD5 0%,#63C3B7 68%,#4FA99E 100%);
-  color:#fff;
-  font-size:31px;
-  font-weight:900;
-  box-shadow:inset 0 -5px 12px rgba(42,130,120,.12);
-  transform:rotate(-4deg);
+  display:block;
+  object-fit:contain;
 }
-.brand-copy{display:flex;flex-direction:column;min-width:0;line-height:1}
+.brand-copy{
+  min-width:0;
+  display:flex;
+  align-items:flex-end;
+  gap:7px;
+  line-height:1;
+}
+.brand-logo-image{
+  display:block;
+  width:clamp(180px,22vw,270px);
+  max-width:100%;
+  height:auto;
+  min-width:0;
+  object-fit:contain;
+}
 .brand-kicker{
   margin:0 0 4px 2px;
   color:#8C7D75;
@@ -1677,7 +1686,7 @@ body{
 }
 .brand-word .c1{color:#63C3B7}.brand-word .c2{color:#F0AFAE}.brand-word .c3{color:#E6B75F}
 .brand-word .c4{color:#8BC8BE}.brand-word .c5{color:#9CCB87}.brand-word .c6{color:#9EBBE2}
-.brand-version{margin-left:7px;color:#8A7D76;font-size:13px;font-weight:800;letter-spacing:0}
+.brand-version{flex:0 0 auto;margin:0 0 3px;color:#8A7D76;font-size:11px;font-weight:800;letter-spacing:0}
 
 .app-header nav{
   justify-self:center;
@@ -1723,6 +1732,24 @@ body{
 }
 .header-tool.home{color:#63C3B7;background:#F0FAF8}
 .header-tool.settings{color:#9A77C6;background:#F7F2FB}
+.header-tool.asset-button{
+  padding:0;
+  overflow:hidden;
+  border:1px solid #EEE7E1;
+  background:#FBF9F6;
+  box-shadow:0 2px 7px rgba(122,110,101,.08);
+  transition:transform .16s ease,box-shadow .16s ease;
+}
+.header-tool.asset-button:hover{
+  transform:translateY(-1px);
+  box-shadow:0 5px 12px rgba(122,110,101,.13);
+}
+.header-tool.asset-button img{
+  width:100%;
+  height:100%;
+  display:block;
+  object-fit:cover;
+}
 
 .workspace-shell{
   flex:1 1 auto;
@@ -2119,7 +2146,9 @@ button.secondary{background:#F4F0EC;color:var(--brown)}
 
 @media(max-width:1080px){
   .app-header{grid-template-columns:minmax(220px,1fr) auto auto}
-  .brand-logo{width:48px;height:48px;flex-basis:48px;font-size:26px}
+  .brand-symbol{width:48px;height:48px;flex-basis:48px}
+  .brand-logo-image{width:clamp(180px,21vw,225px)}
+  .brand-version{display:none}
   .brand-word{font-size:27px}
   .brand-kicker{display:none}
   .app-header nav button{padding:8px 10px;font-size:13px}
@@ -2148,7 +2177,8 @@ button.secondary{background:#F4F0EC;color:var(--brown)}
 }
 @media(max-width:600px){
   .app-shell{padding:7px}
-  .brand-logo{width:42px;height:42px;flex-basis:42px}
+  .brand-symbol{width:42px;height:42px;flex-basis:42px}
+  .brand-logo-image{width:180px}
   .brand-word{font-size:23px}
   .brand-version{font-size:10px}
   .header-tool{width:38px;height:38px;font-size:20px}
@@ -2159,6 +2189,14 @@ button.secondary{background:#F4F0EC;color:var(--brown)}
   .side-card{grid-template-columns:1fr}
   .editor-live-toolbar{align-items:flex-start;flex-direction:column}
   .editor-live-actions{width:100%;margin-left:0;justify-content:space-between}
+}
+@media(max-width:420px){
+  .app-header{padding:6px}
+  .brand{gap:6px}
+  .brand-symbol{width:36px;height:36px;flex-basis:36px}
+  .brand-logo-image{width:145px}
+  .header-tools{gap:5px}
+  .header-tool{width:34px;height:34px}
 }
 
 @media print{
@@ -2220,13 +2258,10 @@ button.secondary{background:#F4F0EC;color:var(--brown)}
 <div class="app-shell">
 <header class="app-header no-print">
   <div class="brand" aria-label="YUTORI v0.3.3c">
-    <div class="brand-logo" aria-hidden="true">Y</div>
+    <img class="brand-symbol" src="assets/yutori-symbol.svg" alt="" aria-hidden="true">
     <div class="brand-copy">
-      <div class="brand-kicker">テスト作成・採点支援</div>
-      <div class="brand-word" aria-hidden="true">
-        <span class="c1">Y</span><span class="c2">U</span><span class="c3">T</span><span class="c4">O</span><span class="c5">R</span><span class="c6">I</span>
-        <span class="brand-version">v0.3.3c</span>
-      </div>
+      <img class="brand-logo-image" src="assets/yutori-logo.svg" alt="YUTORI つくる・つける・つなげる">
+      <span class="brand-version">v0.3.3c</span>
     </div>
   </div>
   <nav aria-label="主要メニュー">
@@ -2236,8 +2271,8 @@ button.secondary{background:#F4F0EC;color:var(--brown)}
     <button data-screen="outputScreen" onclick="openExportPage()">結果出力</button>
   </nav>
   <div class="header-tools">
-    <button class="header-tool home" type="button" aria-label="ホーム" title="テスト作成へ" onclick="showScreen('editorScreen')">⌂</button>
-    <button class="header-tool settings" type="button" aria-label="各種設定" title="名簿設定へ" onclick="showScreen('rosterScreen')">⚙</button>
+    <button class="header-tool home asset-button" type="button" aria-label="ホーム" title="テスト作成へ" onclick="showScreen('editorScreen')"><img src="assets/yutori-app-icon.svg" alt=""></button>
+    <button class="header-tool settings asset-button" type="button" aria-label="各種設定" title="名簿設定へ" onclick="showScreen('rosterScreen')"><img src="assets/settings.svg" alt=""></button>
   </div>
 </header>
 
