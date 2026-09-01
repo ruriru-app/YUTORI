@@ -3,15 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<meta name="theme-color" content="#F6B26B">
+<meta name="theme-color" content="#FCCCBE">
 <meta name="apple-mobile-web-app-title" content="YUTORI">
-<title>YUTORI v0.3.4</title>
+<title>YUTORI v0.3.5</title>
 <link rel="icon" type="image/svg+xml" href="assets/yutori-symbol.svg">
 <link rel="apple-touch-icon" href="assets/yutori-symbol.svg">
 <link rel="manifest" href="manifest.webmanifest">
 <style>
 :root {
-  --mint:#F6B26B; --green:#A8D08D; --orange:#F6B26B; --blue:#8BB7E8;
+  --mint:#FCCCBE; --green:#A8D08D; --orange:#F6B26B; --blue:#8BB7E8;
   --brown:#7A6E65; --bg:#F7FAF8; --card:#FFFFFF; --line:#DCE7E3;
   --text:#2F3437; --muted:#74807D; --danger:#C95B52;
 }
@@ -222,7 +222,7 @@ input,select{height:36px;padding:0 10px}
 .grade-card{background:#fff;border:1px solid var(--line);border-radius:18px;padding:16px;box-shadow:0 3px 12px rgba(70,90,80,.05)}
 .grade-stepbar{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
 .grade-step{padding:8px 12px;border-radius:999px;background:#EDF4F2;color:var(--muted);font-weight:800}
-.grade-step.active{background:var(--mint);color:#fff}.grade-step.done{background:#E7F4E1;color:#4D7047}
+.grade-step.active{background:var(--mint);color:#624B45}.grade-step.done{background:#E7F4E1;color:#4D7047}
 .grade-grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}.grade-field label{display:block;margin-bottom:6px;color:var(--brown);font-weight:900}
 .class-checks{display:flex;gap:8px;flex-wrap:wrap}.class-chip{display:flex;gap:6px;align-items:center;padding:8px 10px;border:1px solid var(--line);border-radius:11px}
 .grade-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}
@@ -941,7 +941,7 @@ body{
 .workflow-step::before{content:"";position:absolute;top:0;left:0;border-top:19px solid transparent;border-bottom:19px solid transparent;border-left:18px solid #fff;z-index:1}
 .workflow-step:first-child{border-radius:10px 0 0 10px;padding-left:14px}.workflow-step:first-child::before{display:none}
 .workflow-step:last-child{border-radius:0 10px 10px 0}.workflow-step:last-child::after{display:none}
-.workflow-step.active{background:var(--mint);color:#fff}.workflow-step.active::after{border-left-color:var(--mint)}
+.workflow-step.active{background:var(--mint);color:#624B45}.workflow-step.active::after{border-left-color:var(--mint)}
 .workflow-step.done{background:#E7F4E1;color:#4D7047}.workflow-step.done::after{border-left-color:#E7F4E1}
 .workflow-check{position:absolute;top:3px;right:8px;font-size:11px;line-height:1}
 .workflow-message{margin:8px 0 0;font-size:13px;color:#4D7047;font-weight:800}
@@ -1178,7 +1178,7 @@ body{
 .workflow-step{min-height:32px!important;padding:6px 18px 6px 22px!important;font-size:13px!important;line-height:20px!important}
 .results-controls{margin-left:auto!important;justify-content:flex-end!important}
 .problem-seq{font-weight:900;color:var(--brown);margin-right:8px}
-.qtab.active{border:2px solid var(--mint)!important;border-bottom:3px solid var(--mint)!important;font-weight:900!important;background:#FFF3E5!important;color:#9A5B21!important;box-shadow:0 2px 6px rgba(246,178,107,.2)!important;z-index:4}
+.qtab.active{border:2px solid var(--mint)!important;border-bottom:3px solid var(--mint)!important;font-weight:900!important;background:#FFF0EC!important;color:#8A5146!important;box-shadow:0 2px 6px rgba(252,204,190,.3)!important;z-index:4}
 .qtab.active.done{background:#E7F4E1!important;color:#3E6E39!important}
 .qtab.return-highlight{animation:qtabPulse .8s ease 1}@keyframes qtabPulse{0%{transform:scale(1)}35%{transform:scale(1.08)}100%{transform:scale(1)}}
 @media(max-width:1100px){.grading-head-area{grid-template-columns:1fr!important;grid-template-rows:auto auto auto!important}.grading-progress-row{grid-column:1!important;grid-row:1!important}.grading-compact-top{grid-column:1!important;grid-row:2!important}.palette-fixed{grid-column:1!important;grid-row:3!important}}
@@ -1392,7 +1392,7 @@ body{
 }
 
 
-/* ===== v0.3.4 設定・学年情報対応 ===== */
+/* ===== v0.3.5 設定・画面別メニュー対応 ===== */
 :root{
   --workflow-fixed-width:545px;
   --workflow-fixed-height:34px;
@@ -1591,8 +1591,8 @@ body{
 
 /* ===== MITORI週案ページ準拠のアプリケーションシェル ===== */
 :root{
-  --mint:#F6B26B;
-  --mint-dark:#D9914E;
+  --mint:#FCCCBE;
+  --mint-dark:#D88F7D;
   --green:#A8D08D;
   --orange:#F4B56A;
   --blue:#8BB7E8;
@@ -1613,7 +1613,7 @@ html,body{
 }
 body{
   overflow:hidden;
-  font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI","Yu Gothic","Meiryo",sans-serif;
+  font-family:"Yu Gothic UI","Yu Gothic","Meiryo",system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
   color:var(--brown);
 }
 
@@ -1709,7 +1709,7 @@ body{
 .app-header nav button:hover{background:#F2EEEA}
 .app-header nav button.active{
   background:var(--mint);
-  color:#fff;
+  color:#624B45;
 }
 .header-tools{
   justify-self:end;
@@ -1728,7 +1728,7 @@ body{
   font-size:25px;
   line-height:1;
 }
-.header-tool.home{color:var(--mint-dark);background:#FFF3E5}
+.header-tool.home{color:var(--mint-dark);background:#FFF0EC}
 .header-tool.settings{color:#9A77C6;background:#F7F2FB}
 .header-tool.asset-button{
   padding:0;
@@ -1818,7 +1818,7 @@ body{
   font-size:13px;
 }
 .sidebar-nav button:hover{background:#F5F1ED;border-color:var(--line)}
-.sidebar-nav button.active{background:var(--mint);color:#fff}
+.sidebar-nav button.active{background:var(--mint);color:#624B45}
 .sidebar-nav-icon{
   width:25px;
   height:25px;
@@ -1826,12 +1826,12 @@ body{
   display:grid;
   place-items:center;
   border-radius:8px;
-  background:#FFF3E5;
+  background:#FFF0EC;
   color:var(--mint-dark);
   font-size:13px;
   font-weight:900;
 }
-.sidebar-nav button.active .sidebar-nav-icon{background:rgba(255,255,255,.2);color:#fff}
+.sidebar-nav button.active .sidebar-nav-icon{background:rgba(255,255,255,.42);color:#7A5046}
 .sidebar-current{padding:12px}
 .sidebar-current-label{margin-bottom:4px;color:var(--mint-dark);font-size:12px;font-weight:900}
 .sidebar-current-text{color:var(--muted);font-size:12px;line-height:1.55}
@@ -1841,11 +1841,14 @@ body{
   padding:10px 12px;
   border-radius:10px;
   background:var(--mint);
-  color:#fff;
+  color:#624B45;
 }
 
-.editor-controls-host,.settings-controls-host{display:none}
-.workspace-shell.editor-mode{grid-template-columns:344px minmax(0,1fr)}
+.editor-controls-host,.settings-controls-host,.special-controls-host{display:none}
+.workspace-shell.editor-mode,
+.workspace-shell.test-list-mode,
+.workspace-shell.grading-mode{grid-template-columns:344px minmax(0,1fr)}
+.workspace-shell.settings-mode{grid-template-columns:326px minmax(0,1fr)}
 .app-sidebar.editor-mode{
   display:flex;
   flex-direction:column;
@@ -1869,8 +1872,50 @@ body{
 .app-sidebar.settings-mode #sidebarCurrentPanel,
 .app-sidebar.settings-mode .sidebar-primary{display:none}
 .app-sidebar.settings-mode .settings-controls-host{display:block}
+.app-sidebar.test-list-mode #mainNavPanel,
+.app-sidebar.test-list-mode #sidebarCurrentPanel,
+.app-sidebar.test-list-mode .sidebar-primary,
+.app-sidebar.grading-mode #mainNavPanel,
+.app-sidebar.grading-mode #sidebarCurrentPanel,
+.app-sidebar.grading-mode .sidebar-primary,
+.app-sidebar.output-mode #mainNavPanel,
+.app-sidebar.output-mode #sidebarCurrentPanel,
+.app-sidebar.output-mode .sidebar-primary{display:none}
+.app-sidebar.test-list-mode .test-list-controls-host,
+.app-sidebar.grading-mode .grading-controls-host,
+.app-sidebar.output-mode .output-controls-host{display:block}
 .settings-menu-panel{margin-top:0}
-.settings-sidebar-nav button{cursor:pointer}
+.settings-sidebar-nav{display:grid;grid-template-columns:1fr;gap:8px;padding:0}
+.settings-sidebar-nav button{
+  min-height:42px;
+  justify-content:flex-start;
+  padding:8px 13px;
+  border:1px solid var(--line);
+  border-radius:12px;
+  background:#fff;
+  color:var(--brown);
+  cursor:pointer;
+  text-align:left;
+}
+.settings-sidebar-nav button.active{border-color:var(--mint);background:var(--mint);color:#624B45}
+.special-controls-host{min-height:0;overflow:auto;padding-right:2px}
+.special-sidebar-section{
+  display:grid;
+  gap:12px;
+  padding:15px;
+  border:1px solid var(--line);
+  border-radius:14px;
+  background:#FFFEFC;
+}
+.special-sidebar-section h3{margin:0 0 2px;color:var(--brown);font-size:16px}
+.special-sidebar-section label{display:grid;gap:5px;color:var(--brown);font-size:12px;font-weight:900}
+.special-sidebar-section select,.special-sidebar-section input{width:100%;height:40px}
+.special-field-label{color:var(--brown);font-size:12px;font-weight:900}
+.sidebar-class-checks{display:grid;gap:6px;max-height:200px;overflow:auto}
+.sidebar-class-checks .class-chip{width:100%;margin:0;padding:8px 10px;background:#fff}
+.pdf-load-status{display:block;margin-top:-6px}
+.sidebar-load-button,.sidebar-review-button,.sidebar-reset-button{width:100%}
+.output-sidebar-note p{margin:0;color:var(--muted);font-size:12px;line-height:1.7}
 .editor-controls-host .editor-card{
   padding:0;
   border:0!important;
@@ -1936,7 +1981,7 @@ body{
   margin-top:2px;
   padding:5px 7px;
   border-radius:8px;
-  background:#FFF3E5;
+  background:#FFF0EC;
   font-size:11px;
 }
 .editor-controls-host label,
@@ -1983,7 +2028,7 @@ body{
   color:var(--brown);
   text-align:left;
 }
-.accordion-toggle:hover{background:#FFF8F0}
+.accordion-toggle:hover{background:#FFF4F1}
 .accordion-toggle .step-no{display:grid;place-items:center}
 .accordion-label{font-size:13px;font-weight:900}
 .accordion-chevron{color:var(--mint-dark);font-size:16px;text-align:center;transition:transform .18s ease}
@@ -2025,7 +2070,7 @@ body{
 .editor-live-info{
   padding:5px 9px;
   border-radius:999px;
-  background:#FFF3E5;
+  background:#FFF0EC;
   color:var(--mint-dark);
   font-size:11px;
   font-weight:900;
@@ -2053,7 +2098,7 @@ body{
 
 .class-settings-page{
   min-height:100%;
-  padding:16px;
+  padding:18px 16px;
   border:1px solid var(--line);
   border-radius:14px;
   background:#fff;
@@ -2064,17 +2109,19 @@ body{
   align-items:flex-start;
   justify-content:space-between;
   gap:18px;
-  padding-bottom:14px;
-  border-bottom:1px solid var(--line);
+  padding-bottom:16px;
 }
-.class-settings-head .step-title{margin:0 0 5px}
-.class-settings-head p{margin:0;color:var(--muted);font-size:12px;font-weight:700}
+.class-settings-head .step-title{margin:0 0 5px;font-size:22px}
+.class-settings-head p{margin:0;color:var(--muted);font-size:12px;font-weight:700;line-height:1.6}
+.settings-add-form{display:flex;align-items:center;gap:9px;flex:0 0 auto}
+.settings-add-form input{width:min(350px,34vw);height:48px;padding:0 14px;font-size:15px}
+.settings-add-form button{height:48px;padding:0 18px;font-size:15px}
 .add-class-button{
   flex:0 0 auto;
   padding:9px 14px;
   background:var(--mint);
-  color:#fff;
-  box-shadow:0 3px 9px rgba(246,178,107,.25);
+  color:#624B45;
+  box-shadow:0 3px 9px rgba(252,204,190,.32);
 }
 .add-class-button:hover{background:var(--mint-dark)}
 .class-settings-list{
@@ -2099,7 +2146,7 @@ body{
   display:grid;
   place-items:center;
   border-radius:12px;
-  background:#FFF1E3;
+  background:#FFF0EC;
   color:var(--mint-dark);
   font-size:13px;
   font-weight:900;
@@ -2127,17 +2174,16 @@ body{
 }
 .class-settings-empty strong{display:block;margin-bottom:5px;color:var(--brown);font-size:15px}
 
-.class-modal{width:min(620px,calc(100vw - 32px));padding:0;overflow:hidden}
+.class-modal{width:min(880px,calc(100vw - 32px));max-height:calc(100vh - 28px);padding:0;overflow:auto;border-radius:20px}
 .class-modal-head{
   display:flex;
   align-items:flex-start;
   justify-content:space-between;
   gap:14px;
-  padding:17px 18px 14px;
-  border-bottom:1px solid var(--line);
-  background:#FBF8F5;
+  padding:22px 24px 10px;
+  background:#fff;
 }
-.class-modal-head h3{margin:0 0 4px}
+.class-modal-head h3{margin:0 0 4px;font-size:22px}
 .class-modal-head p{color:var(--muted);font-size:11px;font-weight:700}
 .class-modal-close{
   width:32px;
@@ -2150,49 +2196,55 @@ body{
   color:var(--muted);
   font-size:19px;
 }
-.class-modal form{padding:16px 18px 18px}
-.class-modal-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 12px}
-.class-modal-wide{grid-column:1/-1}
-.class-modal-field{display:block;margin-bottom:14px;color:var(--brown);font-size:13px;font-weight:900}
-.class-modal-field input,.class-modal-field select,.class-modal-field textarea{width:100%;margin-top:6px}
+.class-modal form{padding:0 24px 20px}
+.class-modal-grid{display:block}
+.class-modal-field{display:block;margin-bottom:12px;color:var(--brown);font-size:15px;font-weight:900}
+.class-modal-row{display:grid;grid-template-columns:170px minmax(0,1fr);gap:16px;align-items:center}
+.class-modal-field input,.class-modal-field select,.class-modal-field textarea{width:100%;margin-top:0}
+.class-modal-row input,.class-modal-row select{height:49px;padding:0 13px;font-size:16px}
 .class-modal-field input[readonly]{background:#F5F2EF;color:#8A7D76}
-.class-modal-field textarea{height:190px;resize:vertical}
-.class-modal-help{display:block;margin-top:3px;color:var(--muted);font-size:10px;font-weight:700}
-.class-modal-summary{
-  display:flex;
-  justify-content:space-between;
-  gap:12px;
-  margin-top:-5px;
-  padding:8px 10px;
-  border-radius:9px;
-  background:#FFF3E5;
-  color:var(--muted);
-  font-size:11px;
-  font-weight:800;
-}
+.class-roster-field{margin-top:17px}
+.class-roster-field strong{display:block;margin-bottom:5px;font-size:19px}
+.class-modal-field textarea{height:225px;padding:12px;resize:vertical;font-size:15px;line-height:1.65}
+.class-modal-help{display:block;margin:0 0 2px;color:var(--muted);font-size:11px;font-weight:700}
+.class-roster-actions{display:flex;align-items:center;justify-content:flex-end;gap:14px;margin-top:4px;color:var(--muted);font-size:12px;font-weight:800}
+.class-roster-actions button{padding:11px 16px;font-size:14px}
+.class-modal .yutori-modal-actions{align-items:center;margin-top:14px}
+.modal-action-spacer{flex:1}
+.class-delete-button{display:none;margin-right:auto}
 .settings-content-panel{display:none}
 .settings-content-panel.active{display:block}
 .settings-choice-list{
   display:grid;
-  grid-template-columns:repeat(auto-fill,minmax(160px,1fr));
-  gap:11px;
-  margin-top:16px;
+  grid-template-columns:1fr;
+  gap:8px;
+  margin-top:6px;
 }
-.settings-choice{
+.settings-list-item{
   display:flex;
   align-items:center;
-  gap:10px;
-  padding:13px 14px;
+  justify-content:space-between;
+  gap:12px;
+  min-height:49px;
+  padding:8px 12px 8px 16px;
   border:1px solid var(--line);
   border-radius:12px;
   background:#FFFEFC;
   color:var(--brown);
-  font-size:13px;
+  font-size:14px;
   font-weight:900;
 }
-.settings-choice input{width:18px;height:18px;margin:0;accent-color:var(--mint)}
-.settings-choice:has(input:checked){border-color:var(--mint);background:#FFF6EC}
-.subject-choice-list{grid-template-columns:repeat(auto-fill,minmax(180px,1fr))}
+.settings-list-delete{padding:7px 11px;background:#fff;color:var(--danger);font-size:11px}
+.settings-choice-empty{
+  padding:32px 20px;
+  border:1px dashed #DCCFC5;
+  border-radius:14px;
+  background:#FCFAF8;
+  color:var(--muted);
+  text-align:center;
+}
+.grading-load-guide{display:grid;gap:6px;margin-top:15px;padding:32px;border:1px dashed #DCCFC5;border-radius:14px;background:#FCFAF8;color:var(--muted);text-align:center}
+.grading-load-guide strong{color:var(--brown);font-size:16px}
 
 .test-library-page{
   min-height:100%;
@@ -2212,9 +2264,6 @@ body{
 }
 .test-library-head h2{margin:0 0 5px;color:var(--brown);font-size:20px}
 .test-library-head p{margin:0;color:var(--muted);font-size:12px;font-weight:700}
-.test-library-controls{display:flex;justify-content:flex-end;gap:10px;margin:13px 0 0}
-.test-library-controls label{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:11px;font-weight:900}
-.test-library-controls select{height:34px;padding:0 28px 0 9px;font-size:11px}
 .saved-test-list{
   display:grid;
   grid-template-columns:repeat(auto-fill,minmax(250px,1fr));
@@ -2234,7 +2283,7 @@ body{
 .saved-test-card h3{margin:2px 0 5px;color:var(--brown);font-size:16px;line-height:1.45}
 .saved-test-subtitle{min-height:18px;margin:0;color:var(--muted);font-size:11px;font-weight:700}
 .saved-test-meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:13px}
-.saved-test-meta span{padding:4px 7px;border-radius:999px;background:#FFF3E5;color:#9A5B21;font-size:10px;font-weight:900}
+.saved-test-meta span{padding:4px 7px;border-radius:999px;background:#FFF0EC;color:#8A5146;font-size:10px;font-weight:900}
 .saved-test-updated{margin:11px 0 0;color:#9A8D85;font-size:10px}
 .saved-test-actions{display:flex;gap:7px;margin-top:13px}
 .saved-test-actions button{flex:1;padding:8px;font-size:11px}
@@ -2280,7 +2329,7 @@ body{
   align-items:center;
   padding:0 13px;
   background:var(--mint);
-  color:#fff;
+  color:#624B45;
   font-size:12px;
   font-weight:900;
 }
@@ -2330,16 +2379,17 @@ body{
   box-shadow:0 3px 14px rgba(129,104,87,.055)!important;
 }
 .editor-card,.grade-card{border-radius:14px}
-.step-no{background:#FFF3E5;color:var(--mint-dark)}
+.step-no{background:#FFF0EC;color:var(--mint-dark)}
 .step-title,.group,.grade-qno{color:var(--brown)}
-.question-head,.roster-head,.results-table th{background:#FFF1E3!important;color:var(--brown)!important}
+.question-head,.roster-head,.results-table th{background:#FFF0EC!important;color:var(--brown)!important}
 input,select,textarea{border-color:#E6DDD6;border-radius:9px}
 button{border-radius:9px}
 button:focus{outline:none}
-button:focus-visible{outline:3px solid rgba(246,178,107,.35);outline-offset:2px}
+button:focus-visible{outline:3px solid rgba(252,204,190,.58);outline-offset:2px}
 .app-header nav button:focus-visible{outline:2px solid rgba(255,255,255,.9);outline-offset:-4px}
 button.primary{background:var(--mint)}
 button.primary:hover,.sidebar-primary:hover{background:var(--mint-dark)}
+button.primary,.sidebar-primary,.add-class-button{color:#624B45}
 button.secondary{background:#F4F0EC;color:var(--brown)}
 .preview-layout{grid-template-columns:minmax(0,1fr);gap:10px}
 .preview-stage{min-height:100%;background:#E9E6E2;border-radius:12px;padding:14px}
@@ -2372,7 +2422,8 @@ button.secondary{background:#F4F0EC;color:var(--brown)}
 .sidebar-collapsed .sidebar-current,
 .sidebar-collapsed .sidebar-primary,
 .sidebar-collapsed .editor-controls-host,
-.sidebar-collapsed .settings-controls-host{display:none}
+.sidebar-collapsed .settings-controls-host,
+.sidebar-collapsed .special-controls-host{display:none}
 .sidebar-collapsed .sidebar-nav{padding:6px 0}
 .sidebar-collapsed .sidebar-nav button{justify-content:center;padding:7px 5px}
 .sidebar-collapsed .sidebar-collapse{transform:rotate(180deg)}
@@ -2385,7 +2436,7 @@ button.secondary{background:#F4F0EC;color:var(--brown)}
   .brand-kicker{display:none}
   .app-header nav button{padding:8px 10px;font-size:13px}
   .workspace-shell{grid-template-columns:236px minmax(0,1fr)}
-  .workspace-shell.editor-mode{grid-template-columns:316px minmax(0,1fr)}
+  .workspace-shell.editor-mode,.workspace-shell.test-list-mode,.workspace-shell.grading-mode{grid-template-columns:316px minmax(0,1fr)}
   .side-card{grid-template-columns:1fr 1fr}
 }
 @media(max-width:820px){
@@ -2395,7 +2446,7 @@ button.secondary{background:#F4F0EC;color:var(--brown)}
   .app-header nav{grid-column:1/-1;grid-row:2;justify-self:stretch}
   .app-header nav button{flex:1}
   .header-tools{grid-column:2;grid-row:1}
-  .workspace-shell,.workspace-shell.sidebar-collapsed,.workspace-shell.editor-mode{grid-template-columns:1fr}
+  .workspace-shell,.workspace-shell.sidebar-collapsed,.workspace-shell.editor-mode,.workspace-shell.test-list-mode,.workspace-shell.grading-mode,.workspace-shell.settings-mode{grid-template-columns:1fr}
   .app-sidebar{overflow:visible}
   .app-sidebar.editor-mode{overflow:visible;display:block}
   .app-sidebar.editor-mode .editor-controls-host{overflow:visible}
@@ -2420,14 +2471,12 @@ button.secondary{background:#F4F0EC;color:var(--brown)}
   .editor-live-toolbar{align-items:flex-start;flex-direction:column}
   .editor-live-actions{width:100%;margin-left:0;justify-content:space-between}
   .class-settings-head{align-items:stretch;flex-direction:column}
+  .settings-add-form{width:100%}
+  .settings-add-form input{width:auto;min-width:0;flex:1}
   .add-class-button{align-self:flex-end}
-  .class-modal-summary{flex-direction:column;gap:3px}
-  .class-modal-grid{grid-template-columns:1fr}
-  .class-modal-wide{grid-column:auto}
+  .class-modal-row{grid-template-columns:1fr;gap:5px}
   .test-library-head{align-items:stretch;flex-direction:column}
   .test-library-head .primary{align-self:flex-end}
-  .test-library-controls{align-items:stretch;flex-direction:column}
-  .test-library-controls label{justify-content:space-between}
 }
 @media(max-width:420px){
   .app-header{padding:6px}
@@ -2494,10 +2543,10 @@ button.secondary{background:#F4F0EC;color:var(--brown)}
 <body>
 <div class="app-shell">
 <header class="app-header no-print">
-  <div class="brand" aria-label="YUTORI v0.3.4">
+  <div class="brand" aria-label="YUTORI v0.3.5">
     <div class="brand-copy">
       <img class="brand-logo-image" src="assets/yutori-logo.svg" alt="YUTORI つくる・つける・つなげる">
-      <span class="brand-version">v0.3.4</span>
+      <span class="brand-version">v0.3.5</span>
     </div>
   </div>
   <nav aria-label="主要メニュー">
@@ -2523,13 +2572,51 @@ button.secondary{background:#F4F0EC;color:var(--brown)}
     </div>
 
     <div id="editorControlsHost" class="editor-controls-host" aria-label="テスト作成の入力項目"></div>
+    <div id="testListControlsHost" class="special-controls-host test-list-controls-host" aria-label="テスト一覧の絞り込み">
+      <div class="special-sidebar-section">
+        <h3>絞り込み・並べ替え</h3>
+        <label>学年
+          <select id="testGradeFilter" onchange="renderSavedTestList()"><option value="">すべて</option></select>
+        </label>
+        <label>教科
+          <select id="testSubjectFilter" onchange="renderSavedTestList()"><option value="">すべて</option></select>
+        </label>
+        <label>並び順
+          <select id="testSortMode" onchange="renderSavedTestList()">
+            <option value="updated">更新日の新しい順</option>
+            <option value="grade">学年順</option>
+            <option value="subject">教科順</option>
+          </select>
+        </label>
+        <button class="secondary sidebar-reset-button" type="button" onclick="resetTestListFilters()">条件をリセット</button>
+      </div>
+    </div>
+    <div id="gradingControlsHost" class="special-controls-host grading-controls-host" aria-label="採点の準備">
+      <div class="special-sidebar-section">
+        <h3>新しく採点を始める</h3>
+        <label>対象テスト<select id="gradingTestSet"></select></label>
+        <div class="special-field-label">対象クラス</div>
+        <div id="classChecks" class="class-checks sidebar-class-checks"></div>
+        <label>答案PDF
+          <input id="pdfInput" type="file" accept="application/pdf" multiple>
+        </label>
+        <span id="pdfSummary" class="help pdf-load-status">未選択</span>
+        <button class="primary sidebar-load-button" type="button" onclick="processPdf()">PDFを読み込む</button>
+        <button id="openReviewButton" class="green step-next-button sidebar-review-button" type="button" onclick="openReviewFromLoad()">確認と修正へ</button>
+      </div>
+    </div>
+    <div id="outputControlsHost" class="special-controls-host output-controls-host" aria-label="結果出力メニュー">
+      <div class="special-sidebar-section output-sidebar-note">
+        <h3>結果出力</h3>
+        <p>実データで検証しながら、必要な出力条件をここへ追加します。</p>
+      </div>
+    </div>
     <div id="settingsControlsHost" class="settings-controls-host" aria-label="設定メニュー">
-      <div class="sidebar-panel settings-menu-panel">
-        <div class="sidebar-panel-title"><span>設定メニュー</span><span>−</span></div>
+      <div class="settings-menu-panel">
         <div class="sidebar-nav settings-sidebar-nav">
-          <button data-settings-panel="grade" type="button" onclick="showSettingsPanel('grade')"><span class="sidebar-nav-icon">年</span><span class="sidebar-nav-label">学年設定</span></button>
-          <button data-settings-panel="subject" type="button" onclick="showSettingsPanel('subject')"><span class="sidebar-nav-icon">教</span><span class="sidebar-nav-label">教科設定</span></button>
-          <button class="active" data-settings-panel="class" type="button" onclick="showSettingsPanel('class')"><span class="sidebar-nav-icon">組</span><span class="sidebar-nav-label">クラス設定</span></button>
+          <button data-settings-panel="grade" type="button" onclick="showSettingsPanel('grade')"><span class="sidebar-nav-label">学年設定</span></button>
+          <button data-settings-panel="subject" type="button" onclick="showSettingsPanel('subject')"><span class="sidebar-nav-label">教科設定</span></button>
+          <button class="active" data-settings-panel="class" type="button" onclick="showSettingsPanel('class')"><span class="sidebar-nav-label">クラス設定</span></button>
         </div>
       </div>
     </div>
@@ -2716,17 +2803,6 @@ button.secondary{background:#F4F0EC;color:var(--brown)}
       </div>
       <button class="primary" type="button" onclick="createNewTest()">＋新しいテストを作る</button>
     </div>
-    <div class="test-library-controls">
-      <label>学年
-        <select id="testGradeFilter" onchange="renderSavedTestList()"><option value="">すべて</option></select>
-      </label>
-      <label>並び順
-        <select id="testSortMode" onchange="renderSavedTestList()">
-          <option value="updated">更新日の新しい順</option>
-          <option value="grade">学年順</option>
-        </select>
-      </label>
-    </div>
     <div id="savedTestList" class="saved-test-list"></div>
   </div>
 </section>
@@ -2750,22 +2826,7 @@ button.secondary{background:#F4F0EC;color:var(--brown)}
   <div id="loadView" class="grade-card" style="display:none">
     <div id="workflowLoad" class="workflow-bar"></div>
     <h2 class="step-title">答案を読み込む</h2>
-    <div class="grade-grid2">
-      <div class="grade-field"><label>テストセット</label><select id="gradingTestSet"></select></div>
-      <div class="grade-field"><label>対象クラス（複数選択可）</label><div id="classChecks" class="class-checks"></div></div>
-      <div class="grade-field" style="grid-column:1/-1">
-        <label>答案PDF</label>
-        <div class="pdf-input-row">
-          <input id="pdfInput" type="file" accept="application/pdf" multiple>
-          <span id="pdfSummary" class="help pdf-load-status">未選択</span>
-        </div>
-      </div>
-    </div>
-    <div class="grade-actions load-actions step-action-grid">
-      <div class="action-spacer"></div>
-      <div class="next-slot"><button class="primary" onclick="processPdf()">読み込み</button></div>
-      <div class="next-slot"><button id="openReviewButton" class="green step-next-button" type="button" onclick="openReviewFromLoad()">確認と修正</button></div>
-    </div>
+    <div class="grading-load-guide"><strong>左側で採点の準備を行います</strong><span>対象テスト・クラス・答案PDFを選び、「PDFを読み込む」を押してください。</span></div>
   </div>
 
   <div id="reviewView" class="grade-card" style="display:none">
@@ -2907,8 +2968,9 @@ button.secondary{background:#F4F0EC;color:var(--brown)}
     <div class="class-settings-head">
       <div>
         <h2 class="step-title">学年設定</h2>
-        <p>テスト作成とクラス登録で使用する学年を選びます。</p>
+        <p>担当学年など、学年別に整理するための名称を自由に登録できます。</p>
       </div>
+      <div class="settings-add-form"><input id="gradeSettingInput" placeholder="例：5年生、中学1年" maxlength="30" onkeydown="if(event.key==='Enter'){event.preventDefault();addGradeSetting()}"><button class="primary" type="button" onclick="addGradeSetting()">＋追加</button></div>
     </div>
     <div id="gradeSettingsList" class="settings-choice-list"></div>
   </div>
@@ -2917,8 +2979,9 @@ button.secondary{background:#F4F0EC;color:var(--brown)}
     <div class="class-settings-head">
       <div>
         <h2 class="step-title">教科設定</h2>
-        <p>テスト作成で使用する教科を選びます。</p>
+        <p>テスト作成で使用する教科名を自由に登録できます。</p>
       </div>
+      <div class="settings-add-form"><input id="subjectSettingInput" placeholder="例：国語、算数、外国語" maxlength="40" onkeydown="if(event.key==='Enter'){event.preventDefault();addSubjectSetting()}"><button class="primary" type="button" onclick="addSubjectSetting()">＋追加</button></div>
     </div>
     <div id="subjectSettingsList" class="settings-choice-list subject-choice-list"></div>
   </div>
@@ -3036,9 +3099,13 @@ function readStringArray(key,defaults){
     return Array.isArray(value)?value.map(item=>String(item)):defaults.slice();
   }catch(e){return defaults.slice()}
 }
-function readGradeSettings(){return readStringArray(GRADE_SETTINGS_KEY,DEFAULT_GRADES)}
-function readSubjectSettings(){return readStringArray(SUBJECT_SETTINGS_KEY,DEFAULT_SUBJECTS)}
-function gradeLabel(value){return value?`${value}年`:"学年未設定"}
+function readGradeSettings(){return readStringArray(GRADE_SETTINGS_KEY,[])}
+function readSubjectSettings(){return readStringArray(SUBJECT_SETTINGS_KEY,[])}
+function gradeLabel(value){
+  const text=String(value||"").trim();
+  if(!text)return "学年未設定";
+  return /年|学年/.test(text)?text:`${text}年`;
+}
 function setSelectOptions(select,values,current,{blankLabel="選択してください",includeBlank=true}={}){
   if(!select)return;
   const normalized=[...new Set(values.map(value=>String(value)).filter(Boolean))];
@@ -3054,18 +3121,25 @@ function populateGradeControls(currentTestGrade=state.grade,currentClassGrade=do
 function renderGradeSettings(){
   const host=document.getElementById("gradeSettingsList");
   if(!host)return;
-  const selected=readGradeSettings();
-  host.innerHTML=DEFAULT_GRADES.map(value=>`<label class="settings-choice"><input type="checkbox" value="${value}" ${selected.includes(value)?"checked":""} onchange="toggleGradeSetting('${value}',this.checked)"><span>${gradeLabel(value)}</span></label>`).join("");
-}
-function toggleGradeSetting(value,checked){
   const values=readGradeSettings();
-  if(!checked&&values.length===1&&values.includes(value)){
-    alert("学年は1つ以上選択してください。");
-    renderGradeSettings();
-    return;
-  }
-  const next=checked?[...new Set([...values,value])]:values.filter(item=>item!==value);
-  localStorage.setItem(GRADE_SETTINGS_KEY,JSON.stringify(DEFAULT_GRADES.filter(item=>next.includes(item))));
+  host.innerHTML=values.length?values.map(value=>{
+    const encoded=encodeURIComponent(value);
+    return `<div class="settings-list-item"><span>${escapeHtml(value)}</span><button type="button" class="settings-list-delete" onclick="removeGradeSetting(decodeURIComponent('${encoded}'))">削除</button></div>`;
+  }).join(""):'<div class="settings-choice-empty">学年はまだ登録されていません。上の入力欄から追加できます。</div>';
+}
+function addGradeSetting(){
+  const input=document.getElementById("gradeSettingInput");
+  const additions=String(input?.value||"").split(/[、,]/).map(value=>value.trim()).filter(Boolean);
+  if(!additions.length){input?.focus();return}
+  localStorage.setItem(GRADE_SETTINGS_KEY,JSON.stringify([...new Set([...readGradeSettings(),...additions])]));
+  input.value="";
+  populateGradeControls();
+  renderGradeSettings();
+  renderSavedTestList();
+}
+function removeGradeSetting(value){
+  if(!confirm(`「${value}」を学年設定から削除しますか？\n既存のテストやクラスに保存された学年情報は残ります。`))return;
+  localStorage.setItem(GRADE_SETTINGS_KEY,JSON.stringify(readGradeSettings().filter(item=>item!==value)));
   populateGradeControls();
   renderGradeSettings();
   renderSavedTestList();
@@ -3073,22 +3147,34 @@ function toggleGradeSetting(value,checked){
 function renderSubjectSettings(){
   const host=document.getElementById("subjectSettingsList");
   if(!host)return;
-  const selected=readSubjectSettings();
-  host.innerHTML=DEFAULT_SUBJECTS.map((value,index)=>`<label class="settings-choice"><input type="checkbox" value="${escapeHtml(value)}" ${selected.includes(value)?"checked":""} onchange="toggleSubjectSetting(${index},this.checked)"><span>${escapeHtml(value)}</span></label>`).join("");
-}
-function toggleSubjectSetting(index,checked){
-  const value=DEFAULT_SUBJECTS[index];
   const values=readSubjectSettings();
-  const next=checked?[...new Set([...values,value])]:values.filter(item=>item!==value);
-  localStorage.setItem(SUBJECT_SETTINGS_KEY,JSON.stringify(DEFAULT_SUBJECTS.filter(item=>next.includes(item))));
+  host.innerHTML=values.length?values.map(value=>{
+    const encoded=encodeURIComponent(value);
+    return `<div class="settings-list-item"><span>${escapeHtml(value)}</span><button type="button" class="settings-list-delete" onclick="removeSubjectSetting(decodeURIComponent('${encoded}'))">削除</button></div>`;
+  }).join(""):'<div class="settings-choice-empty">教科はまだ登録されていません。上の入力欄から自由に追加できます。</div>';
+}
+function addSubjectSetting(){
+  const input=document.getElementById("subjectSettingInput");
+  const additions=String(input?.value||"").split(/[、,]/).map(value=>value.trim()).filter(Boolean);
+  if(!additions.length){input?.focus();return}
+  localStorage.setItem(SUBJECT_SETTINGS_KEY,JSON.stringify([...new Set([...readSubjectSettings(),...additions])]));
+  input.value="";
   renderSubjectSettings();
   loadHistory();
+  renderSavedTestList();
+}
+function removeSubjectSetting(value){
+  if(!confirm(`「${value}」を教科設定から削除しますか？\n既存のテストに保存された教科情報は残ります。`))return;
+  localStorage.setItem(SUBJECT_SETTINGS_KEY,JSON.stringify(readSubjectSettings().filter(item=>item!==value)));
+  renderSubjectSettings();
+  loadHistory();
+  renderSavedTestList();
 }
 function renderSettingsChoices(){renderGradeSettings();renderSubjectSettings();populateGradeControls()}
 function applySettingsPanelMeta(){
   const meta={
-    grade:{title:"学年設定",hint:"テスト作成とクラス登録で使用する学年を選択します"},
-    subject:{title:"教科設定",hint:"テスト作成で使用する教科を選択します"},
+    grade:{title:"学年設定",hint:"担当学年など、学年別に整理するための名称を自由に登録できます"},
+    subject:{title:"教科設定",hint:"国語・算数・外国語など、テストで使用する教科名を自由に登録できます"},
     class:{title:"クラス設定",hint:"右上の「＋クラスを追加」から登録できます"}
   }[activeSettingsPanel];
   document.querySelectorAll("[data-settings-panel]").forEach(button=>button.classList.toggle("active",button.dataset.settingsPanel===activeSettingsPanel));
@@ -3216,13 +3302,22 @@ function showScreen(id){
   document.getElementById(id).classList.add("active");
   const isEditor=id==="editorScreen";
   const isSettings=id==="rosterScreen";
+  const isTestList=id==="testListScreen";
+  const isGrading=id==="gradingScreen";
+  const isOutput=id==="outputScreen";
   const shell=document.getElementById("workspaceShell");
   const sidebar=document.querySelector(".app-sidebar");
   shell?.classList.toggle("editor-mode",isEditor);
   shell?.classList.toggle("settings-mode",isSettings);
+  shell?.classList.toggle("test-list-mode",isTestList);
+  shell?.classList.toggle("grading-mode",isGrading);
+  shell?.classList.toggle("output-mode",isOutput);
   sidebar?.classList.toggle("editor-mode",isEditor);
   sidebar?.classList.toggle("settings-mode",isSettings);
-  if((isEditor||isSettings)&&shell?.classList.contains("sidebar-collapsed")){
+  sidebar?.classList.toggle("test-list-mode",isTestList);
+  sidebar?.classList.toggle("grading-mode",isGrading);
+  sidebar?.classList.toggle("output-mode",isOutput);
+  if((isEditor||isSettings||isTestList||isGrading||isOutput)&&shell?.classList.contains("sidebar-collapsed")){
     shell.classList.remove("sidebar-collapsed");
     const collapseButton=document.getElementById("sidebarCollapse");
     if(collapseButton){
@@ -3392,16 +3487,29 @@ function renderSavedTestList(){
   let tests=readSavedTests();
   const filterSelect=document.getElementById("testGradeFilter");
   const currentFilter=filterSelect?.value||"";
-  const availableGrades=[...new Set([...readGradeSettings(),...tests.map(item=>String(item.grade||"")).filter(Boolean)])].sort((a,b)=>Number(a)-Number(b));
+  const subjectSelect=document.getElementById("testSubjectFilter");
+  const currentSubjectFilter=subjectSelect?.value||"";
+  const collator=new Intl.Collator("ja",{numeric:true,sensitivity:"base"});
+  const availableGrades=[...new Set([...readGradeSettings(),...tests.map(item=>String(item.grade||"")).filter(Boolean)])].sort(collator.compare);
+  const availableSubjects=[...new Set([...readSubjectSettings(),...tests.map(item=>String(item.subject||"")).filter(Boolean)])].sort(collator.compare);
   if(filterSelect){
     filterSelect.innerHTML='<option value="">すべて</option>'+availableGrades.map(value=>`<option value="${escapeHtml(value)}">${escapeHtml(gradeLabel(value))}</option>`).join("");
     filterSelect.value=currentFilter;
   }
+  if(subjectSelect){
+    subjectSelect.innerHTML='<option value="">すべて</option>'+availableSubjects.map(value=>`<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`).join("");
+    subjectSelect.value=currentSubjectFilter;
+  }
   if(currentFilter)tests=tests.filter(item=>String(item.grade||"")===currentFilter);
+  if(currentSubjectFilter)tests=tests.filter(item=>String(item.subject||"")===currentSubjectFilter);
   const sortMode=document.getElementById("testSortMode")?.value||"updated";
-  tests.sort((a,b)=>sortMode==="grade"?((Number(a.grade)||99)-(Number(b.grade)||99)||(Number(b.updatedAt)||0)-(Number(a.updatedAt)||0)):(Number(b.updatedAt)||0)-(Number(a.updatedAt)||0));
+  tests.sort((a,b)=>{
+    if(sortMode==="grade")return collator.compare(String(a.grade||""),String(b.grade||""))||(Number(b.updatedAt)||0)-(Number(a.updatedAt)||0);
+    if(sortMode==="subject")return collator.compare(String(a.subject||""),String(b.subject||""))||(Number(b.updatedAt)||0)-(Number(a.updatedAt)||0);
+    return (Number(b.updatedAt)||0)-(Number(a.updatedAt)||0);
+  });
   if(!tests.length){
-    host.innerHTML=currentFilter?'<div class="saved-test-empty"><strong>この学年のテストはありません</strong>学年の選択を「すべて」に変更すると全件を表示できます。</div>':'<div class="saved-test-empty"><strong>保存したテストはまだありません</strong>「＋新しいテストを作る」から作成を始められます。</div>';
+    host.innerHTML=(currentFilter||currentSubjectFilter)?'<div class="saved-test-empty"><strong>条件に合うテストはありません</strong>左側の絞り込み条件を変更すると、ほかのテストを表示できます。</div>':'<div class="saved-test-empty"><strong>保存したテストはまだありません</strong>「＋新しいテストを作る」から作成を始められます。</div>';
     return;
   }
   const sizeLabel={a4:"A4",b5:"B5",a5:"A5"};
@@ -3423,6 +3531,15 @@ function renderSavedTestList(){
       </div>
     </article>`;
   }).join("");
+}
+function resetTestListFilters(){
+  const grade=document.getElementById("testGradeFilter");
+  const subject=document.getElementById("testSubjectFilter");
+  const sort=document.getElementById("testSortMode");
+  if(grade)grade.value="";
+  if(subject)subject.value="";
+  if(sort)sort.value="updated";
+  renderSavedTestList();
 }
 function applyTestToEditor(source,id=""){
   Object.assign(state,copyTestState(source));
@@ -3595,10 +3712,28 @@ function classDisplayName(className){
   return [profile.grade?gradeLabel(profile.grade):"",className].filter(Boolean).join(" ");
 }
 function refreshGradeUi(){
-  gradingState.testSets=[{id:"current",name:state.testName||"現在のテスト",questions:[...state.questions],answers:[...state.answers]}];
-  document.getElementById("gradingTestSet").innerHTML=gradingState.testSets.map(t=>`<option value="${t.id}">${escapeHtml(t.name)}</option>`).join("");
+  const previousTestId=gradingState.selectedTestId||currentSavedTestId||"";
+  gradingState.testSets=readSavedTests().map(item=>({
+    id:item.id,
+    name:[gradeLabel(item.grade),item.subject,item.testName||"名称未設定"].filter(Boolean).join(" ／ "),
+    testName:item.testName||"名称未設定",
+    grade:item.grade||"",
+    subject:item.subject||"",
+    unit:item.unit||"",
+    questions:[...(item.questions||[])],
+    answers:[...(item.answers||[])]
+  }));
+  if(!gradingState.testSets.length){
+    gradingState.testSets=[{id:"current",name:state.testName||"現在作成中のテスト",testName:state.testName||"現在作成中のテスト",grade:state.grade||"",subject:state.subject||"",unit:state.unit||"",questions:[...state.questions],answers:[...state.answers]}];
+  }
+  gradingState.selectedTestId=gradingState.testSets.some(item=>item.id===previousTestId)?previousTestId:gradingState.testSets[0].id;
+  const testSelect=document.getElementById("gradingTestSet");
+  testSelect.innerHTML=gradingState.testSets.map(t=>`<option value="${escapeHtml(t.id)}">${escapeHtml(t.name)}</option>`).join("");
+  testSelect.value=gradingState.selectedTestId;
+  testSelect.onchange=()=>{gradingState.selectedTestId=testSelect.value};
   const classNames=Object.keys(gradingState.rosters);
-  document.getElementById("classChecks").innerHTML=classNames.length?classNames.map((c,i)=>`<label class="class-chip"><input type="checkbox" value="${escapeHtml(c)}" ${i<2?"checked":""}>${escapeHtml(classDisplayName(c))}</label>`).join(""):'<span class="help">設定からクラスを登録してください。</span>';
+  const selectedClasses=new Set(gradingState.classes);
+  document.getElementById("classChecks").innerHTML=classNames.length?classNames.map((c,i)=>`<label class="class-chip"><input type="checkbox" value="${escapeHtml(c)}" ${(selectedClasses.size?selectedClasses.has(c):i<2)?"checked":""}>${escapeHtml(classDisplayName(c))}</label>`).join(""):'<span class="help">設定からクラスを登録してください。</span>';
   renderClassSettings();
 }
 function workflowStepLabel(step){return {1:"① 答案の読込",2:"② 確認と修正",3:"③ 採点",4:"④ 結果の確認"}[step]}
@@ -3701,6 +3836,11 @@ pdfInput.addEventListener("change",e=>{gradingState.files=[...e.target.files];pd
 function processPdf(){
   gradingState.selectedTestId=gradingTestSet.value;
   gradingState.classes=[...document.querySelectorAll("#classChecks input:checked")].map(x=>x.value);
+  const test=currentTest();
+  if(!test)return alert("対象テストを選択してください。");
+  if(!test.questions.length)return alert("問題が登録されているテストを選択してください。");
+  if(!gradingState.classes.length)return alert("対象クラスを選択してください。");
+  if(!gradingState.files.length)return alert("答案PDFを選択してください。");
   gradingState.sessionId=`session-${Date.now()}`;
   gradingState.status="in-progress";
   gradingState.grades={};
@@ -3710,9 +3850,6 @@ function processPdf(){
   gradingState.q=0;
   gradingState.questionScores=[];
   localStorage.setItem("yutori_grades_v021","{}");
-  if(!gradingState.classes.length)return alert("対象クラスを選択してください。");
-  if(!gradingState.files.length)return alert("答案PDFを選択してください。");
-  const test=gradingState.testSets[0];
   gradingState.answers={};
   gradingState.classes.forEach(c=>{
     gradingState.answers[c]=(gradingState.rosters[c]||[]).map(p=>({
@@ -3731,7 +3868,7 @@ function renderIssues(){
   issueList.innerHTML=gradingState.issues.length?gradingState.issues.map(i=>`<div class="issue-item"><div class="issue-kind">${i.kind}</div></div>`).join(""):'<div class="help">確認が必要な答案はありません。</div>';
 }
 function startGrading(){completeReviewStep()}
-function currentTest(){return gradingState.testSets[0]}
+function currentTest(){return gradingState.testSets.find(item=>item.id===gradingState.selectedTestId)||gradingState.testSets[0]}
 function key(c,n,q){return `${c}::${n}::${q}`}
 function isDone(q){
   let total=0,done=0;
@@ -3888,7 +4025,7 @@ function renderClassSettings(){
     const studentCount=Number(profile.studentCount)||roster.length;
     const encoded=encodeURIComponent(className);
     return `<article class="class-settings-card">
-      <div class="class-settings-mark">${escapeHtml(profile.grade?`${profile.grade}年`:className.slice(0,3))}</div>
+      <div class="class-settings-mark">${escapeHtml(profile.grade?gradeLabel(profile.grade):className.slice(0,3))}</div>
       <div class="class-settings-card-copy"><h3>${escapeHtml(classDisplayName(className))}</h3><p>${escapeHtml(profile.schoolName||"学校名未設定")}・人数 ${studentCount}名・名簿 ${roster.length}名</p></div>
       <button class="secondary class-settings-edit" type="button" onclick="openClassModal(decodeURIComponent('${encoded}'))">編集</button>
     </article>`;
@@ -3904,8 +4041,9 @@ function openClassModal(className=""){
   const rosterInput=document.getElementById("classRosterInput");
   const isEditing=!!className;
   const profile=isEditing?(gradingState.classProfiles[className]||{}):{};
-  document.getElementById("classModalTitle").textContent=isEditing?"クラスを編集":"クラスを追加";
-  document.getElementById("classModalSaveButton").textContent=isEditing?"保存":"登録";
+  document.getElementById("classModalTitle").textContent=isEditing?"クラスを編集":"クラスを登録";
+  document.getElementById("classModalSaveButton").textContent="クラスを保存";
+  document.getElementById("deleteClassButton").style.display=isEditing?"inline-flex":"none";
   schoolInput.value=profile.schoolName||"";
   nameInput.value=className;
   nameInput.readOnly=isEditing;
@@ -3932,6 +4070,30 @@ function updateClassRosterCount(){
   const count=document.getElementById("classRosterCount");
   if(count)count.textContent=`名簿登録：${roster.length}名`;
 }
+function applyClassRoster(){
+  const roster=parseRosterText(document.getElementById("classRosterInput")?.value||"");
+  if(!roster.length){alert("名簿を貼り付けてください。");document.getElementById("classRosterInput")?.focus();return}
+  document.getElementById("classStudentCountInput").value=String(roster.length);
+  const count=document.getElementById("classRosterCount");
+  if(count)count.textContent=`名簿登録：${roster.length}名（人数へ反映済み）`;
+}
+function deleteEditingClass(){
+  const className=editingClassName;
+  if(!className)return;
+  let sessions=[];
+  try{sessions=JSON.parse(localStorage.getItem(sessionsKey())||"[]")}catch(e){sessions=[]}
+  const usedCount=sessions.filter(session=>Array.isArray(session.classes)&&session.classes.includes(className)).length;
+  const warning=usedCount?`\n\nこのクラスを使用した採点履歴が${usedCount}件あります。採点履歴は削除せず残します。`:"";
+  if(!confirm(`「${classDisplayName(className)}」を削除しますか？\nクラス情報と名簿は元に戻せません。${warning}`))return;
+  delete gradingState.rosters[className];
+  delete gradingState.classProfiles[className];
+  gradingState.classes=gradingState.classes.filter(value=>value!==className);
+  saveRosters();
+  saveClassProfiles();
+  closeClassModal();
+  refreshGradeUi();
+  renderClassSettings();
+}
 function saveClassFromModal(){
   const schoolName=document.getElementById("classSchoolInput").value.trim();
   const className=document.getElementById("classNameInput").value.trim();
@@ -3956,7 +4118,7 @@ let autoSaveTimer=null;
 function sessionsKey(){return "yutori_grading_sessions_v023"}
 function setSaveStatus(mode){const el=document.getElementById("saveStatus");if(!el)return;el.className=`save-status ${mode}`;el.textContent=mode==="saving"?"自動保存：保存中…":"自動保存：保存済み"}
 function scheduleAutoSave(){setSaveStatus("saving");clearTimeout(autoSaveTimer);autoSaveTimer=setTimeout(saveGradingSessionNow,350)}
-function serializeSession(){const t=currentTest()||{};return{id:gradingState.sessionId||`session-${Date.now()}`,selectedTestId:gradingState.selectedTestId,testName:t.name||state.testName||"名称未設定",subject:state.subject||"",unit:state.unit||"",questions:t.questions||[],modelAnswers:t.answers||[],classes:[...gradingState.classes],files:gradingState.files.map(f=>({name:f.name,type:f.type,size:f.size,lastModified:f.lastModified})),issues:gradingState.issues,answers:gradingState.answers,grades:gradingState.grades,q:gradingState.q,selectedPen:gradingState.selectedPen,questionScores:gradingState.questionScores||[],fullScore:Number(document.getElementById("fullScore")?.value||1),partialScore:Number(document.getElementById("partialScore")?.value||.5),gradeColumns:Number(document.getElementById("gradeColumns")?.value||gradingState.gradeColumns||7),status:gradingState.status||"in-progress",workflowCompleted:gradingState.workflowCompleted||{},currentWorkflowStep:gradingState.currentWorkflowStep||1,lastSavedAt:Date.now()}}
+function serializeSession(){const t=currentTest()||{};return{id:gradingState.sessionId||`session-${Date.now()}`,selectedTestId:gradingState.selectedTestId,testName:t.testName||t.name||state.testName||"名称未設定",subject:t.subject||state.subject||"",unit:t.unit||state.unit||"",questions:t.questions||[],modelAnswers:t.answers||[],classes:[...gradingState.classes],files:gradingState.files.map(f=>({name:f.name,type:f.type,size:f.size,lastModified:f.lastModified})),issues:gradingState.issues,answers:gradingState.answers,grades:gradingState.grades,q:gradingState.q,selectedPen:gradingState.selectedPen,questionScores:gradingState.questionScores||[],fullScore:Number(document.getElementById("fullScore")?.value||1),partialScore:Number(document.getElementById("partialScore")?.value||.5),gradeColumns:Number(document.getElementById("gradeColumns")?.value||gradingState.gradeColumns||7),status:gradingState.status||"in-progress",workflowCompleted:gradingState.workflowCompleted||{},currentWorkflowStep:gradingState.currentWorkflowStep||1,lastSavedAt:Date.now()}}
 function saveGradingSessionNow(){if(!gradingState.sessionId)return;setSaveStatus("saving");const sessions=JSON.parse(localStorage.getItem(sessionsKey())||"[]");const data=serializeSession();gradingState.lastSavedAt=data.lastSavedAt;gradingState.gradeColumns=data.gradeColumns;localStorage.setItem(sessionsKey(),JSON.stringify([data,...sessions.filter(s=>s.id!==data.id)]));localStorage.setItem("yutori_grades_v021",JSON.stringify(gradingState.grades));setTimeout(()=>setSaveStatus("saved"),120)}
 function changeGradeColumns(v){gradingState.gradeColumns=Number(v)||7;localStorage.setItem("yutori_grade_columns_v023",String(gradingState.gradeColumns));renderGradeGrid();scheduleAutoSave()}
 function completedQuestionCount(s){let count=0;for(let q=0;q<(s.questions||[]).length;q++){let total=0,done=0;(s.classes||[]).forEach(c=>(s.answers?.[c]||[]).forEach(p=>{total++;if(s.grades?.[`${c}::${p.no}::${q}`])done++}));if(total&&done===total)count++}return count}
@@ -4366,34 +4528,34 @@ showScreen("editorScreen");
   <div class="yutori-modal class-modal" role="dialog" aria-modal="true" aria-labelledby="classModalTitle">
     <div class="class-modal-head">
       <div>
-        <h3 id="classModalTitle">クラスを追加</h3>
-        <p>学校・学年・クラスと名簿を入力して登録します。</p>
+        <h3 id="classModalTitle">クラスを登録</h3>
       </div>
-      <button class="class-modal-close" type="button" aria-label="閉じる" onclick="closeClassModal()">×</button>
     </div>
     <form onsubmit="saveClassFromModal();return false">
       <div class="class-modal-grid">
-        <label class="class-modal-field class-modal-wide">学校名
-          <input id="classSchoolInput" autocomplete="organization" placeholder="例：みどり小学校" maxlength="60">
+        <label class="class-modal-field class-modal-row"><span>学校名</span>
+          <input id="classSchoolInput" autocomplete="organization" placeholder="例：○○小学校" maxlength="60">
         </label>
-        <label class="class-modal-field">クラス名
-          <input id="classNameInput" autocomplete="off" placeholder="例：1組" maxlength="30">
+        <label class="class-modal-field class-modal-row"><span>クラス名</span>
+          <input id="classNameInput" autocomplete="off" placeholder="例：5-1" maxlength="30">
         </label>
-        <label class="class-modal-field">学年
+        <label class="class-modal-field class-modal-row"><span>学年</span>
           <select id="classGradeInput"></select>
         </label>
-        <label class="class-modal-field">人数
+        <label class="class-modal-field class-modal-row"><span>人数</span>
           <input id="classStudentCountInput" type="number" min="0" max="200" step="1" value="0">
         </label>
       </div>
-      <label class="class-modal-field">名簿登録
+      <label class="class-modal-field class-roster-field"><strong>名簿登録</strong>
         <span class="class-modal-help">表計算ソフトから「出席番号」「氏名」の2列を貼り付けできます。</span>
         <textarea id="classRosterInput" class="paste-area" placeholder="1	山田 花子&#10;2	佐藤 太郎" oninput="updateClassRosterCount()"></textarea>
       </label>
-      <div class="class-modal-summary"><span id="classRosterCount">名簿登録：0名</span><span>タブ区切り・カンマ区切り対応</span></div>
+      <div class="class-roster-actions"><span id="classRosterCount">名簿登録：0名</span><button class="primary" type="button" onclick="applyClassRoster()">名簿を登録して反映</button></div>
       <div class="yutori-modal-actions">
-        <button class="secondary" type="button" onclick="closeClassModal()">キャンセル</button>
-        <button id="classModalSaveButton" class="primary" type="submit">登録</button>
+        <button id="deleteClassButton" class="danger class-delete-button" type="button" onclick="deleteEditingClass()">クラスを削除</button>
+        <span class="modal-action-spacer"></span>
+        <button class="secondary" type="button" onclick="closeClassModal()">閉じる</button>
+        <button id="classModalSaveButton" class="primary" type="submit">クラスを保存</button>
       </div>
     </form>
   </div>
