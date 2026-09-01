@@ -1819,6 +1819,178 @@ body{
   color:#fff;
 }
 
+.editor-controls-host{display:none}
+.workspace-shell.editor-mode{grid-template-columns:344px minmax(0,1fr)}
+.app-sidebar.editor-mode{
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+}
+.app-sidebar.editor-mode #mainNavPanel,
+.app-sidebar.editor-mode #sidebarCurrentPanel{display:none}
+.app-sidebar.editor-mode .editor-controls-host{
+  display:block;
+  flex:1 1 auto;
+  min-height:0;
+  overflow:auto;
+  padding-right:2px;
+}
+.app-sidebar.editor-mode .sidebar-primary{
+  flex:0 0 auto;
+  margin-top:8px;
+  box-shadow:0 -5px 12px rgba(255,255,255,.92);
+}
+.editor-controls-host .editor-card{
+  padding:0;
+  border:0!important;
+  border-radius:0;
+  background:transparent;
+  box-shadow:none!important;
+}
+.editor-controls-host .step{
+  grid-template-columns:26px minmax(0,1fr);
+  gap:7px;
+  margin:0 0 8px;
+  padding:9px;
+  border:1px solid var(--line);
+  border-radius:12px;
+  background:#FFFEFC;
+}
+.editor-controls-host .step:last-child{display:none}
+.editor-controls-host .step-no{
+  width:25px;
+  height:25px;
+  border-radius:8px;
+  font-size:12px;
+}
+.editor-controls-host .step-line{
+  display:block;
+  min-height:0;
+}
+.editor-controls-host .step-title{
+  margin:1px 0 7px;
+  font-size:14px;
+}
+.editor-controls-host .info-inline{
+  display:grid;
+  gap:7px;
+}
+.editor-controls-host .info-inline label{
+  display:grid;
+  grid-template-columns:58px minmax(0,1fr);
+  gap:6px;
+  align-items:center;
+  white-space:normal;
+}
+.editor-controls-host .info-inline input,
+.editor-controls-host .info-inline .subject-input,
+.editor-controls-host .info-inline .unit-input,
+.editor-controls-host .info-inline .test-input{
+  width:100%!important;
+  min-width:0;
+}
+.editor-controls-host .compact{
+  gap:7px 8px;
+  align-items:center;
+}
+.editor-controls-host .compact>.group{
+  flex:0 0 100%;
+  margin:5px 0 0!important;
+  font-size:12px;
+}
+.editor-controls-host .compact>.group:first-of-type{margin-top:0!important}
+.editor-controls-host .capacity.inline{
+  flex:0 0 100%;
+  margin-top:2px;
+  padding:5px 7px;
+  border-radius:8px;
+  background:#F4F8F7;
+  font-size:11px;
+}
+.editor-controls-host label,
+.editor-controls-host .help,
+.editor-controls-host .capacity{font-size:11px}
+.editor-controls-host input,
+.editor-controls-host select{height:32px;padding:0 7px}
+.editor-controls-host .paste-area{
+  height:76px;
+  min-height:64px;
+  padding:7px;
+  border-radius:8px;
+  font-size:11px;
+}
+.editor-controls-host .actions{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:6px;
+}
+.editor-controls-host .actions .primary{grid-column:1/-1}
+.editor-controls-host .actions button{padding:7px 6px;font-size:11px}
+.editor-controls-host .question-table{margin-top:6px;border-radius:9px}
+.editor-controls-host .question-head,
+.editor-controls-host .question-row{grid-template-columns:38px minmax(0,1fr) minmax(0,1fr)}
+.editor-controls-host .question-head>div,
+.editor-controls-host .question-row>div{padding:4px;font-size:10px}
+.editor-controls-host .question-row input{height:27px;padding:0 3px;font-size:11px}
+.editor-controls-host .question-scroll{max-height:190px}
+
+.workspace-shell.editor-mode .workspace-scroll{
+  overflow:hidden;
+  padding:0;
+}
+.workspace-shell.editor-mode #editorScreen{
+  height:100%;
+  min-height:0;
+}
+.editor-live-shell{
+  height:100%;
+  min-height:0;
+  display:flex;
+  flex-direction:column;
+  background:#E9E6E2;
+}
+.editor-live-toolbar{
+  flex:0 0 auto;
+  min-height:48px;
+  display:flex;
+  align-items:center;
+  gap:12px;
+  padding:8px 12px;
+  border-bottom:1px solid var(--line);
+  background:#fff;
+}
+.editor-live-title{color:var(--brown);font-size:14px;font-weight:900}
+.editor-live-description{margin-left:6px;color:var(--muted);font-size:11px;font-weight:700}
+.editor-live-actions{margin-left:auto;display:flex;align-items:center;gap:8px}
+.editor-live-info{
+  padding:5px 9px;
+  border-radius:999px;
+  background:#F1F7F5;
+  color:var(--mint-dark);
+  font-size:11px;
+  font-weight:900;
+  white-space:nowrap;
+}
+.editor-live-actions button{padding:7px 10px;font-size:11px}
+.editor-live-stage{
+  flex:1 1 auto;
+  min-width:0;
+  min-height:0;
+  overflow:auto;
+  display:flex;
+  justify-content:center;
+  align-items:flex-start;
+  padding:20px;
+}
+.editor-live-stage .paper{flex:0 0 auto}
+.preview-paper-host{
+  width:100%;
+  min-width:max-content;
+  display:flex;
+  justify-content:center;
+  align-items:flex-start;
+}
+
 .workspace-main{
   min-width:0;
   min-height:0;
@@ -1939,7 +2111,8 @@ button.secondary{background:#F4F0EC;color:var(--brown)}
 .sidebar-collapsed .sidebar-panel-title,
 .sidebar-collapsed .sidebar-nav-label,
 .sidebar-collapsed .sidebar-current,
-.sidebar-collapsed .sidebar-primary{display:none}
+.sidebar-collapsed .sidebar-primary,
+.sidebar-collapsed .editor-controls-host{display:none}
 .sidebar-collapsed .sidebar-nav{padding:6px 0}
 .sidebar-collapsed .sidebar-nav button{justify-content:center;padding:7px 5px}
 .sidebar-collapsed .sidebar-collapse{transform:rotate(180deg)}
@@ -1951,6 +2124,7 @@ button.secondary{background:#F4F0EC;color:var(--brown)}
   .brand-kicker{display:none}
   .app-header nav button{padding:8px 10px;font-size:13px}
   .workspace-shell{grid-template-columns:236px minmax(0,1fr)}
+  .workspace-shell.editor-mode{grid-template-columns:316px minmax(0,1fr)}
   .side-card{grid-template-columns:1fr 1fr}
 }
 @media(max-width:820px){
@@ -1960,14 +2134,17 @@ button.secondary{background:#F4F0EC;color:var(--brown)}
   .app-header nav{grid-column:1/-1;grid-row:2;justify-self:stretch}
   .app-header nav button{flex:1}
   .header-tools{grid-column:2;grid-row:1}
-  .workspace-shell,.workspace-shell.sidebar-collapsed{grid-template-columns:1fr}
+  .workspace-shell,.workspace-shell.sidebar-collapsed,.workspace-shell.editor-mode{grid-template-columns:1fr}
   .app-sidebar{overflow:visible}
+  .app-sidebar.editor-mode{overflow:visible;display:block}
+  .app-sidebar.editor-mode .editor-controls-host{overflow:visible}
   .sidebar-collapse{display:none}
   .sidebar-nav{grid-template-columns:repeat(4,1fr)}
   .sidebar-nav button{justify-content:center;text-align:center}
   .sidebar-nav-icon{display:none}
   .workspace-main{min-height:680px}
   .workspace-hint{display:none}
+  .editor-live-stage{min-height:640px}
 }
 @media(max-width:600px){
   .app-shell{padding:7px}
@@ -1980,6 +2157,8 @@ button.secondary{background:#F4F0EC;color:var(--brown)}
   .app-header nav button:nth-child(4){border-top:1px solid var(--line)}
   .sidebar-nav{grid-template-columns:1fr 1fr}
   .side-card{grid-template-columns:1fr}
+  .editor-live-toolbar{align-items:flex-start;flex-direction:column}
+  .editor-live-actions{width:100%;margin-left:0;justify-content:space-between}
 }
 
 @media print{
@@ -2072,7 +2251,9 @@ button.secondary{background:#F4F0EC;color:var(--brown)}
       <button id="sidebarCollapse" class="sidebar-collapse" type="button" aria-label="メニューを折りたたむ" title="メニューを折りたたむ" onclick="toggleAppSidebar()">‹</button>
     </div>
 
-    <div class="sidebar-panel">
+    <div id="editorControlsHost" class="editor-controls-host" aria-label="テスト作成の入力項目"></div>
+
+    <div id="mainNavPanel" class="sidebar-panel">
       <div class="sidebar-panel-title"><span>操作メニュー</span><span>−</span></div>
       <div class="sidebar-nav">
         <button class="active" data-screen="editorScreen" onclick="showScreen('editorScreen')"><span class="sidebar-nav-icon">作</span><span class="sidebar-nav-label">テスト作成</span></button>
@@ -2082,7 +2263,7 @@ button.secondary{background:#F4F0EC;color:var(--brown)}
       </div>
     </div>
 
-    <div class="sidebar-panel sidebar-current">
+    <div id="sidebarCurrentPanel" class="sidebar-panel sidebar-current">
       <div id="sidebarCurrentLabel" class="sidebar-current-label">現在の画面：テスト作成</div>
       <div id="sidebarCurrentText" class="sidebar-current-text">テスト情報と問題を入力し、印刷用レイアウトを作成します。</div>
     </div>
@@ -2196,12 +2377,27 @@ button.secondary{background:#F4F0EC;color:var(--brown)}
     </div>
 
   </div>
+  <div class="editor-live-shell">
+    <div class="editor-live-toolbar no-print">
+      <div>
+        <span class="editor-live-title">テストのライブプレビュー</span>
+        <span class="editor-live-description">左側の入力内容がすぐに反映されます</span>
+      </div>
+      <div class="editor-live-actions">
+        <span id="livePreviewInfo" class="editor-live-info">A4・縦／0問</span>
+        <button class="primary" type="button" onclick="openPreview()">印刷画面を開く</button>
+      </div>
+    </div>
+    <div id="editorPaperHost" class="editor-live-stage" aria-label="テスト用紙プレビュー"></div>
+  </div>
 </section>
 
 <section id="previewScreen" class="screen">
   <div class="preview-layout">
     <div class="preview-stage">
-      <div id="paper" class="paper a5 portrait"></div>
+      <div id="previewPaperHost" class="preview-paper-host">
+        <div id="paper" class="paper a5 portrait"></div>
+      </div>
     </div>
     <aside class="side-card no-print">
       <h2 class="step-title">印刷プレビュー</h2>
@@ -2471,9 +2667,68 @@ const limits = {
   a4:{portrait:{rows:15,cols:4},landscape:{rows:10,cols:6}}
 };
 
+let livePreviewFrame=0;
+function configureEditorWorkspace(){
+  const card=document.querySelector("#editorScreen .editor-card");
+  const host=document.getElementById("editorControlsHost");
+  if(card&&host&&!host.contains(card))host.appendChild(card);
+}
+function mountPaperForScreen(id){
+  const paper=document.getElementById("paper");
+  const target=id==="editorScreen"?document.getElementById("editorPaperHost"):id==="previewScreen"?document.getElementById("previewPaperHost"):null;
+  if(!paper||!target)return;
+  if(paper.parentElement!==target)target.appendChild(paper);
+  paper.style.removeProperty("zoom");
+  if(id==="editorScreen")requestAnimationFrame(fitEditorPaper);
+}
+function fitEditorPaper(){
+  const host=document.getElementById("editorPaperHost");
+  const paper=document.getElementById("paper");
+  if(!host||!paper||paper.parentElement!==host)return;
+  paper.style.removeProperty("zoom");
+  const available=Math.max(240,host.clientWidth-40);
+  const scale=Math.min(1,Math.max(.42,available/paper.offsetWidth));
+  paper.style.zoom=scale.toFixed(3);
+}
+function updateLivePreviewInfo(){
+  const el=document.getElementById("livePreviewInfo");
+  if(el)el.textContent=`${paperLabel()}／${state.questions.length}問`;
+}
+function scheduleLivePreview(){
+  cancelAnimationFrame(livePreviewFrame);
+  livePreviewFrame=requestAnimationFrame(()=>{
+    if(document.querySelector(".screen.active")?.id!=="editorScreen")return;
+    mountPaperForScreen("editorScreen");
+    renderPaper();
+    updatePrintInfo();
+    requestAnimationFrame(fitEditorPaper);
+  });
+}
+function bindLivePreviewControls(){
+  ["subject","unit","testName"].forEach(id=>document.getElementById(id)?.addEventListener("input",updateCounts));
+  document.getElementById("paperSize")?.addEventListener("change",applyLimits);
+  document.querySelectorAll('input[name="orientation"]').forEach(el=>el.addEventListener("change",applyLimits));
+  ["rows","cols"].forEach(id=>document.getElementById(id)?.addEventListener("change",updateCounts));
+  document.querySelectorAll('input[name="flow"],input[name="answerLine"]').forEach(el=>el.addEventListener("change",updateCounts));
+  window.addEventListener("resize",()=>requestAnimationFrame(fitEditorPaper));
+}
+
 function showScreen(id){
   document.querySelectorAll(".screen").forEach(el=>el.classList.remove("active"));
   document.getElementById(id).classList.add("active");
+  const isEditor=id==="editorScreen";
+  const shell=document.getElementById("workspaceShell");
+  const sidebar=document.querySelector(".app-sidebar");
+  shell?.classList.toggle("editor-mode",isEditor);
+  sidebar?.classList.toggle("editor-mode",isEditor);
+  if(isEditor&&shell?.classList.contains("sidebar-collapsed")){
+    shell.classList.remove("sidebar-collapsed");
+    const collapseButton=document.getElementById("sidebarCollapse");
+    if(collapseButton){
+      collapseButton.setAttribute("aria-label","メニューを折りたたむ");
+      collapseButton.title="メニューを折りたたむ";
+    }
+  }
   const navId=id==="previewScreen"?"editorScreen":id==="resultsScreen"?"gradingScreen":id;
   document.querySelectorAll("[data-screen]").forEach(button=>{
     const active=button.dataset.screen===navId;
@@ -2481,7 +2736,7 @@ function showScreen(id){
     button.setAttribute("aria-pressed",String(active));
   });
   const screenMeta={
-    editorScreen:{tab:"テスト作成",title:"問題用紙の作成とプレビュー",side:"テスト作成メニュー",sub:"問題用紙の作成と印刷",description:"テスト情報と問題を入力し、印刷用レイアウトを作成します。",hint:"入力内容はこの端末に自動保存されます",primary:"テストをプレビュー"},
+    editorScreen:{tab:"テスト作成",title:"入力しながら用紙を確認",side:"テスト作成メニュー",sub:"左で入力・右でプレビュー",description:"左側へ入力すると、右側の用紙プレビューへすぐに反映されます。",hint:"左側の入力内容が右のプレビューに即時反映されます",primary:"印刷画面を開く"},
     previewScreen:{tab:"プレビュー",title:"印刷レイアウトの確認",side:"印刷プレビュー",sub:"用紙レイアウトの確認と印刷",description:"作成したテストの用紙レイアウトを確認し、印刷またはPDF保存します。",hint:"推奨設定：倍率100％・余白なし",primary:"印刷・PDF保存"},
     gradingScreen:{tab:"採点",title:"答案の読み込みと採点",side:"採点メニュー",sub:"答案PDFの確認と採点",description:"答案PDFを読み込み、問題ごとに採点します。途中経過は自動保存されます。",hint:"採点内容はこの端末に自動保存されます",primary:"新しく採点を始める"},
     rosterScreen:{tab:"名簿設定",title:"クラスと名簿の管理",side:"名簿設定メニュー",sub:"クラス・児童生徒名簿",description:"採点に使用するクラスと番号・氏名を登録します。",hint:"番号と氏名を2列で貼り付けできます",primary:"名簿入力へ移動"},
@@ -2493,6 +2748,8 @@ function showScreen(id){
   Object.entries(assignments).forEach(([elementId,value])=>{const element=document.getElementById(elementId);if(element)element.textContent=value});
   const primary=document.getElementById("sidebarPrimary");
   if(primary)primary.textContent=meta.primary;
+  mountPaperForScreen(id);
+  if(isEditor)scheduleLivePreview();
   const scroll=document.querySelector(".workspace-scroll");
   if(scroll)scroll.scrollTop=0;
 }
@@ -2556,6 +2813,7 @@ function updateCounts(){
   const countEl=document.getElementById("questionCountText");
   countEl.textContent=count>cap?`問題数：${count}問　※配置可能数を超えています`:`問題数：${count}問`;
   countEl.classList.toggle("warning",count>cap);
+  scheduleLivePreview();
 }
 function applyPaste(){
   const raw=document.getElementById("pasteArea").value.replace(/\r/g,"").trim();
@@ -2599,9 +2857,9 @@ function loadHistory(){
 function openPreview(){
   syncState();
   saveHistory();
+  showScreen("previewScreen");
   renderPaper();
   updatePrintInfo();
-  showScreen("previewScreen");
 }
 function renderPaper(){
   syncState();
@@ -2631,6 +2889,7 @@ function renderPaper(){
       grid-template-rows:repeat(${state.rows},minmax(0,1fr));
       height:calc(100% - 31mm);">${items}</div>
     ${warning}`;
+  updateLivePreviewInfo();
 }
 function paperLabel(){
   const size={a4:"A4",b5:"B5",a5:"A5"}[state.paperSize]||"A4";
@@ -2647,6 +2906,7 @@ function updatePrintInfo(){
     <strong>問題数：</strong>${count}問<br>
     <strong>配置可能数：</strong>${capacity}問
   `;
+  updateLivePreviewInfo();
 }
 function validateBeforePrint(){
   const count=state.questions.length;
@@ -3369,6 +3629,7 @@ function returnToGradingFromResults(){
   prepareGradingView();
 }
 
+configureEditorWorkspace();
 ensureRosters();
 gradingState.gradeColumns=Number(localStorage.getItem("yutori_grade_columns_v023")||7);
 gradingState.grades=JSON.parse(localStorage.getItem("yutori_grades_v021")||"{}");
@@ -3392,6 +3653,8 @@ applyLimits();
 document.getElementById("rows").value=String(Math.min(document.getElementById("rows").options.length,state.rows||10));
 document.getElementById("cols").value=String(Math.min(document.getElementById("cols").options.length,state.cols||3));
 updateCounts();
+bindLivePreviewControls();
+showScreen("editorScreen");
 </script>
 
 <div id="deleteSessionModal" class="yutori-modal-backdrop" aria-hidden="true">
