@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <meta name="theme-color" content="#FCCC8E">
 <meta name="apple-mobile-web-app-title" content="YUTORI">
-<title>YUTORI v0.3.10</title>
+<title>YUTORI v0.3.11</title>
 <link rel="icon" type="image/svg+xml" href="assets/yutori-symbol.svg">
 <link rel="apple-touch-icon" href="assets/yutori-symbol.svg">
 <link rel="manifest" href="manifest.webmanifest">
@@ -2576,6 +2576,30 @@ body.sidebar-dragging{cursor:ew-resize;user-select:none;-webkit-user-select:none
 .answer-image,.answer-crop-canvas{max-width:100%}
 .score-rate-label{display:block;margin-top:2px;color:#7A837F;font-size:8px;font-weight:800;line-height:1.05}
 
+/* v0.3.11：タッチ採点と操作部品の見やすさ */
+.answer-card-head{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:4px;min-width:0;min-height:22px}
+.answer-card-head-actions{display:flex;align-items:center;justify-content:flex-end;gap:2px;height:22px}
+.answer-card.pdf-answer>.answer-card-head .answer-person{min-width:0;min-height:22px;padding-right:0!important;line-height:22px}
+.answer-card.pdf-answer .answer-zoom-button{position:static!important;flex:0 0 20px;width:20px;height:20px;padding:0!important;border-radius:6px}
+.answer-card.pdf-answer .answer-zoom-button svg{width:12px;height:12px}
+.answer-card.pdf-answer .answer-mark-label{position:static;flex:0 0 18px;width:18px;height:20px;font-size:18px}
+
+.class-picker .sidebar-class-checks{display:grid!important;grid-template-columns:1fr!important;gap:2px!important}
+.class-picker .sidebar-class-checks .class-chip{display:flex!important;align-items:center!important;gap:8px!important;width:100%;min-height:30px;padding:4px 7px!important;white-space:nowrap;overflow:hidden}
+.class-picker .sidebar-class-checks .class-chip input[type="checkbox"]{appearance:auto!important;-webkit-appearance:checkbox!important;flex:0 0 16px!important;width:16px!important;min-width:16px!important;max-width:16px!important;height:16px!important;min-height:16px!important;max-height:16px!important;margin:0!important;padding:0!important}
+
+.sidebar-drag-handle{width:18px!important}
+.sidebar-drag-handle::before{content:"";position:absolute;top:50%;right:2px;width:8px;height:84px;transform:translateY(-50%);border:1px solid #D69B54;border-radius:999px;background:#FCCC8E;box-shadow:0 2px 7px rgba(122,85,32,.2);transition:width .15s ease,background .15s ease}
+.sidebar-drag-handle::after{content:"";position:absolute;top:50%;right:5px;width:2px;height:36px;transform:translateY(-50%);border-radius:999px;background:rgba(122,85,32,.5)!important}
+.sidebar-drag-handle:hover::before,.sidebar-drag-handle.dragging::before{width:10px;background:#F6B26B}
+
+.workspace-shell.grading-mode .workspace-scroll{overflow:hidden!important;touch-action:none}
+.workspace-shell.grading-mode #gradingScreen{height:100%;min-height:0;overflow:hidden}
+.workspace-shell.grading-mode #mainGradeView{height:100%;max-height:none;min-height:0;overflow:hidden}
+#mainGradeView .grading-head-area,#mainGradeView .tabs-wrap{flex:0 0 auto}
+#mainGradeView .grading-scroll-area{flex:1 1 auto;min-height:0;overflow-y:auto!important;overflow-x:hidden!important;touch-action:pan-y!important;-webkit-overflow-scrolling:touch;overscroll-behavior-y:contain}
+#mainGradeView .problem-info-bar,#mainGradeView #gradeAnswers,#mainGradeView #gradeAnswers section,#mainGradeView .answer-grid,#mainGradeView .answer-card.pdf-answer,#mainGradeView .answer-image,#mainGradeView .answer-crop-canvas{touch-action:pan-y!important}
+
 @media(max-width:820px){
   .sidebar-drag-handle{display:none}
   .grading-toolbar-workflow{max-width:none;flex-basis:100%;order:5;grid-column:1/-1}
@@ -2719,10 +2743,10 @@ body.sidebar-dragging{cursor:ew-resize;user-select:none;-webkit-user-select:none
 <body>
 <div class="app-shell">
 <header class="app-header no-print">
-  <div class="brand" aria-label="YUTORI v0.3.10">
+  <div class="brand" aria-label="YUTORI v0.3.11">
     <div class="brand-copy">
       <img class="brand-logo-image" src="assets/yutori-logo.svg" alt="YUTORI つくる・つける・つなげる">
-      <span class="brand-version">v0.3.10</span>
+      <span class="brand-version">v0.3.11</span>
     </div>
   </div>
   <nav aria-label="主要メニュー">
@@ -4538,11 +4562,12 @@ function card(c,p,q){
   const m=gradingState.grades[key(c,p.no,q)]?.mark||"";
   const markLabel=m==="ok"?"○":m==="ng"?"×":m==="partial"?"△":"";
   const encodedClass=encodeURIComponent(c);
-  if(p.absent)return `<article class="answer-card pdf-answer absent"><div class="answer-person">${String(p.no).padStart(2,"0")} ${escapeHtml(p.name)}</div><div class="answer-image"><div class="answer-image-placeholder">欠席</div></div></article>`;
+  if(p.absent)return `<article class="answer-card pdf-answer absent"><div class="answer-card-head"><div class="answer-person">${String(p.no).padStart(2,"0")} ${escapeHtml(p.name)}</div></div><div class="answer-image"><div class="answer-image-placeholder">欠席</div></div></article>`;
   const realPdf=p.pageId&&gradingState.pageImageUrls[p.pageId];
   const answer=realPdf?`<canvas class="answer-crop-canvas answer-card-loading" data-page-id="${escapeHtml(p.pageId)}"></canvas>`:`<div class="answer-image-placeholder">${escapeHtml(p.snippets?.[q]||"答案画像なし")}</div>`;
   const zoom=realPdf?`<button class="answer-zoom-button" type="button" title="答案用紙を表示" aria-label="${escapeHtml(p.name)}の答案用紙を表示" onpointerdown="event.stopPropagation()" onclick="event.stopPropagation();openAnswerPreview(decodeURIComponent('${encodedClass}'),${p.no})"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="10.5" cy="10.5" r="6.5"></circle><path d="m15.5 15.5 5 5"></path></svg></button>`:"";
-  return `<article class="answer-card pdf-answer ${m}" tabindex="0" aria-label="${escapeHtml(p.name)}を採点" onclick="applySelectedPen(decodeURIComponent('${encodedClass}'),${p.no})" onkeydown="if(event.target===event.currentTarget&&(event.key==='Enter'||event.key===' ')){event.preventDefault();applySelectedPen(decodeURIComponent('${encodedClass}'),${p.no})}"><div class="answer-person">${String(p.no).padStart(2,"0")} ${escapeHtml(p.name)}</div><div class="answer-image">${answer}</div>${zoom}<div class="answer-mark-label">${markLabel}</div></article>`;
+  const mark=markLabel?`<div class="answer-mark-label">${markLabel}</div>`:"";
+  return `<article class="answer-card pdf-answer ${m}" tabindex="0" aria-label="${escapeHtml(p.name)}を採点" onclick="applySelectedPen(decodeURIComponent('${encodedClass}'),${p.no})" onkeydown="if(event.target===event.currentTarget&&(event.key==='Enter'||event.key===' ')){event.preventDefault();applySelectedPen(decodeURIComponent('${encodedClass}'),${p.no})}"><div class="answer-card-head"><div class="answer-person">${String(p.no).padStart(2,"0")} ${escapeHtml(p.name)}</div><div class="answer-card-head-actions">${mark}${zoom}</div></div><div class="answer-image">${answer}</div></article>`;
 }
 function loadPageImage(pageId){
   if(gradingState.pageImageCache[pageId])return gradingState.pageImageCache[pageId];
