@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <meta name="theme-color" content="#FCCC8E">
 <meta name="apple-mobile-web-app-title" content="YUTORI">
-<title>YUTORI v0.3.7</title>
+<title>YUTORI v0.3.8</title>
 <link rel="icon" type="image/svg+xml" href="assets/yutori-symbol.svg">
 <link rel="apple-touch-icon" href="assets/yutori-symbol.svg">
 <link rel="manifest" href="manifest.webmanifest">
@@ -1392,7 +1392,7 @@ body{
 }
 
 
-/* ===== v0.3.7 出席番号マーク読取対応 ===== */
+/* ===== v0.3.8 採点操作・割り当てUI改善 ===== */
 :root{
   --workflow-fixed-width:545px;
   --workflow-fixed-height:34px;
@@ -2460,6 +2460,65 @@ button.secondary{background:#F4F0EC;color:var(--brown)}
 .answer-preview-marks button{width:42px;height:38px;padding:0;font-size:21px;font-weight:900}
 .answer-preview-grade{min-width:62px;color:var(--muted);font-size:11px;font-weight:900;text-align:center}
 
+/* 採点工程は左メニュー内に表示 */
+.grading-progress-sidebar{display:grid;gap:8px}
+.grading-sidebar-workflow{display:grid;gap:5px}
+.sidebar-workflow-step{width:100%;display:grid;grid-template-columns:26px 1fr auto;align-items:center;gap:7px;padding:7px 9px;border:1px solid var(--line);border-radius:9px;background:#FFFEFC;color:var(--muted);font-size:11px;font-weight:900;text-align:left}
+.sidebar-workflow-step .step-number{width:22px;height:22px;display:grid;place-items:center;border-radius:50%;background:#F0ECE8;color:var(--brown);font-size:10px}
+.sidebar-workflow-step.active{border-color:#E0A75E;background:#FFF4E5;color:#7A5520}
+.sidebar-workflow-step.active .step-number{background:var(--mint);color:#624B45}
+.sidebar-workflow-step.done{border-color:#CFE4C5;background:#F3FAF0;color:#4D7047}
+.sidebar-workflow-step:disabled{cursor:not-allowed;opacity:.58}
+.sidebar-undo-button{width:100%;margin-top:4px;padding:9px 8px}
+.sidebar-undo-button:not(:disabled){background:#FFF4E5;color:#7A5520;border:1px solid #E7C18F}
+.undo-grade-status{display:block;line-height:1.45}
+
+/* 確認画面：名簿グリッドと名前欄の拡大 */
+.pdf-review-layout{display:grid;gap:14px}
+.pdf-unassigned-pool{padding:12px;border:2px dashed #E2B8A8;border-radius:14px;background:#FFF8F5}
+.pdf-unassigned-pool h3{margin:0;color:var(--brown);font-size:15px}
+.pdf-unassigned-pool p{margin:4px 0 10px;color:var(--muted);font-size:11px;line-height:1.5}
+.pdf-unassigned-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:9px}
+.pdf-unassigned-card{display:grid;gap:7px;padding:8px;border:1px solid #E2C2B8;border-radius:11px;background:#fff;cursor:grab;box-shadow:0 2px 6px rgba(129,104,87,.06);touch-action:manipulation}
+.pdf-unassigned-card:active{cursor:grabbing}
+.pdf-unassigned-card.selected{outline:3px solid rgba(246,178,107,.55);background:#FFF2E4}
+.pdf-unassigned-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:7px;color:var(--brown);font-size:11px;font-weight:900}
+.pdf-unassigned-card-meta{color:var(--danger);font-size:10px;font-weight:900;line-height:1.4}
+.pdf-name-crop{width:100%;aspect-ratio:4.2/1;overflow:hidden;border:1px solid var(--line);border-radius:8px;background:#fff}
+.pdf-name-crop canvas{width:100%;height:100%;display:block;background:#fff}
+.pdf-student-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
+.pdf-student-card{min-width:0;display:grid;grid-template-rows:auto auto auto;gap:7px;padding:9px;border:1px solid var(--line);border-radius:12px;background:#FFFEFC;box-shadow:0 2px 7px rgba(129,104,87,.05);touch-action:manipulation}
+.pdf-student-card.problem{border-color:#F0C9C5;background:#FFF8F7}
+.pdf-student-card.drop-ready{outline:3px solid rgba(246,178,107,.55);background:#FFF2E4;transform:translateY(-1px)}
+.pdf-student-head{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;color:var(--brown);font-size:12px;font-weight:900}
+.pdf-student-head small{display:block;margin-top:2px;color:var(--muted);font-size:9px;font-weight:700}
+.pdf-student-actions{display:flex;align-items:center;justify-content:space-between;gap:5px;min-height:28px}
+.pdf-student-actions button{padding:5px 7px;font-size:9px}
+.pdf-student-card .pdf-mark-read{color:#8A6749;font-size:9px;font-weight:900;line-height:1.35}
+.pdf-student-card .pdf-mark-read.warning{color:var(--danger)}
+.pdf-empty-name{display:grid;place-items:center;color:var(--muted);font-size:10px;background:#F7F5F2}
+.pdf-extra-page-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px}
+.pdf-extra-page{justify-content:space-between}
+
+/* 採点画面：右上固定パレットと比率固定の答案 */
+#mainGradeView .grading-head-area{position:sticky!important;top:0!important;grid-template-columns:minmax(0,1fr) 300px!important;grid-template-rows:34px 36px!important;z-index:80!important}
+#mainGradeView .grading-progress-row{grid-column:1!important;grid-row:1!important;grid-template-columns:1fr!important;justify-items:start!important}
+#mainGradeView .grading-progress-row .save-banner{justify-self:start!important;justify-content:flex-start!important}
+#mainGradeView .palette-fixed{grid-column:2!important;grid-row:1/span 2!important;position:relative!important;top:auto!important;width:300px!important;min-width:300px!important;max-width:300px!important;height:76px!important;justify-self:end!important;z-index:90!important}
+.answer-grid{align-items:start}
+.answer-card.pdf-answer{position:relative;min-width:132px;touch-action:manipulation;user-select:none;-webkit-user-select:none}
+.answer-card.pdf-answer:active{transform:scale(.985)}
+.answer-image{height:auto!important;min-height:0!important;aspect-ratio:15/4}
+.answer-crop-canvas{width:100%;height:100%;aspect-ratio:15/4;object-fit:contain}
+.answer-zoom-button{position:absolute;right:6px;bottom:6px;z-index:3;padding:4px 6px!important;border:1px solid rgba(129,104,87,.25);border-radius:7px;background:rgba(255,255,255,.92)!important;color:var(--brown)!important;font-size:9px!important;font-weight:900;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+.grading-scroll-area{overscroll-behavior:contain}
+
+@media(max-width:700px){
+  #mainGradeView .grading-head-area{grid-template-columns:minmax(0,1fr) 230px!important}
+  #mainGradeView .palette-fixed{width:230px!important;min-width:230px!important;max-width:230px!important}
+  .pdf-student-grid,.pdf-unassigned-grid{grid-template-columns:repeat(auto-fill,minmax(180px,1fr))}
+}
+
 .workspace-shell.sidebar-collapsed{grid-template-columns:58px minmax(0,1fr)}
 .sidebar-collapsed .app-sidebar{padding:10px}
 .sidebar-collapsed .sidebar-head{grid-template-columns:1fr;margin:0}
@@ -2597,10 +2656,10 @@ button.secondary{background:#F4F0EC;color:var(--brown)}
 <body>
 <div class="app-shell">
 <header class="app-header no-print">
-  <div class="brand" aria-label="YUTORI v0.3.7">
+  <div class="brand" aria-label="YUTORI v0.3.8">
     <div class="brand-copy">
       <img class="brand-logo-image" src="assets/yutori-logo.svg" alt="YUTORI つくる・つける・つなげる">
-      <span class="brand-version">v0.3.7</span>
+      <span class="brand-version">v0.3.8</span>
     </div>
   </div>
   <nav aria-label="主要メニュー">
@@ -2646,6 +2705,12 @@ button.secondary{background:#F4F0EC;color:var(--brown)}
       </div>
     </div>
     <div id="gradingControlsHost" class="special-controls-host grading-controls-host" aria-label="採点の準備">
+      <div class="special-sidebar-section grading-progress-sidebar">
+        <h3>採点の流れ</h3>
+        <div id="sidebarWorkflow" class="grading-sidebar-workflow"></div>
+        <button id="undoGradeButton" class="secondary sidebar-undo-button" type="button" onclick="undoLastGradeAction()" disabled>↶ ひとつ前の採点に戻す</button>
+        <span id="undoGradeStatus" class="help undo-grade-status">取り消せる操作はありません</span>
+      </div>
       <div class="special-sidebar-section">
         <h3>新しく採点を始める</h3>
         <label>対象テスト<select id="gradingTestSet"></select></label>
@@ -2879,13 +2944,11 @@ button.secondary{background:#F4F0EC;color:var(--brown)}
     </div>
   </div>
   <div id="loadView" class="grade-card" style="display:none">
-    <div id="workflowLoad" class="workflow-bar"></div>
     <h2 class="step-title">答案を読み込む</h2>
     <div class="grading-load-guide"><strong>左側で採点の準備を行います</strong><span>対象テスト・クラス・答案PDFを選び、「PDFを読み込む」を押してください。</span></div>
   </div>
 
   <div id="reviewView" class="grade-card" style="display:none">
-    <div id="workflowReview" class="workflow-bar"></div>
     <h2 class="step-title">答案と名簿の確認</h2>
     <p class="pdf-review-intro">答案上部の出席番号マークから名簿へ割り当てました。未記入・二重マークなどの要確認答案だけを修正し、答案のない児童は欠席にしてください。</p>
     <div id="issueList"></div>
@@ -2900,7 +2963,6 @@ button.secondary{background:#F4F0EC;color:var(--brown)}
 <div id="mainGradeView" class="grade-card" style="display:none">
   <div class="grading-head-area">
     <div class="grading-progress-row" style="grid-column:1;grid-row:1">
-      <div id="workflowGrade" class="workflow-bar" style="margin-bottom:0"></div>
       <div class="save-banner">
         <div class="save-banner-main">
           <span id="saveStatus" class="save-status saved">自動保存：保存済み</span>
@@ -3745,9 +3807,10 @@ window.addEventListener("beforeprint",()=>{
 });
 
 
-const gradingState={rosters:{},classProfiles:{},testSets:[],selectedTestId:"",classes:[],files:[],issues:[],answers:{},grades:{},q:0,selectedPen:"ok",sessionId:"",status:"in-progress",lastSavedAt:0,gradeColumns:5,workflowCompleted:{},currentWorkflowStep:1,questionScores:[],resultsReturnState:null,pdfPages:[],ignoredPageIds:[],pageImageUrls:{},pageImageCache:{},answerPreview:null};
+const gradingState={rosters:{},classProfiles:{},testSets:[],selectedTestId:"",classes:[],files:[],issues:[],answers:{},grades:{},q:0,selectedPen:"ok",sessionId:"",status:"in-progress",lastSavedAt:0,gradeColumns:5,workflowCompleted:{},currentWorkflowStep:1,questionScores:[],resultsReturnState:null,pdfPages:[],ignoredPageIds:[],pageImageUrls:{},pageImageCache:{},answerPreview:null,dragPageId:"",gradeHistory:[]};
 let pdfJsModulePromise=null;
 let answerCropRenderToken=0;
+let nameCropRenderToken=0;
 
 function loadPdfJs(){
   if(!pdfJsModulePromise){
@@ -3826,7 +3889,18 @@ function workflowHtml(current){
       ${workflowDone(step)?'<span class="workflow-check">✔</span>':""}
     </div>`).join("");
 }
-function renderWorkflowBars(current){gradingState.currentWorkflowStep=current;["workflowLoad","workflowReview","workflowGrade","workflowResults"].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML=workflowHtml(current)})}
+function sidebarWorkflowHtml(current){
+  const labels={1:"答案の読込",2:"確認と修正",3:"採点",4:"結果の確認"};
+  return [1,2,3,4].map(step=>`<button class="sidebar-workflow-step ${current===step?"active":workflowDone(step)?"done":""}" type="button" onclick="goToWorkflowStep(${step})" ${canOpenWorkflowStep(step)?"":"disabled"}><span class="step-number">${step}</span><span>${labels[step]}</span><span>${workflowDone(step)?"✔":""}</span></button>`).join("");
+}
+function renderWorkflowBars(current){
+  gradingState.currentWorkflowStep=current;
+  const resultsWorkflow=document.getElementById("workflowResults");
+  if(resultsWorkflow)resultsWorkflow.innerHTML=workflowHtml(current);
+  const sidebarWorkflow=document.getElementById("sidebarWorkflow");
+  if(sidebarWorkflow)sidebarWorkflow.innerHTML=sidebarWorkflowHtml(current);
+  updateUndoButton();
+}
 function canOpenWorkflowStep(step){if(step===1)return true;if(step===2)return workflowDone(1);if(step===3)return workflowDone(2);if(step===4)return workflowDone(3);return false}
 function goToWorkflowStep(step){
   if(!canOpenWorkflowStep(step)){alert(`${workflowStepLabel(step-1)}を完了してから進んでください。`);return}
@@ -4104,6 +4178,8 @@ async function processPdf(){
   gradingState.gradeColumns=Math.min(Number(gradingState.gradeColumns)||5,5);
   gradingState.pdfPages=[];
   gradingState.ignoredPageIds=[];
+  gradingState.dragPageId="";
+  gradingState.gradeHistory=[];
   localStorage.setItem("yutori_grades_v021","{}");
   try{
     await savePdfFilesToIndexedDB(gradingState.sessionId,gradingState.files);
@@ -4142,51 +4218,91 @@ function renderIssues(){
   const ignored=gradingState.pdfPages.filter(page=>ignoredSet.has(page.id));
   const expected=gradingState.classes.reduce((sum,className)=>sum+(gradingState.answers[className]||[]).length,0);
   const recognizedCount=gradingState.pdfPages.filter(page=>page.detectedAttendanceNo!=null).length;
-  const pageOptions=gradingState.pdfPages.map(page=>{
-    const recognition=pdfPageRecognition(page);
-    return `<option value="${escapeHtml(page.id)}">${escapeHtml(page.fileName)}・${page.pageNumber}ページ・${escapeHtml(recognition.text)}</option>`;
-  }).join("");
-  const flatPeople=[];
-  const rows=gradingState.classes.flatMap(className=>(gradingState.answers[className]||[]).map(person=>{
-    flatPeople.push(person);
+  if(gradingState.dragPageId&&!unassigned.some(page=>page.id===gradingState.dragPageId))gradingState.dragPageId="";
+  const studentCards=gradingState.classes.flatMap(className=>(gradingState.answers[className]||[]).map(person=>{
     const encodedClass=encodeURIComponent(className);
     const page=gradingState.pdfPages.find(item=>item.id===person.pageId);
-    const url=page?gradingState.pageImageUrls[page.id]:"";
     const duplicate=person.pageId&&assigned.filter(id=>id===person.pageId).length>1;
     const problem=!person.absent&&(!person.pageId||duplicate);
-    const thumbnail=url?`<div class="pdf-assignment-thumb" onclick="openAnswerPreview(decodeURIComponent('${encodedClass}'),${person.no})"><img src="${escapeHtml(url)}" alt="${escapeHtml(person.name)}の答案"></div>`:'<div class="pdf-assignment-thumb empty">答案なし</div>';
     const recognition=pdfPageRecognition(page);
-    return `<div class="pdf-assignment-row ${problem?"problem":""}">
-      <div class="pdf-assignment-person">${String(person.no).padStart(2,"0")} ${escapeHtml(person.name)}<span>${escapeHtml(classDisplayName(className))}</span>${page?`<span class="pdf-mark-read ${recognition.warning?"warning":""}">${escapeHtml(recognition.text)}</span>`:""}</div>
-      ${thumbnail}
-      <select aria-label="${escapeHtml(person.name)}のPDFページ" ${person.absent?"disabled":""} onchange="changeStudentPage(decodeURIComponent('${encodedClass}'),${person.no},this.value)"><option value="">未割り当て</option>${pageOptions}</select>
-      <label class="pdf-absent-toggle"><input type="checkbox" ${person.absent?"checked":""} onchange="setStudentAbsent(decodeURIComponent('${encodedClass}'),${person.no},this.checked)">欠席</label>
+    const nameCrop=page?`<div class="pdf-name-crop" title="答案全体を開く" onclick="event.stopPropagation();openAnswerPreview(decodeURIComponent('${encodedClass}'),${person.no})"><canvas class="name-crop-canvas answer-card-loading" data-page-id="${escapeHtml(page.id)}"></canvas></div>`:'<div class="pdf-name-crop pdf-empty-name">ここへPDFをドロップ</div>';
+    return `<div class="pdf-student-card ${problem?"problem":""}" data-class="${escapeHtml(className)}" data-no="${person.no}" ondragover="allowPdfDrop(event)" ondragleave="leavePdfDrop(event)" ondrop="dropPdfOnStudent(event,decodeURIComponent('${encodedClass}'),${person.no})" onclick="assignSelectedPdfPage(event,decodeURIComponent('${encodedClass}'),${person.no})">
+      <div class="pdf-student-head"><div>${String(person.no).padStart(2,"0")} ${escapeHtml(person.name)}<small>${escapeHtml(classDisplayName(className))}</small></div><span>${person.absent?"欠席":page?"割当済":"要確認"}</span></div>
+      ${nameCrop}
+      ${page?`<div class="pdf-mark-read ${recognition.warning?"warning":""}">${escapeHtml(recognition.text)}</div>`:'<div class="pdf-mark-read warning">答案が割り当てられていません</div>'}
+      <div class="pdf-student-actions"><label class="pdf-absent-toggle" onclick="event.stopPropagation()"><input type="checkbox" ${person.absent?"checked":""} onchange="setStudentAbsent(decodeURIComponent('${encodedClass}'),${person.no},this.checked)">欠席</label><span>${page?`<button class="secondary" type="button" onclick="event.stopPropagation();openAnswerPreview(decodeURIComponent('${encodedClass}'),${person.no})">全体</button> <button class="secondary" type="button" onclick="event.stopPropagation();clearStudentPage(decodeURIComponent('${encodedClass}'),${person.no})">外す</button>`:""}</span></div>
     </div>`;
   })).join("");
+  const unassignedCards=unassigned.map(page=>{
+    const recognition=pdfPageRecognition(page);
+    const selected=gradingState.dragPageId===page.id;
+    return `<div class="pdf-unassigned-card ${selected?"selected":""}" draggable="true" data-page-id="${escapeHtml(page.id)}" ondragstart="startPdfPageDrag(event,'${escapeHtml(page.id)}')" onclick="togglePdfPageSelection('${escapeHtml(page.id)}')">
+      <div class="pdf-unassigned-card-head"><span>${page.pageNumber}ページ</span><button class="secondary" type="button" onclick="event.stopPropagation();ignorePdfPage('${escapeHtml(page.id)}',true)">除外</button></div>
+      <div class="pdf-name-crop"><canvas class="name-crop-canvas answer-card-loading" data-page-id="${escapeHtml(page.id)}"></canvas></div>
+      <div class="pdf-unassigned-card-meta">${escapeHtml(recognition.text)}</div>
+    </div>`;
+  }).join("");
   issueList.innerHTML=`
     <div class="pdf-review-summary"><span class="pdf-review-pill">PDF ${gradingState.pdfPages.length}ページ</span><span class="pdf-review-pill">番号認識 ${recognizedCount}ページ</span><span class="pdf-review-pill">名簿 ${expected}名</span><span class="pdf-review-pill ${gradingState.issues.length?"warning":""}">${gradingState.issues.length?`要確認 ${gradingState.issues.length}件`:"割り当て確認済み"}</span></div>
     ${gradingState.issues.length?"":'<div class="pdf-review-ok">すべての答案ページが重複なく割り当てられています。</div>'}
-    <div class="pdf-assignment-list">${rows}</div>
-    ${unassigned.length?`<div class="pdf-extra-pages"><h3>割り当て先を確認するPDFページ</h3><div class="pdf-extra-page-list">${unassigned.map(page=>{const recognition=pdfPageRecognition(page);return `<div class="pdf-extra-page"><span>${escapeHtml(page.fileName)}・${page.pageNumber}ページ<br>${escapeHtml(recognition.text)}</span><button class="secondary" type="button" onclick="ignorePdfPage('${escapeHtml(page.id)}',true)">除外する</button></div>`}).join("")}</div></div>`:""}
+    <div class="pdf-review-layout">
+      ${unassigned.length?`<section class="pdf-unassigned-pool"><h3>要確認のPDF ${unassigned.length}ページ</h3><p>名前欄の画像を名簿カードへドラッグ＆ドロップしてください。タッチ操作ではPDFを一度タップし、割り当てる名簿カードをタップします。</p><div class="pdf-unassigned-grid">${unassignedCards}</div></section>`:""}
+      <div class="pdf-student-grid">${studentCards}</div>
+    </div>
     ${ignored.length?`<div class="pdf-extra-pages"><h3>除外したページ</h3><div class="pdf-extra-page-list">${ignored.map(page=>{const recognition=pdfPageRecognition(page);return `<div class="pdf-extra-page"><span>${escapeHtml(page.fileName)}・${page.pageNumber}ページ<br>${escapeHtml(recognition.text)}</span><button class="secondary" type="button" onclick="ignorePdfPage('${escapeHtml(page.id)}',false)">除外を戻す</button></div>`}).join("")}</div></div>`:""}`;
-  issueList.querySelectorAll(".pdf-assignment-row select").forEach((select,index)=>{select.value=flatPeople[index]?.pageId||""});
+  renderNameCrops();
 }
 function findAssignedPerson(className,no){return (gradingState.answers[className]||[]).find(person=>Number(person.no)===Number(no))}
-function changeStudentPage(className,no,pageId){
-  const person=findAssignedPerson(className,no);if(!person)return;
+function nameCropRect(image){return {x:image.naturalWidth*.335,y:image.naturalHeight*.039,width:image.naturalWidth*.268,height:image.naturalHeight*.047}}
+async function renderNameCrops(){
+  const token=++nameCropRenderToken;
+  const canvases=[...document.querySelectorAll(".name-crop-canvas[data-page-id]")];
+  await Promise.all(canvases.map(async canvas=>{
+    try{
+      const image=await loadPageImage(canvas.dataset.pageId);
+      if(token!==nameCropRenderToken||!canvas.isConnected)return;
+      const crop=nameCropRect(image);canvas.width=504;canvas.height=120;
+      const context=canvas.getContext("2d",{alpha:false});context.fillStyle="#fff";context.fillRect(0,0,canvas.width,canvas.height);
+      context.drawImage(image,crop.x,crop.y,crop.width,crop.height,0,0,canvas.width,canvas.height);canvas.classList.remove("answer-card-loading");
+    }catch(error){canvas.classList.remove("answer-card-loading")}
+  }));
+}
+function assignPdfPageToStudent(className,no,pageId){
+  const person=findAssignedPerson(className,no),page=gradingState.pdfPages.find(item=>item.id===pageId);
+  if(!person||!page)return;
+  gradingState.classes.forEach(value=>(gradingState.answers[value]||[]).forEach(item=>{if(item.pageId===pageId)item.pageId=""}));
+  if(person.pageId&&person.pageId!==pageId){
+    const previous=gradingState.pdfPages.find(item=>item.id===person.pageId);
+    if(previous){previous.assignmentStatus="removed";previous.assignmentClass=""}
+  }
   person.pageId=pageId;person.absent=false;
-  const page=gradingState.pdfPages.find(item=>item.id===pageId);
-  if(page){page.manualAssignment=true;page.assignmentStatus="manual";page.assignmentClass=className}
+  page.manualAssignment=true;page.assignmentStatus="manual";page.assignmentClass=className;
   gradingState.ignoredPageIds=(gradingState.ignoredPageIds||[]).filter(id=>id!==pageId);
+  gradingState.dragPageId="";
   refreshMappingIssues();renderIssues();scheduleAutoSave();
 }
+function changeStudentPage(className,no,pageId){if(pageId)assignPdfPageToStudent(className,no,pageId);else clearStudentPage(className,no)}
+function clearStudentPage(className,no){
+  const person=findAssignedPerson(className,no);if(!person)return;
+  const page=gradingState.pdfPages.find(item=>item.id===person.pageId);
+  if(page){page.assignmentStatus="removed";page.assignmentClass=""}
+  person.pageId="";person.absent=false;refreshMappingIssues();renderIssues();scheduleAutoSave();
+}
+function startPdfPageDrag(event,pageId){gradingState.dragPageId=pageId;event.dataTransfer.effectAllowed="move";event.dataTransfer.setData("text/plain",pageId);event.currentTarget.classList.add("selected")}
+function allowPdfDrop(event){event.preventDefault();event.dataTransfer.dropEffect="move";event.currentTarget.classList.add("drop-ready")}
+function leavePdfDrop(event){event.currentTarget.classList.remove("drop-ready")}
+function dropPdfOnStudent(event,className,no){event.preventDefault();event.currentTarget.classList.remove("drop-ready");const pageId=event.dataTransfer.getData("text/plain")||gradingState.dragPageId;if(pageId)assignPdfPageToStudent(className,no,pageId)}
+function togglePdfPageSelection(pageId){gradingState.dragPageId=gradingState.dragPageId===pageId?"":pageId;renderIssues()}
+function assignSelectedPdfPage(event,className,no){if(!gradingState.dragPageId||event.target.closest("button,input,label"))return;assignPdfPageToStudent(className,no,gradingState.dragPageId)}
 function setStudentAbsent(className,no,absent){
   const person=findAssignedPerson(className,no);if(!person)return;
+  if(absent&&person.pageId){const page=gradingState.pdfPages.find(item=>item.id===person.pageId);if(page){page.assignmentStatus="removed";page.assignmentClass=""}}
   person.absent=Boolean(absent);if(person.absent)person.pageId="";
   refreshMappingIssues();renderIssues();scheduleAutoSave();
 }
 function ignorePdfPage(pageId,ignored){
   const values=new Set(gradingState.ignoredPageIds||[]);ignored?values.add(pageId):values.delete(pageId);
+  if(gradingState.dragPageId===pageId)gradingState.dragPageId="";
   gradingState.ignoredPageIds=[...values];refreshMappingIssues();renderIssues();scheduleAutoSave();
 }
 function startGrading(){completeReviewStep()}
@@ -4296,11 +4412,12 @@ function selectQ(q){
 }
 function renderGradeGrid(){
   const test=currentTest(),q=gradingState.q,cols=Number(gradeColumns.value||7);
+  const minCardWidth=132,minGridWidth=cols*minCardWidth+Math.max(0,cols-1)*8;
   problemSeq.textContent=String(q+1).padStart(2,"0");
   problemText.textContent=test.questions[q]||"未登録";
   modelAnswer.textContent=test.answers[q]||"未登録";
   applyQuestionScoreInputs();
-  gradeAnswers.innerHTML=gradingState.classes.map(c=>`<section><div class="class-title"><span>${escapeHtml(c)}</span><span>${isClassDone(c,q)?"採点済":"採点中"}</span></div><div class="answer-grid" style="grid-template-columns:repeat(${cols},minmax(0,1fr))">${(gradingState.answers[c]||[]).map(p=>card(c,p,q)).join("")}</div></section>`).join("");
+  gradeAnswers.innerHTML=gradingState.classes.map(c=>`<section><div class="class-title"><span>${escapeHtml(c)}</span><span>${isClassDone(c,q)?"採点済":"採点中"}</span></div><div class="answer-grid" style="grid-template-columns:repeat(${cols},minmax(${minCardWidth}px,1fr));min-width:${minGridWidth}px">${(gradingState.answers[c]||[]).map(p=>card(c,p,q)).join("")}</div></section>`).join("");
   renderAnswerCrops(q,test);
 }
 function isClassDone(c,q){const active=(gradingState.answers[c]||[]).filter(person=>!person.absent);return active.length&&active.every(person=>gradingState.grades[key(c,person.no,q)])}
@@ -4310,8 +4427,9 @@ function card(c,p,q){
   const encodedClass=encodeURIComponent(c);
   if(p.absent)return `<article class="answer-card pdf-answer absent"><div class="answer-person">${String(p.no).padStart(2,"0")} ${escapeHtml(p.name)}</div><div class="answer-image"><div class="answer-image-placeholder">欠席</div></div></article>`;
   const realPdf=p.pageId&&gradingState.pageImageUrls[p.pageId];
-  const answer=realPdf?`<button class="answer-image-button" type="button" aria-label="${escapeHtml(p.name)}の答案を拡大" onclick="event.stopPropagation();openAnswerPreview(decodeURIComponent('${encodedClass}'),${p.no})"><canvas class="answer-crop-canvas answer-card-loading" data-page-id="${escapeHtml(p.pageId)}"></canvas></button>`:`<div class="answer-image-placeholder">${escapeHtml(p.snippets?.[q]||"答案画像なし")}</div>`;
-  return `<article class="answer-card pdf-answer ${m}" onclick="applySelectedPen(decodeURIComponent('${encodedClass}'),${p.no})"><div class="answer-person">${String(p.no).padStart(2,"0")} ${escapeHtml(p.name)}</div><div class="answer-image">${answer}</div><div class="answer-mark-label">${markLabel}</div></article>`;
+  const answer=realPdf?`<canvas class="answer-crop-canvas answer-card-loading" data-page-id="${escapeHtml(p.pageId)}"></canvas>`:`<div class="answer-image-placeholder">${escapeHtml(p.snippets?.[q]||"答案画像なし")}</div>`;
+  const zoom=realPdf?`<button class="answer-zoom-button" type="button" aria-label="${escapeHtml(p.name)}の答案全体を拡大" onclick="event.stopPropagation();openAnswerPreview(decodeURIComponent('${encodedClass}'),${p.no})">拡大</button>`:"";
+  return `<article class="answer-card pdf-answer ${m}" tabindex="0" aria-label="${escapeHtml(p.name)}を採点" onclick="applySelectedPen(decodeURIComponent('${encodedClass}'),${p.no})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();applySelectedPen(decodeURIComponent('${encodedClass}'),${p.no})}"><div class="answer-person">${String(p.no).padStart(2,"0")} ${escapeHtml(p.name)}</div><div class="answer-image">${answer}</div>${zoom}<div class="answer-mark-label">${markLabel}</div></article>`;
 }
 function loadPageImage(pageId){
   if(gradingState.pageImageCache[pageId])return gradingState.pageImageCache[pageId];
@@ -4384,11 +4502,37 @@ function gradePreviewStudent(mark){
   const preview=gradingState.answerPreview;if(!preview)return;
   setGrade(preview.className,preview.no,mark);updateAnswerPreview();
 }
+function updateUndoButton(){
+  const button=document.getElementById("undoGradeButton"),status=document.getElementById("undoGradeStatus");
+  const latest=gradingState.gradeHistory?.[gradingState.gradeHistory.length-1];
+  if(button)button.disabled=!latest;
+  if(status)status.textContent=latest?`取り消せます：${latest.label}`:"取り消せる操作はありません";
+}
+function pushGradeAction(changes,label,q=gradingState.q){
+  if(!changes.length)return;
+  if(!Array.isArray(gradingState.gradeHistory))gradingState.gradeHistory=[];
+  gradingState.gradeHistory.push({q:Number(q),label,changes});
+  if(gradingState.gradeHistory.length>30)gradingState.gradeHistory.splice(0,gradingState.gradeHistory.length-30);
+  updateUndoButton();
+}
+function undoLastGradeAction(){
+  const action=gradingState.gradeHistory?.pop();if(!action)return;
+  action.changes.forEach(change=>{
+    if(change.before)gradingState.grades[change.key]={...change.before};
+    else delete gradingState.grades[change.key];
+  });
+  gradingState.q=Number(action.q||0);
+  localStorage.setItem("yutori_grades_v021",JSON.stringify(gradingState.grades));
+  scheduleAutoSave();renderTabs();renderGradeGrid();scrollActiveQuestionTab(false);updateUndoButton();
+}
 function setGrade(c,n,m){
   const person=findAssignedPerson(c,n);if(person?.absent)return;
   const point=currentQuestionScore();
   const score=m==="ok"?Number(point.ok):m==="partial"?Number(point.partial):0;
-  gradingState.grades[key(c,n,gradingState.q)]={mark:m,score};
+  const gradeKey=key(c,n,gradingState.q),before=gradingState.grades[gradeKey];
+  if(before?.mark===m&&Number(before.score)===score)return;
+  pushGradeAction([{key:gradeKey,before:before?{...before}:null}],`${n}番を${m==="ok"?"○":m==="ng"?"×":"△"}`);
+  gradingState.grades[gradeKey]={mark:m,score};
   localStorage.setItem("yutori_grades_v021",JSON.stringify(gradingState.grades));
   scheduleAutoSave();
   renderTabs();renderGradeGrid();
@@ -4396,10 +4540,13 @@ function setGrade(c,n,m){
 function bulkGrade(m){
   const point=currentQuestionScore();
   const score=m==="ok"?Number(point.ok):m==="partial"?Number(point.partial):0;
+  const changes=[];
   gradingState.classes.forEach(c=>(gradingState.answers[c]||[]).forEach(p=>{
     if(p.absent)return;
-    const k=key(c,p.no,gradingState.q);if(!gradingState.grades[k])gradingState.grades[k]={mark:m,score};
+    const k=key(c,p.no,gradingState.q);if(!gradingState.grades[k]){changes.push({key:k,before:null});gradingState.grades[k]={mark:m,score}}
   }));
+  if(!changes.length)return;
+  pushGradeAction(changes,`残りを${m==="ok"?"○":"×"}`);
   localStorage.setItem("yutori_grades_v021",JSON.stringify(gradingState.grades));
   scheduleAutoSave();
   renderTabs();renderGradeGrid();
@@ -4518,7 +4665,21 @@ let autoSaveTimer=null;
 function sessionsKey(){return "yutori_grading_sessions_v023"}
 function setSaveStatus(mode){const el=document.getElementById("saveStatus");if(!el)return;el.className=`save-status ${mode}`;el.textContent=mode==="saving"?"自動保存：保存中…":"自動保存：保存済み"}
 function scheduleAutoSave(){setSaveStatus("saving");clearTimeout(autoSaveTimer);autoSaveTimer=setTimeout(saveGradingSessionNow,350)}
-function serializeSession(){const t=currentTest()||{};return{id:gradingState.sessionId||`session-${Date.now()}`,assignmentMode:"attendance-mark",selectedTestId:gradingState.selectedTestId,testName:t.testName||t.name||state.testName||"名称未設定",subject:t.subject||state.subject||"",unit:t.unit||state.unit||"",rows:Number(t.rows)||10,cols:Number(t.cols)||3,flow:t.flow==="row"?"row":"column",questions:t.questions||[],modelAnswers:t.answers||[],classes:[...gradingState.classes],files:gradingState.files.map(f=>({name:f.name,type:f.type,size:f.size,lastModified:f.lastModified})),pdfPages:gradingState.pdfPages||[],ignoredPageIds:gradingState.ignoredPageIds||[],issues:gradingState.issues,answers:gradingState.answers,grades:gradingState.grades,q:gradingState.q,selectedPen:gradingState.selectedPen,questionScores:gradingState.questionScores||[],fullScore:Number(document.getElementById("fullScore")?.value||1),partialScore:Number(document.getElementById("partialScore")?.value||.5),gradeColumns:Number(document.getElementById("gradeColumns")?.value||gradingState.gradeColumns||5),status:gradingState.status||"in-progress",workflowCompleted:gradingState.workflowCompleted||{},currentWorkflowStep:gradingState.currentWorkflowStep||1,lastSavedAt:Date.now()}}
+function serializeSession(){
+  const t=currentTest()||{};
+  return {
+    id:gradingState.sessionId||`session-${Date.now()}`,assignmentMode:"attendance-mark",selectedTestId:gradingState.selectedTestId,
+    testName:t.testName||t.name||state.testName||"名称未設定",subject:t.subject||state.subject||"",unit:t.unit||state.unit||"",
+    rows:Number(t.rows)||10,cols:Number(t.cols)||3,flow:t.flow==="row"?"row":"column",questions:t.questions||[],modelAnswers:t.answers||[],
+    classes:[...gradingState.classes],files:gradingState.files.map(f=>({name:f.name,type:f.type,size:f.size,lastModified:f.lastModified})),
+    pdfPages:gradingState.pdfPages||[],ignoredPageIds:gradingState.ignoredPageIds||[],issues:gradingState.issues,answers:gradingState.answers,
+    grades:gradingState.grades,q:gradingState.q,selectedPen:gradingState.selectedPen,questionScores:gradingState.questionScores||[],
+    gradeHistory:(gradingState.gradeHistory||[]).slice(-30),
+    fullScore:Number(document.getElementById("fullScore")?.value||1),partialScore:Number(document.getElementById("partialScore")?.value||.5),
+    gradeColumns:Number(document.getElementById("gradeColumns")?.value||gradingState.gradeColumns||5),status:gradingState.status||"in-progress",
+    workflowCompleted:gradingState.workflowCompleted||{},currentWorkflowStep:gradingState.currentWorkflowStep||1,lastSavedAt:Date.now()
+  };
+}
 function saveGradingSessionNow(){if(!gradingState.sessionId)return;setSaveStatus("saving");const sessions=JSON.parse(localStorage.getItem(sessionsKey())||"[]");const data=serializeSession();gradingState.lastSavedAt=data.lastSavedAt;gradingState.gradeColumns=data.gradeColumns;localStorage.setItem(sessionsKey(),JSON.stringify([data,...sessions.filter(s=>s.id!==data.id)]));localStorage.setItem("yutori_grades_v021",JSON.stringify(gradingState.grades));setTimeout(()=>setSaveStatus("saved"),120)}
 function changeGradeColumns(v){gradingState.gradeColumns=Number(v)||5;localStorage.setItem("yutori_grade_columns_v023",String(gradingState.gradeColumns));renderGradeGrid();scheduleAutoSave()}
 function completedQuestionCount(s){let count=0;for(let q=0;q<(s.questions||[]).length;q++){let total=0,done=0;(s.classes||[]).forEach(c=>(s.answers?.[c]||[]).forEach(p=>{if(p.absent)return;total++;if(s.grades?.[`${c}::${p.no}::${q}`])done++}));if(total&&done===total)count++}return count}
@@ -4562,6 +4723,8 @@ async function confirmDeleteSession(){
     gradingState.q=0;
     gradingState.pdfPages=[];
     gradingState.ignoredPageIds=[];
+    gradingState.dragPageId="";
+    gradingState.gradeHistory=[];
   }
 
   const fallbackGrades=
@@ -4617,7 +4780,7 @@ async function resumeGradingSession(id){
     alert("この採点データは、PDFをページ順で割り当てていた旧形式です。正しい出席番号で採点するため、「新しく採点を始める」から答案PDFをもう一度読み込んでください。");
     return;
   }
-  Object.assign(gradingState,{sessionId:s.id,selectedTestId:s.selectedTestId||"current",classes:s.classes||[],files:s.files||[],issues:s.issues||[],answers:s.answers||{},grades:s.grades||{},q:Number(s.q||0),selectedPen:s.selectedPen||"ok",gradeColumns:Number(s.gradeColumns||localStorage.getItem("yutori_grade_columns_v023")||5),status:s.status||"in-progress",workflowCompleted:s.workflowCompleted||{},currentWorkflowStep:s.currentWorkflowStep||1,questionScores:s.questionScores||[],lastSavedAt:s.lastSavedAt||0,pdfPages:s.pdfPages||[],ignoredPageIds:s.ignoredPageIds||[],answerPreview:null});
+  Object.assign(gradingState,{sessionId:s.id,selectedTestId:s.selectedTestId||"current",classes:s.classes||[],files:s.files||[],issues:s.issues||[],answers:s.answers||{},grades:s.grades||{},q:Number(s.q||0),selectedPen:s.selectedPen||"ok",gradeColumns:Number(s.gradeColumns||localStorage.getItem("yutori_grade_columns_v023")||5),status:s.status||"in-progress",workflowCompleted:s.workflowCompleted||{},currentWorkflowStep:s.currentWorkflowStep||1,questionScores:s.questionScores||[],lastSavedAt:s.lastSavedAt||0,pdfPages:s.pdfPages||[],ignoredPageIds:s.ignoredPageIds||[],answerPreview:null,dragPageId:"",gradeHistory:s.gradeHistory||[]});
   gradingState.testSets=[{id:s.selectedTestId||"current",name:s.testName||"保存済みテスト",testName:s.testName||"保存済みテスト",subject:s.subject||"",unit:s.unit||"",rows:Number(s.rows)||10,cols:Number(s.cols)||3,flow:s.flow==="row"?"row":"column",questions:s.questions||[],answers:s.modelAnswers||[]}];
   if(gradingState.pdfPages.length){
     try{await restorePdfPagesFromIndexedDB(id)}catch(error){console.warn("答案画像の復元に失敗しました",error)}
@@ -4646,7 +4809,19 @@ async function resumeGradingSession(id){
 }
 function returnToLoadStep(){saveGradingSessionNow();gradingEntryView.style.display="none";reviewView.style.display="none";mainGradeView.style.display="none";loadView.style.display=""}
 function returnToReviewStep(){saveGradingSessionNow();gradingEntryView.style.display="none";loadView.style.display="none";mainGradeView.style.display="none";reviewView.style.display="";renderIssues()}
-function resetCurrentQuestion(){const q=gradingState.q,label=String(q+1).padStart(2,"0");if(!confirm(`問題${label}の採点結果をすべて未採点へ戻しますか？`))return;gradingState.classes.forEach(c=>(gradingState.answers[c]||[]).forEach(p=>delete gradingState.grades[key(c,p.no,q)]));localStorage.setItem("yutori_grades_v021",JSON.stringify(gradingState.grades));scheduleAutoSave();renderTabs();renderGradeGrid()}
+function resetCurrentQuestion(){
+  const q=gradingState.q,label=String(q+1).padStart(2,"0");
+  if(!confirm(`問題${label}の採点結果をすべて未採点へ戻しますか？`))return;
+  const changes=[];
+  gradingState.classes.forEach(c=>(gradingState.answers[c]||[]).forEach(p=>{
+    const gradeKey=key(c,p.no,q),before=gradingState.grades[gradeKey];
+    if(before){changes.push({key:gradeKey,before:{...before}});delete gradingState.grades[gradeKey]}
+  }));
+  if(!changes.length)return;
+  pushGradeAction(changes,`問題${label}の採点をリセット`,q);
+  localStorage.setItem("yutori_grades_v021",JSON.stringify(gradingState.grades));
+  scheduleAutoSave();renderTabs();renderGradeGrid();
+}
 
 function openYutoriDb(){return new Promise((resolve,reject)=>{const req=indexedDB.open("YUTORI_DB",2);req.onupgradeneeded=()=>{const db=req.result;if(!db.objectStoreNames.contains("pdfFiles"))db.createObjectStore("pdfFiles",{keyPath:"id"});if(!db.objectStoreNames.contains("pdfPages"))db.createObjectStore("pdfPages",{keyPath:"id"})};req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error)})}
 function waitForDbTransaction(tx){return new Promise((resolve,reject)=>{tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error)})}
