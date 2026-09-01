@@ -1,0 +1,18 @@
+{
+  "name": "YUTORI",
+  "short_name": "YUTORI",
+  "description": "テスト作成・採点支援アプリ",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#F7FAF8",
+  "theme_color": "#8CCBC2",
+  "icons": [
+    {
+      "src": "assets/yutori-symbol.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

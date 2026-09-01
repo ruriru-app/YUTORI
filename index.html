@@ -3,9 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="theme-color" content="#8CCBC2">
+<meta name="apple-mobile-web-app-title" content="YUTORI">
 <title>YUTORI v0.3.3c</title>
 <link rel="icon" type="image/svg+xml" href="assets/yutori-symbol.svg">
-<link rel="apple-touch-icon" href="assets/yutori-app-icon.svg">
+<link rel="apple-touch-icon" href="assets/yutori-symbol.svg">
+<link rel="manifest" href="manifest.webmanifest">
 <style>
 :root {
   --mint:#8CCBC2; --green:#A8D08D; --orange:#FFB463; --blue:#8BB7E8;
@@ -1645,13 +1648,6 @@ body{
   gap:12px;
   color:var(--brown);
 }
-.brand-symbol{
-  width:58px;
-  height:58px;
-  flex:0 0 58px;
-  display:block;
-  object-fit:contain;
-}
 .brand-copy{
   min-width:0;
   display:flex;
@@ -1846,7 +1842,7 @@ body{
   color:#fff;
 }
 
-.editor-controls-host{display:none}
+.editor-controls-host,.settings-controls-host{display:none}
 .workspace-shell.editor-mode{grid-template-columns:344px minmax(0,1fr)}
 .app-sidebar.editor-mode{
   display:flex;
@@ -1867,6 +1863,12 @@ body{
   margin-top:8px;
   box-shadow:0 -5px 12px rgba(255,255,255,.92);
 }
+.app-sidebar.settings-mode #mainNavPanel,
+.app-sidebar.settings-mode #sidebarCurrentPanel,
+.app-sidebar.settings-mode .sidebar-primary{display:none}
+.app-sidebar.settings-mode .settings-controls-host{display:block}
+.settings-menu-panel{margin-top:0}
+.settings-sidebar-nav button{cursor:default}
 .editor-controls-host .editor-card{
   padding:0;
   border:0!important;
@@ -2018,6 +2020,124 @@ body{
   align-items:flex-start;
 }
 
+.class-settings-page{
+  min-height:100%;
+  padding:16px;
+  border:1px solid var(--line);
+  border-radius:14px;
+  background:#fff;
+  box-shadow:0 3px 14px rgba(129,104,87,.055);
+}
+.class-settings-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:18px;
+  padding-bottom:14px;
+  border-bottom:1px solid var(--line);
+}
+.class-settings-head .step-title{margin:0 0 5px}
+.class-settings-head p{margin:0;color:var(--muted);font-size:12px;font-weight:700}
+.add-class-button{
+  flex:0 0 auto;
+  padding:9px 14px;
+  background:var(--mint);
+  color:#fff;
+  box-shadow:0 3px 9px rgba(99,195,183,.2);
+}
+.add-class-button:hover{background:var(--mint-dark)}
+.class-settings-list{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(230px,1fr));
+  gap:12px;
+  margin-top:14px;
+}
+.class-settings-card{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  padding:13px;
+  border:1px solid var(--line);
+  border-radius:13px;
+  background:#FFFEFC;
+}
+.class-settings-mark{
+  width:42px;
+  height:42px;
+  flex:0 0 42px;
+  display:grid;
+  place-items:center;
+  border-radius:12px;
+  background:#EAF5F3;
+  color:var(--mint-dark);
+  font-size:13px;
+  font-weight:900;
+}
+.class-settings-card-copy{min-width:0;flex:1}
+.class-settings-card h3{
+  margin:0 0 3px;
+  overflow:hidden;
+  color:var(--brown);
+  font-size:15px;
+  font-weight:900;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.class-settings-card p{margin:0;color:var(--muted);font-size:11px;font-weight:700}
+.class-settings-edit{flex:0 0 auto;padding:7px 9px;font-size:11px}
+.class-settings-empty{
+  grid-column:1/-1;
+  padding:44px 20px;
+  border:1px dashed #DCCFC5;
+  border-radius:14px;
+  background:#FCFAF8;
+  color:var(--muted);
+  text-align:center;
+}
+.class-settings-empty strong{display:block;margin-bottom:5px;color:var(--brown);font-size:15px}
+
+.class-modal{width:min(620px,calc(100vw - 32px));padding:0;overflow:hidden}
+.class-modal-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:14px;
+  padding:17px 18px 14px;
+  border-bottom:1px solid var(--line);
+  background:#FBF8F5;
+}
+.class-modal-head h3{margin:0 0 4px}
+.class-modal-head p{color:var(--muted);font-size:11px;font-weight:700}
+.class-modal-close{
+  width:32px;
+  height:32px;
+  flex:0 0 32px;
+  padding:0;
+  border:1px solid var(--line);
+  border-radius:10px;
+  background:#fff;
+  color:var(--muted);
+  font-size:19px;
+}
+.class-modal form{padding:16px 18px 18px}
+.class-modal-field{display:block;margin-bottom:14px;color:var(--brown);font-size:13px;font-weight:900}
+.class-modal-field input,.class-modal-field textarea{width:100%;margin-top:6px}
+.class-modal-field input[readonly]{background:#F5F2EF;color:#8A7D76}
+.class-modal-field textarea{height:190px;resize:vertical}
+.class-modal-help{display:block;margin-top:3px;color:var(--muted);font-size:10px;font-weight:700}
+.class-modal-summary{
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  margin-top:-5px;
+  padding:8px 10px;
+  border-radius:9px;
+  background:#F1F7F5;
+  color:var(--muted);
+  font-size:11px;
+  font-weight:800;
+}
+
 .workspace-main{
   min-width:0;
   min-height:0;
@@ -2139,14 +2259,14 @@ button.secondary{background:#F4F0EC;color:var(--brown)}
 .sidebar-collapsed .sidebar-nav-label,
 .sidebar-collapsed .sidebar-current,
 .sidebar-collapsed .sidebar-primary,
-.sidebar-collapsed .editor-controls-host{display:none}
+.sidebar-collapsed .editor-controls-host,
+.sidebar-collapsed .settings-controls-host{display:none}
 .sidebar-collapsed .sidebar-nav{padding:6px 0}
 .sidebar-collapsed .sidebar-nav button{justify-content:center;padding:7px 5px}
 .sidebar-collapsed .sidebar-collapse{transform:rotate(180deg)}
 
 @media(max-width:1080px){
   .app-header{grid-template-columns:minmax(220px,1fr) auto auto}
-  .brand-symbol{width:48px;height:48px;flex-basis:48px}
   .brand-logo-image{width:clamp(180px,21vw,225px)}
   .brand-version{display:none}
   .brand-word{font-size:27px}
@@ -2177,7 +2297,6 @@ button.secondary{background:#F4F0EC;color:var(--brown)}
 }
 @media(max-width:600px){
   .app-shell{padding:7px}
-  .brand-symbol{width:42px;height:42px;flex-basis:42px}
   .brand-logo-image{width:180px}
   .brand-word{font-size:23px}
   .brand-version{font-size:10px}
@@ -2189,11 +2308,12 @@ button.secondary{background:#F4F0EC;color:var(--brown)}
   .side-card{grid-template-columns:1fr}
   .editor-live-toolbar{align-items:flex-start;flex-direction:column}
   .editor-live-actions{width:100%;margin-left:0;justify-content:space-between}
+  .class-settings-head{align-items:stretch;flex-direction:column}
+  .add-class-button{align-self:flex-end}
+  .class-modal-summary{flex-direction:column;gap:3px}
 }
 @media(max-width:420px){
   .app-header{padding:6px}
-  .brand{gap:6px}
-  .brand-symbol{width:36px;height:36px;flex-basis:36px}
   .brand-logo-image{width:145px}
   .header-tools{gap:5px}
   .header-tool{width:34px;height:34px}
@@ -2258,7 +2378,6 @@ button.secondary{background:#F4F0EC;color:var(--brown)}
 <div class="app-shell">
 <header class="app-header no-print">
   <div class="brand" aria-label="YUTORI v0.3.3c">
-    <img class="brand-symbol" src="assets/yutori-symbol.svg" alt="" aria-hidden="true">
     <div class="brand-copy">
       <img class="brand-logo-image" src="assets/yutori-logo.svg" alt="YUTORI つくる・つける・つなげる">
       <span class="brand-version">v0.3.3c</span>
@@ -2267,12 +2386,12 @@ button.secondary{background:#F4F0EC;color:var(--brown)}
   <nav aria-label="主要メニュー">
     <button class="active" data-screen="editorScreen" onclick="showScreen('editorScreen')">テスト作成</button>
     <button data-screen="gradingScreen" onclick="openGrading()">採点</button>
-    <button data-screen="rosterScreen" onclick="showScreen('rosterScreen')">名簿設定</button>
+    <button data-screen="rosterScreen" onclick="showScreen('rosterScreen')">設定</button>
     <button data-screen="outputScreen" onclick="openExportPage()">結果出力</button>
   </nav>
   <div class="header-tools">
     <button class="header-tool home asset-button" type="button" aria-label="ホーム" title="テスト作成へ" onclick="showScreen('editorScreen')"><img src="assets/yutori-app-icon.svg" alt=""></button>
-    <button class="header-tool settings asset-button" type="button" aria-label="各種設定" title="名簿設定へ" onclick="showScreen('rosterScreen')"><img src="assets/settings.svg" alt=""></button>
+    <button class="header-tool settings asset-button" type="button" aria-label="各種設定" title="設定へ" onclick="showScreen('rosterScreen')"><img src="assets/settings.svg" alt=""></button>
   </div>
 </header>
 
@@ -2287,13 +2406,21 @@ button.secondary{background:#F4F0EC;color:var(--brown)}
     </div>
 
     <div id="editorControlsHost" class="editor-controls-host" aria-label="テスト作成の入力項目"></div>
+    <div id="settingsControlsHost" class="settings-controls-host" aria-label="設定メニュー">
+      <div class="sidebar-panel settings-menu-panel">
+        <div class="sidebar-panel-title"><span>設定メニュー</span><span>−</span></div>
+        <div class="sidebar-nav settings-sidebar-nav">
+          <button class="active" type="button" onclick="showScreen('rosterScreen')"><span class="sidebar-nav-icon">組</span><span class="sidebar-nav-label">クラス設定</span></button>
+        </div>
+      </div>
+    </div>
 
     <div id="mainNavPanel" class="sidebar-panel">
       <div class="sidebar-panel-title"><span>操作メニュー</span><span>−</span></div>
       <div class="sidebar-nav">
         <button class="active" data-screen="editorScreen" onclick="showScreen('editorScreen')"><span class="sidebar-nav-icon">作</span><span class="sidebar-nav-label">テスト作成</span></button>
         <button data-screen="gradingScreen" onclick="openGrading()"><span class="sidebar-nav-icon">採</span><span class="sidebar-nav-label">採点</span></button>
-        <button data-screen="rosterScreen" onclick="showScreen('rosterScreen')"><span class="sidebar-nav-icon">名</span><span class="sidebar-nav-label">名簿設定</span></button>
+        <button data-screen="rosterScreen" onclick="showScreen('rosterScreen')"><span class="sidebar-nav-icon">設</span><span class="sidebar-nav-label">設定</span></button>
         <button data-screen="outputScreen" onclick="openExportPage()"><span class="sidebar-nav-icon">出</span><span class="sidebar-nav-label">結果出力</span></button>
       </div>
     </div>
@@ -2506,7 +2633,7 @@ button.secondary{background:#F4F0EC;color:var(--brown)}
     </div>
   </div>
 
-  
+
 <div id="mainGradeView" class="grade-card" style="display:none">
   <div class="grading-head-area">
     <div class="grading-progress-row" style="grid-column:1;grid-row:1">
@@ -2630,14 +2757,15 @@ button.secondary{background:#F4F0EC;color:var(--brown)}
 
 
 <section id="rosterScreen" class="screen">
-  <div class="grade-card">
-    <h2 class="step-title">名簿設定</h2>
-    <div class="grade-grid2">
-      <div class="grade-field"><label>クラス</label><select id="rosterClass" onchange="loadRosterEditor()"></select></div>
-      <div class="grade-field"><label>クラス追加</label><div style="display:flex;gap:8px"><input id="newClass" placeholder="例：5-1" style="flex:1"><button class="secondary" onclick="addClass()">追加</button></div></div>
-      <div class="grade-field" style="grid-column:1/-1"><label>番号・氏名を2列で貼り付け</label><textarea id="rosterPaste" class="paste-area" placeholder="1	山田 花子&#10;2	佐藤 太郎"></textarea><div class="actions"><button class="primary" onclick="applyRoster()">2列貼り付けを反映</button></div></div>
+  <div class="class-settings-page">
+    <div class="class-settings-head">
+      <div>
+        <h2 class="step-title">クラス設定</h2>
+        <p>採点に使用するクラスと、出席番号・氏名を登録します。</p>
+      </div>
+      <button class="add-class-button" type="button" onclick="openClassModal()">＋クラスを追加</button>
     </div>
-    <div id="rosterPreview" class="roster-table"></div>
+    <div id="classSettingsList" class="class-settings-list"></div>
   </div>
 </section>
 
@@ -2752,11 +2880,14 @@ function showScreen(id){
   document.querySelectorAll(".screen").forEach(el=>el.classList.remove("active"));
   document.getElementById(id).classList.add("active");
   const isEditor=id==="editorScreen";
+  const isSettings=id==="rosterScreen";
   const shell=document.getElementById("workspaceShell");
   const sidebar=document.querySelector(".app-sidebar");
   shell?.classList.toggle("editor-mode",isEditor);
+  shell?.classList.toggle("settings-mode",isSettings);
   sidebar?.classList.toggle("editor-mode",isEditor);
-  if(isEditor&&shell?.classList.contains("sidebar-collapsed")){
+  sidebar?.classList.toggle("settings-mode",isSettings);
+  if((isEditor||isSettings)&&shell?.classList.contains("sidebar-collapsed")){
     shell.classList.remove("sidebar-collapsed");
     const collapseButton=document.getElementById("sidebarCollapse");
     if(collapseButton){
@@ -2774,7 +2905,7 @@ function showScreen(id){
     editorScreen:{tab:"テスト作成",title:"入力しながら用紙を確認",side:"テスト作成メニュー",sub:"左で入力・右でプレビュー",description:"左側へ入力すると、右側の用紙プレビューへすぐに反映されます。",hint:"左側の入力内容が右のプレビューに即時反映されます",primary:"印刷画面を開く"},
     previewScreen:{tab:"プレビュー",title:"印刷レイアウトの確認",side:"印刷プレビュー",sub:"用紙レイアウトの確認と印刷",description:"作成したテストの用紙レイアウトを確認し、印刷またはPDF保存します。",hint:"推奨設定：倍率100％・余白なし",primary:"印刷・PDF保存"},
     gradingScreen:{tab:"採点",title:"答案の読み込みと採点",side:"採点メニュー",sub:"答案PDFの確認と採点",description:"答案PDFを読み込み、問題ごとに採点します。途中経過は自動保存されます。",hint:"採点内容はこの端末に自動保存されます",primary:"新しく採点を始める"},
-    rosterScreen:{tab:"名簿設定",title:"クラスと名簿の管理",side:"名簿設定メニュー",sub:"クラス・児童生徒名簿",description:"採点に使用するクラスと番号・氏名を登録します。",hint:"番号と氏名を2列で貼り付けできます",primary:"名簿入力へ移動"},
+    rosterScreen:{tab:"設定",title:"クラス設定",side:"設定",sub:"クラス設定",description:"採点に使用するクラスと番号・氏名を登録します。",hint:"右上の「＋クラスを追加」から登録できます",primary:"クラスを追加"},
     resultsScreen:{tab:"結果確認",title:"採点結果の確認",side:"結果確認メニュー",sub:"得点・正答率の確認",description:"クラスごとの得点、問題別の採点結果、正答率を確認します。",hint:"問題名に触れると詳細を確認できます",primary:"採点へ戻る"},
     outputScreen:{tab:"結果出力",title:"採点結果の書き出し",side:"結果出力メニュー",sub:"CSV・PDF出力",description:"確認済みの採点結果を書き出すための画面です。",hint:"出力機能は今後追加予定です",primary:"テスト作成へ戻る"}
   };
@@ -2785,6 +2916,7 @@ function showScreen(id){
   if(primary)primary.textContent=meta.primary;
   mountPaperForScreen(id);
   if(isEditor)scheduleLivePreview();
+  if(isSettings)renderClassSettings();
   const scroll=document.querySelector(".workspace-scroll");
   if(scroll)scroll.scrollTop=0;
 }
@@ -2793,7 +2925,7 @@ function handleSidebarPrimary(){
   if(active==="editorScreen")return openPreview();
   if(active==="previewScreen")return printDocument();
   if(active==="gradingScreen")return showNewGradingLoad();
-  if(active==="rosterScreen")return document.getElementById("rosterPaste")?.focus();
+  if(active==="rosterScreen")return openClassModal();
   if(active==="resultsScreen")return returnToGradingFromResults();
   showScreen("editorScreen");
 }
@@ -2997,22 +3129,20 @@ window.addEventListener("beforeprint",()=>{
 const gradingState={rosters:{},testSets:[],selectedTestId:"",classes:[],files:[],issues:[],answers:{},grades:{},q:0,selectedPen:"ok",sessionId:"",status:"in-progress",lastSavedAt:0,gradeColumns:7,workflowCompleted:{},currentWorkflowStep:1,questionScores:[],resultsReturnState:null};
 
 function ensureRosters(){
-  gradingState.rosters=JSON.parse(localStorage.getItem("yutori_rosters")||"{}");
-  if(!Object.keys(gradingState.rosters).length){
-    gradingState.rosters={
-      "5-1":Array.from({length:35},(_,i)=>({no:i+1,name:`児童${String(i+1).padStart(2,"0")}`})),
-      "5-2":Array.from({length:35},(_,i)=>({no:i+1,name:`児童${String(i+1).padStart(2,"0")}`}))
-    };
-    saveRosters();
+  try{
+    const savedRosters=JSON.parse(localStorage.getItem("yutori_rosters")||"{}");
+    gradingState.rosters=savedRosters&&typeof savedRosters==="object"&&!Array.isArray(savedRosters)?savedRosters:{};
+  }catch(e){
+    gradingState.rosters={};
   }
 }
 function saveRosters(){localStorage.setItem("yutori_rosters",JSON.stringify(gradingState.rosters))}
 function refreshGradeUi(){
   gradingState.testSets=[{id:"current",name:state.testName||"現在のテスト",questions:[...state.questions],answers:[...state.answers]}];
   document.getElementById("gradingTestSet").innerHTML=gradingState.testSets.map(t=>`<option value="${t.id}">${escapeHtml(t.name)}</option>`).join("");
-  document.getElementById("classChecks").innerHTML=Object.keys(gradingState.rosters).map((c,i)=>`<label class="class-chip"><input type="checkbox" value="${escapeHtml(c)}" ${i<2?"checked":""}>${escapeHtml(c)}</label>`).join("");
-  document.getElementById("rosterClass").innerHTML=Object.keys(gradingState.rosters).map(c=>`<option>${escapeHtml(c)}</option>`).join("");
-  loadRosterEditor();
+  const classNames=Object.keys(gradingState.rosters);
+  document.getElementById("classChecks").innerHTML=classNames.length?classNames.map((c,i)=>`<label class="class-chip"><input type="checkbox" value="${escapeHtml(c)}" ${i<2?"checked":""}>${escapeHtml(c)}</label>`).join(""):'<span class="help">設定からクラスを登録してください。</span>';
+  renderClassSettings();
 }
 function workflowStepLabel(step){return {1:"① 答案の読込",2:"② 確認と修正",3:"③ 採点",4:"④ 結果の確認"}[step]}
 function workflowDone(step){
@@ -3280,20 +3410,72 @@ function bulkGrade(m){
   scheduleAutoSave();
   renderTabs();renderGradeGrid();
 }
-function addClass(){
-  const c=newClass.value.trim();if(!c)return;if(!gradingState.rosters[c])gradingState.rosters[c]=[];
-  newClass.value="";saveRosters();refreshGradeUi();rosterClass.value=c;loadRosterEditor();
+let editingClassName="";
+function parseRosterText(raw){
+  return String(raw||"").replace(/\r/g,"").split("\n").filter(line=>line.trim()).map(line=>{
+    const parts=line.includes("\t")?line.split("\t"):line.split(",");
+    return {no:Number(String(parts[0]||"").trim()),name:String(parts[1]||"").trim()};
+  }).filter(person=>Number.isFinite(person.no)&&person.no>0&&person.name).sort((a,b)=>a.no-b.no);
 }
-function loadRosterEditor(){
-  if(!rosterClass.value)return;
-  const r=gradingState.rosters[rosterClass.value]||[];
-  rosterPaste.value=r.map(p=>`${p.no}\t${p.name}`).join("\n");
-  rosterPreview.innerHTML='<div class="roster-head"><div>番号</div><div>氏名</div></div>'+r.map(p=>`<div class="roster-row"><div>${p.no}</div><div>${escapeHtml(p.name)}</div></div>`).join("");
+function renderClassSettings(){
+  const host=document.getElementById("classSettingsList");
+  if(!host)return;
+  const classNames=Object.keys(gradingState.rosters);
+  if(!classNames.length){
+    host.innerHTML='<div class="class-settings-empty"><strong>登録されているクラスはありません</strong>右上の「＋クラスを追加」から登録してください。</div>';
+    return;
+  }
+  host.innerHTML=classNames.map(className=>{
+    const roster=gradingState.rosters[className]||[];
+    const encoded=encodeURIComponent(className);
+    return `<article class="class-settings-card">
+      <div class="class-settings-mark">${escapeHtml(className.slice(0,3))}</div>
+      <div class="class-settings-card-copy"><h3>${escapeHtml(className)}</h3><p>${roster.length}名登録</p></div>
+      <button class="secondary class-settings-edit" type="button" onclick="openClassModal(decodeURIComponent('${encoded}'))">編集</button>
+    </article>`;
+  }).join("");
 }
-function applyRoster(){
-  const c=rosterClass.value,raw=rosterPaste.value.replace(/\r/g,"").trim();
-  gradingState.rosters[c]=raw?raw.split("\n").filter(Boolean).map(line=>{const p=line.includes("\t")?line.split("\t"):line.split(",");return{no:Number(p[0]),name:(p[1]||"").trim()}}).filter(p=>p.no&&p.name):[];
-  saveRosters();loadRosterEditor();refreshGradeUi();rosterClass.value=c;
+function openClassModal(className=""){
+  editingClassName=className;
+  const modal=document.getElementById("classModal");
+  const nameInput=document.getElementById("classNameInput");
+  const rosterInput=document.getElementById("classRosterInput");
+  const isEditing=!!className;
+  document.getElementById("classModalTitle").textContent=isEditing?"クラスを編集":"クラスを追加";
+  document.getElementById("classModalSaveButton").textContent=isEditing?"保存":"登録";
+  nameInput.value=className;
+  nameInput.readOnly=isEditing;
+  rosterInput.value=isEditing?(gradingState.rosters[className]||[]).map(person=>`${person.no}\t${person.name}`).join("\n"):"";
+  updateClassRosterCount();
+  modal.classList.add("show");
+  modal.setAttribute("aria-hidden","false");
+  requestAnimationFrame(()=>{(isEditing?rosterInput:nameInput).focus()});
+}
+function closeClassModal(){
+  const modal=document.getElementById("classModal");
+  modal.classList.remove("show");
+  modal.setAttribute("aria-hidden","true");
+  editingClassName="";
+}
+function handleClassModalBackdrop(event){
+  if(event.target===event.currentTarget)closeClassModal();
+}
+function updateClassRosterCount(){
+  const roster=parseRosterText(document.getElementById("classRosterInput")?.value||"");
+  const count=document.getElementById("classRosterCount");
+  if(count)count.textContent=`登録人数：${roster.length}名`;
+}
+function saveClassFromModal(){
+  const className=document.getElementById("classNameInput").value.trim();
+  if(!className){alert("クラス名を入力してください。");document.getElementById("classNameInput").focus();return}
+  if(!editingClassName&&Object.prototype.hasOwnProperty.call(gradingState.rosters,className)){
+    alert("同じ名前のクラスがすでに登録されています。");return;
+  }
+  const roster=parseRosterText(document.getElementById("classRosterInput").value);
+  gradingState.rosters[className]=roster;
+  saveRosters();
+  refreshGradeUi();
+  closeClassModal();
 }
 
 let autoSaveTimer=null;
@@ -3691,6 +3873,32 @@ updateCounts();
 bindLivePreviewControls();
 showScreen("editorScreen");
 </script>
+
+<div id="classModal" class="yutori-modal-backdrop" aria-hidden="true" onclick="handleClassModalBackdrop(event)">
+  <div class="yutori-modal class-modal" role="dialog" aria-modal="true" aria-labelledby="classModalTitle">
+    <div class="class-modal-head">
+      <div>
+        <h3 id="classModalTitle">クラスを追加</h3>
+        <p>クラス名と名簿を入力して登録します。</p>
+      </div>
+      <button class="class-modal-close" type="button" aria-label="閉じる" onclick="closeClassModal()">×</button>
+    </div>
+    <form onsubmit="saveClassFromModal();return false">
+      <label class="class-modal-field">クラス名
+        <input id="classNameInput" autocomplete="off" placeholder="例：5-1" maxlength="30">
+      </label>
+      <label class="class-modal-field">児童生徒名簿
+        <span class="class-modal-help">表計算ソフトから「出席番号」「氏名」の2列を貼り付けできます。</span>
+        <textarea id="classRosterInput" class="paste-area" placeholder="1	山田 花子&#10;2	佐藤 太郎" oninput="updateClassRosterCount()"></textarea>
+      </label>
+      <div class="class-modal-summary"><span id="classRosterCount">登録人数：0名</span><span>タブ区切り・カンマ区切り対応</span></div>
+      <div class="yutori-modal-actions">
+        <button class="secondary" type="button" onclick="closeClassModal()">キャンセル</button>
+        <button id="classModalSaveButton" class="primary" type="submit">登録</button>
+      </div>
+    </form>
+  </div>
+</div>
 
 <div id="deleteSessionModal" class="yutori-modal-backdrop" aria-hidden="true">
   <div class="yutori-modal" role="dialog" aria-modal="true">
