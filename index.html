@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<meta name="theme-color" content="#8CCBC2">
+<meta name="theme-color" content="#F6B26B">
 <meta name="apple-mobile-web-app-title" content="YUTORI">
 <title>YUTORI v0.3.3c</title>
 <link rel="icon" type="image/svg+xml" href="assets/yutori-symbol.svg">
@@ -11,7 +11,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <style>
 :root {
-  --mint:#8CCBC2; --green:#A8D08D; --orange:#FFB463; --blue:#8BB7E8;
+  --mint:#F6B26B; --green:#A8D08D; --orange:#F6B26B; --blue:#8BB7E8;
   --brown:#7A6E65; --bg:#F7FAF8; --card:#FFFFFF; --line:#DCE7E3;
   --text:#2F3437; --muted:#74807D; --danger:#C95B52;
 }
@@ -1178,7 +1178,7 @@ body{
 .workflow-step{min-height:32px!important;padding:6px 18px 6px 22px!important;font-size:13px!important;line-height:20px!important}
 .results-controls{margin-left:auto!important;justify-content:flex-end!important}
 .problem-seq{font-weight:900;color:var(--brown);margin-right:8px}
-.qtab.active{border:2px solid var(--mint)!important;border-bottom:3px solid var(--mint)!important;font-weight:900!important;background:#F3FBF9!important;color:#2F6760!important;box-shadow:0 2px 6px rgba(80,150,140,.16)!important;z-index:4}
+.qtab.active{border:2px solid var(--mint)!important;border-bottom:3px solid var(--mint)!important;font-weight:900!important;background:#FFF3E5!important;color:#9A5B21!important;box-shadow:0 2px 6px rgba(246,178,107,.2)!important;z-index:4}
 .qtab.active.done{background:#E7F4E1!important;color:#3E6E39!important}
 .qtab.return-highlight{animation:qtabPulse .8s ease 1}@keyframes qtabPulse{0%{transform:scale(1)}35%{transform:scale(1.08)}100%{transform:scale(1)}}
 @media(max-width:1100px){.grading-head-area{grid-template-columns:1fr!important;grid-template-rows:auto auto auto!important}.grading-progress-row{grid-column:1!important;grid-row:1!important}.grading-compact-top{grid-column:1!important;grid-row:2!important}.palette-fixed{grid-column:1!important;grid-row:3!important}}
@@ -1591,8 +1591,8 @@ body{
 
 /* ===== MITORI週案ページ準拠のアプリケーションシェル ===== */
 :root{
-  --mint:#63C3B7;
-  --mint-dark:#4FA99E;
+  --mint:#F6B26B;
+  --mint-dark:#D9914E;
   --green:#A8D08D;
   --orange:#F4B56A;
   --blue:#8BB7E8;
@@ -1690,7 +1690,7 @@ body{
   gap:0;
   overflow:hidden;
   border:1px solid var(--line);
-  border-radius:12px;
+  border-radius:999px;
   background:#FAF7F4;
 }
 .app-header nav button{
@@ -1703,6 +1703,8 @@ body{
   font-weight:800;
   transition:background .16s ease,color .16s ease;
 }
+.app-header nav button:first-child{border-radius:999px 0 0 999px}
+.app-header nav button:last-child{border-radius:0 999px 999px 0}
 .app-header nav button+button{border-left:1px solid var(--line)}
 .app-header nav button:hover{background:#F2EEEA}
 .app-header nav button.active{
@@ -1726,7 +1728,7 @@ body{
   font-size:25px;
   line-height:1;
 }
-.header-tool.home{color:#63C3B7;background:#F0FAF8}
+.header-tool.home{color:var(--mint-dark);background:#FFF3E5}
 .header-tool.settings{color:#9A77C6;background:#F7F2FB}
 .header-tool.asset-button{
   padding:0;
@@ -1824,7 +1826,7 @@ body{
   display:grid;
   place-items:center;
   border-radius:8px;
-  background:#F1F7F5;
+  background:#FFF3E5;
   color:var(--mint-dark);
   font-size:13px;
   font-weight:900;
@@ -1933,7 +1935,7 @@ body{
   margin-top:2px;
   padding:5px 7px;
   border-radius:8px;
-  background:#F4F8F7;
+  background:#FFF3E5;
   font-size:11px;
 }
 .editor-controls-host label,
@@ -1962,6 +1964,34 @@ body{
 .editor-controls-host .question-row>div{padding:4px;font-size:10px}
 .editor-controls-host .question-row input{height:27px;padding:0 3px;font-size:11px}
 .editor-controls-host .question-scroll{max-height:190px}
+.editor-controls-host .step.accordion-step{
+  display:block;
+  padding:0;
+  overflow:hidden;
+}
+.accordion-toggle{
+  width:100%;
+  min-height:44px;
+  display:grid;
+  grid-template-columns:27px minmax(0,1fr) 18px;
+  gap:8px;
+  align-items:center;
+  padding:8px 9px;
+  border-radius:0;
+  background:#FFFEFC;
+  color:var(--brown);
+  text-align:left;
+}
+.accordion-toggle:hover{background:#FFF8F0}
+.accordion-toggle .step-no{display:grid;place-items:center}
+.accordion-label{font-size:13px;font-weight:900}
+.accordion-chevron{color:var(--mint-dark);font-size:16px;text-align:center;transition:transform .18s ease}
+.accordion-content{display:none;padding:0 9px 10px}
+.accordion-step.open .accordion-content{display:block}
+.accordion-step.open .accordion-chevron{transform:rotate(180deg)}
+.accordion-hidden-title{display:none}
+.draft-save-status{color:var(--muted);font-size:10px;font-weight:800;white-space:nowrap}
+.draft-save-status.saving{color:var(--mint-dark)}
 
 .workspace-shell.editor-mode .workspace-scroll{
   overflow:hidden;
@@ -1994,7 +2024,7 @@ body{
 .editor-live-info{
   padding:5px 9px;
   border-radius:999px;
-  background:#F1F7F5;
+  background:#FFF3E5;
   color:var(--mint-dark);
   font-size:11px;
   font-weight:900;
@@ -2043,7 +2073,7 @@ body{
   padding:9px 14px;
   background:var(--mint);
   color:#fff;
-  box-shadow:0 3px 9px rgba(99,195,183,.2);
+  box-shadow:0 3px 9px rgba(246,178,107,.25);
 }
 .add-class-button:hover{background:var(--mint-dark)}
 .class-settings-list{
@@ -2068,7 +2098,7 @@ body{
   display:grid;
   place-items:center;
   border-radius:12px;
-  background:#EAF5F3;
+  background:#FFF1E3;
   color:var(--mint-dark);
   font-size:13px;
   font-weight:900;
@@ -2132,11 +2162,64 @@ body{
   margin-top:-5px;
   padding:8px 10px;
   border-radius:9px;
-  background:#F1F7F5;
+  background:#FFF3E5;
   color:var(--muted);
   font-size:11px;
   font-weight:800;
 }
+
+.test-library-page{
+  min-height:100%;
+  padding:18px;
+  border:1px solid var(--line);
+  border-radius:14px;
+  background:#fff;
+  box-shadow:0 3px 14px rgba(129,104,87,.055);
+}
+.test-library-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:18px;
+  padding-bottom:15px;
+  border-bottom:1px solid var(--line);
+}
+.test-library-head h2{margin:0 0 5px;color:var(--brown);font-size:20px}
+.test-library-head p{margin:0;color:var(--muted);font-size:12px;font-weight:700}
+.saved-test-list{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(250px,1fr));
+  gap:13px;
+  margin-top:16px;
+}
+.saved-test-card{
+  position:relative;
+  overflow:hidden;
+  padding:17px 15px 14px;
+  border:1px solid var(--line);
+  border-radius:14px;
+  background:#FFFEFC;
+  box-shadow:0 2px 8px rgba(129,104,87,.05);
+}
+.saved-test-card::before{content:"";position:absolute;inset:0 0 auto;height:5px;background:var(--mint)}
+.saved-test-card h3{margin:2px 0 5px;color:var(--brown);font-size:16px;line-height:1.45}
+.saved-test-subtitle{min-height:18px;margin:0;color:var(--muted);font-size:11px;font-weight:700}
+.saved-test-meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:13px}
+.saved-test-meta span{padding:4px 7px;border-radius:999px;background:#FFF3E5;color:#9A5B21;font-size:10px;font-weight:900}
+.saved-test-updated{margin:11px 0 0;color:#9A8D85;font-size:10px}
+.saved-test-actions{display:flex;gap:7px;margin-top:13px}
+.saved-test-actions button{flex:1;padding:8px;font-size:11px}
+.saved-test-delete{flex:0 0 auto!important;color:var(--danger)!important}
+.saved-test-empty{
+  grid-column:1/-1;
+  padding:55px 20px;
+  border:1px dashed #DCCFC5;
+  border-radius:14px;
+  background:#FCFAF8;
+  color:var(--muted);
+  text-align:center;
+}
+.saved-test-empty strong{display:block;margin-bottom:6px;color:var(--brown);font-size:16px}
 
 .workspace-main{
   min-width:0;
@@ -2218,13 +2301,13 @@ body{
   box-shadow:0 3px 14px rgba(129,104,87,.055)!important;
 }
 .editor-card,.grade-card{border-radius:14px}
-.step-no{background:#F0F8F6;color:var(--mint-dark)}
+.step-no{background:#FFF3E5;color:var(--mint-dark)}
 .step-title,.group,.grade-qno{color:var(--brown)}
-.question-head,.roster-head,.results-table th{background:#EAF5F3!important;color:var(--brown)!important}
+.question-head,.roster-head,.results-table th{background:#FFF1E3!important;color:var(--brown)!important}
 input,select,textarea{border-color:#E6DDD6;border-radius:9px}
 button{border-radius:9px}
 button:focus{outline:none}
-button:focus-visible{outline:3px solid rgba(99,195,183,.32);outline-offset:2px}
+button:focus-visible{outline:3px solid rgba(246,178,107,.35);outline-offset:2px}
 .app-header nav button:focus-visible{outline:2px solid rgba(255,255,255,.9);outline-offset:-4px}
 button.primary{background:var(--mint)}
 button.primary:hover,.sidebar-primary:hover{background:var(--mint-dark)}
@@ -2301,9 +2384,8 @@ button.secondary{background:#F4F0EC;color:var(--brown)}
   .brand-word{font-size:23px}
   .brand-version{font-size:10px}
   .header-tool{width:38px;height:38px;font-size:20px}
-  .app-header nav{display:grid;grid-template-columns:1fr 1fr}
-  .app-header nav button:nth-child(3){border-left:0;border-top:1px solid var(--line)}
-  .app-header nav button:nth-child(4){border-top:1px solid var(--line)}
+  .app-header nav{display:flex;grid-template-columns:none}
+  .app-header nav button{min-width:0;flex:1;padding:7px 5px;font-size:11px;white-space:nowrap}
   .sidebar-nav{grid-template-columns:1fr 1fr}
   .side-card{grid-template-columns:1fr}
   .editor-live-toolbar{align-items:flex-start;flex-direction:column}
@@ -2311,6 +2393,8 @@ button.secondary{background:#F4F0EC;color:var(--brown)}
   .class-settings-head{align-items:stretch;flex-direction:column}
   .add-class-button{align-self:flex-end}
   .class-modal-summary{flex-direction:column;gap:3px}
+  .test-library-head{align-items:stretch;flex-direction:column}
+  .test-library-head .primary{align-self:flex-end}
 }
 @media(max-width:420px){
   .app-header{padding:6px}
@@ -2385,8 +2469,8 @@ button.secondary{background:#F4F0EC;color:var(--brown)}
   </div>
   <nav aria-label="主要メニュー">
     <button class="active" data-screen="editorScreen" onclick="showScreen('editorScreen')">テスト作成</button>
+    <button data-screen="testListScreen" onclick="showScreen('testListScreen')">テスト一覧</button>
     <button data-screen="gradingScreen" onclick="openGrading()">採点</button>
-    <button data-screen="rosterScreen" onclick="showScreen('rosterScreen')">設定</button>
     <button data-screen="outputScreen" onclick="openExportPage()">結果出力</button>
   </nav>
   <div class="header-tools">
@@ -2419,8 +2503,8 @@ button.secondary{background:#F4F0EC;color:var(--brown)}
       <div class="sidebar-panel-title"><span>操作メニュー</span><span>−</span></div>
       <div class="sidebar-nav">
         <button class="active" data-screen="editorScreen" onclick="showScreen('editorScreen')"><span class="sidebar-nav-icon">作</span><span class="sidebar-nav-label">テスト作成</span></button>
+        <button data-screen="testListScreen" onclick="showScreen('testListScreen')"><span class="sidebar-nav-icon">覧</span><span class="sidebar-nav-label">テスト一覧</span></button>
         <button data-screen="gradingScreen" onclick="openGrading()"><span class="sidebar-nav-icon">採</span><span class="sidebar-nav-label">採点</span></button>
-        <button data-screen="rosterScreen" onclick="showScreen('rosterScreen')"><span class="sidebar-nav-icon">設</span><span class="sidebar-nav-label">設定</span></button>
         <button data-screen="outputScreen" onclick="openExportPage()"><span class="sidebar-nav-icon">出</span><span class="sidebar-nav-label">結果出力</span></button>
       </div>
     </div>
@@ -2429,7 +2513,7 @@ button.secondary{background:#F4F0EC;color:var(--brown)}
       <div id="sidebarCurrentLabel" class="sidebar-current-label">現在の画面：テスト作成</div>
       <div id="sidebarCurrentText" class="sidebar-current-text">テスト情報と問題を入力し、印刷用レイアウトを作成します。</div>
     </div>
-    <button id="sidebarPrimary" class="sidebar-primary" type="button" onclick="handleSidebarPrimary()">テストをプレビュー</button>
+    <button id="sidebarPrimary" class="sidebar-primary" type="button" onclick="handleSidebarPrimary()">テストを保存</button>
   </aside>
 
 <main class="workspace-main">
@@ -2546,7 +2630,9 @@ button.secondary{background:#F4F0EC;color:var(--brown)}
         <span class="editor-live-description">左側の入力内容がすぐに反映されます</span>
       </div>
       <div class="editor-live-actions">
+        <span id="draftSaveStatus" class="draft-save-status">自動保存済み</span>
         <span id="livePreviewInfo" class="editor-live-info">A4・縦／0問</span>
+        <button class="secondary" type="button" onclick="saveCurrentTest()">保存</button>
         <button class="primary" type="button" onclick="openPreview()">印刷画面を開く</button>
       </div>
     </div>
@@ -2582,6 +2668,19 @@ button.secondary{background:#F4F0EC;color:var(--brown)}
         ※ChatGPT内のプレビューでは印刷画面を開けません。HTMLをダウンロードし、EdgeまたはChromeで直接開いてください。
       </div>
     </aside>
+  </div>
+</section>
+
+<section id="testListScreen" class="screen">
+  <div class="test-library-page">
+    <div class="test-library-head">
+      <div>
+        <h2>テスト一覧</h2>
+        <p>保存したテストを選び、編集や印刷を続けられます。</p>
+      </div>
+      <button class="primary" type="button" onclick="createNewTest()">＋新しいテストを作る</button>
+    </div>
+    <div id="savedTestList" class="saved-test-list"></div>
   </div>
 </section>
 
@@ -2830,11 +2929,94 @@ const limits = {
   a4:{portrait:{rows:15,cols:4},landscape:{rows:10,cols:6}}
 };
 
+const SAVED_TESTS_KEY="yutori_saved_tests_v1";
+const CURRENT_DRAFT_KEY="yutori_current_draft_v1";
+let currentSavedTestId="";
+let draftSaveTimer=0;
+
+function copyTestState(source=state){
+  return {
+    subject:String(source.subject||""),
+    unit:String(source.unit||""),
+    testName:String(source.testName||""),
+    paperSize:["a4","b5","a5"].includes(source.paperSize)?source.paperSize:"a4",
+    orientation:source.orientation==="landscape"?"landscape":"portrait",
+    rows:Number(source.rows)||10,
+    cols:Number(source.cols)||3,
+    flow:source.flow==="row"?"row":"column",
+    answerLine:["fourline","third","none"].includes(source.answerLine)?source.answerLine:"fourline",
+    questions:Array.isArray(source.questions)?source.questions.map(value=>String(value??"")):[],
+    answers:Array.isArray(source.answers)?source.answers.map(value=>String(value??"")):[]
+  };
+}
+function readSavedTests(){
+  try{
+    const list=JSON.parse(localStorage.getItem(SAVED_TESTS_KEY)||"[]");
+    return Array.isArray(list)?list:[];
+  }catch(e){return []}
+}
+function writeSavedTests(list){localStorage.setItem(SAVED_TESTS_KEY,JSON.stringify(list))}
+function setDraftStatus(text,saving=false){
+  const status=document.getElementById("draftSaveStatus");
+  if(!status)return;
+  status.textContent=text;
+  status.classList.toggle("saving",saving);
+}
+function saveDraftNow(){
+  clearTimeout(draftSaveTimer);
+  syncState();
+  localStorage.setItem(CURRENT_DRAFT_KEY,JSON.stringify({id:currentSavedTestId,state:copyTestState(),updatedAt:Date.now()}));
+  localStorage.setItem("yutori_v013a",JSON.stringify(copyTestState()));
+  setDraftStatus("自動保存済み");
+}
+function scheduleDraftSave(){
+  clearTimeout(draftSaveTimer);
+  setDraftStatus("保存中…",true);
+  draftSaveTimer=setTimeout(saveDraftNow,350);
+}
+
 let livePreviewFrame=0;
 function configureEditorWorkspace(){
   const card=document.querySelector("#editorScreen .editor-card");
   const host=document.getElementById("editorControlsHost");
   if(card&&host&&!host.contains(card))host.appendChild(card);
+  if(!card||card.dataset.accordionReady)return;
+  card.dataset.accordionReady="true";
+  [...card.querySelectorAll(":scope > .step")].slice(0,4).forEach((step,index)=>{
+    const number=step.querySelector(":scope > .step-no");
+    const title=step.querySelector(".step-title");
+    if(!number||!title)return;
+    const content=document.createElement("div");
+    content.className="accordion-content";
+    [...step.children].filter(child=>child!==number).forEach(child=>content.appendChild(child));
+    title.classList.add("accordion-hidden-title");
+    const toggle=document.createElement("button");
+    toggle.type="button";
+    toggle.className="accordion-toggle";
+    toggle.setAttribute("aria-expanded",String(index===0));
+    const label=document.createElement("span");
+    label.className="accordion-label";
+    label.textContent=title.textContent;
+    const chevron=document.createElement("span");
+    chevron.className="accordion-chevron";
+    chevron.textContent="⌄";
+    toggle.append(number,label,chevron);
+    step.replaceChildren(toggle,content);
+    step.classList.add("accordion-step");
+    step.classList.toggle("open",index===0);
+    toggle.addEventListener("click",()=>setEditorAccordion(index));
+  });
+}
+function setEditorAccordion(index,forceOpen=false){
+  const steps=[...document.querySelectorAll("#editorControlsHost .accordion-step")];
+  const target=steps[index];
+  if(!target)return;
+  const willOpen=forceOpen||!target.classList.contains("open");
+  steps.forEach(step=>{
+    const open=step===target&&willOpen;
+    step.classList.toggle("open",open);
+    step.querySelector(".accordion-toggle")?.setAttribute("aria-expanded",String(open));
+  });
 }
 function mountPaperForScreen(id){
   const paper=document.getElementById("paper");
@@ -2902,7 +3084,8 @@ function showScreen(id){
     button.setAttribute("aria-pressed",String(active));
   });
   const screenMeta={
-    editorScreen:{tab:"テスト作成",title:"入力しながら用紙を確認",side:"テスト作成メニュー",sub:"左で入力・右でプレビュー",description:"左側へ入力すると、右側の用紙プレビューへすぐに反映されます。",hint:"左側の入力内容が右のプレビューに即時反映されます",primary:"印刷画面を開く"},
+    editorScreen:{tab:"テスト作成",title:"入力しながら用紙を確認",side:"テスト作成メニュー",sub:"左で入力・右でプレビュー",description:"左側へ入力すると、右側の用紙プレビューへすぐに反映されます。",hint:"作成途中の内容はこの端末に自動保存されます",primary:"テストを保存"},
+    testListScreen:{tab:"テスト一覧",title:"保存したテスト",side:"テスト一覧",sub:"保存したテストを選択",description:"保存したテストを開いて、編集や印刷を続けられます。",hint:"この端末に保存したテストが表示されます",primary:"新しいテストを作る"},
     previewScreen:{tab:"プレビュー",title:"印刷レイアウトの確認",side:"印刷プレビュー",sub:"用紙レイアウトの確認と印刷",description:"作成したテストの用紙レイアウトを確認し、印刷またはPDF保存します。",hint:"推奨設定：倍率100％・余白なし",primary:"印刷・PDF保存"},
     gradingScreen:{tab:"採点",title:"答案の読み込みと採点",side:"採点メニュー",sub:"答案PDFの確認と採点",description:"答案PDFを読み込み、問題ごとに採点します。途中経過は自動保存されます。",hint:"採点内容はこの端末に自動保存されます",primary:"新しく採点を始める"},
     rosterScreen:{tab:"設定",title:"クラス設定",side:"設定",sub:"クラス設定",description:"採点に使用するクラスと番号・氏名を登録します。",hint:"右上の「＋クラスを追加」から登録できます",primary:"クラスを追加"},
@@ -2916,13 +3099,15 @@ function showScreen(id){
   if(primary)primary.textContent=meta.primary;
   mountPaperForScreen(id);
   if(isEditor)scheduleLivePreview();
+  if(id==="testListScreen")renderSavedTestList();
   if(isSettings)renderClassSettings();
   const scroll=document.querySelector(".workspace-scroll");
   if(scroll)scroll.scrollTop=0;
 }
 function handleSidebarPrimary(){
   const active=document.querySelector(".screen.active")?.id;
-  if(active==="editorScreen")return openPreview();
+  if(active==="editorScreen")return saveCurrentTest();
+  if(active==="testListScreen")return createNewTest();
   if(active==="previewScreen")return printDocument();
   if(active==="gradingScreen")return showNewGradingLoad();
   if(active==="rosterScreen")return openClassModal();
@@ -2981,6 +3166,7 @@ function updateCounts(){
   countEl.textContent=count>cap?`問題数：${count}問　※配置可能数を超えています`:`問題数：${count}問`;
   countEl.classList.toggle("warning",count>cap);
   scheduleLivePreview();
+  scheduleDraftSave();
 }
 function applyPaste(){
   const raw=document.getElementById("pasteArea").value.replace(/\r/g,"").trim();
@@ -3001,7 +3187,7 @@ function renderQuestionRows(){
     const qi=document.createElement("input");qi.value=q;qi.placeholder="問題";
     qi.oninput=e=>{state.questions[i]=e.target.value;updateCounts()};
     const ai=document.createElement("input");ai.value=state.answers[i]||"";ai.placeholder="模範解答";
-    ai.oninput=e=>state.answers[i]=e.target.value;
+    ai.oninput=e=>{state.answers[i]=e.target.value;scheduleDraftSave()};
     qcell.appendChild(qi);acell.appendChild(ai);
     row.append(no,qcell,acell);box.appendChild(row);
   });
@@ -3020,6 +3206,98 @@ function loadHistory(){
     const arr=JSON.parse(localStorage.getItem(key)||"[]");
     document.getElementById(id).innerHTML=arr.map(v=>`<option value="${escapeHtml(v)}">`).join("");
   });
+}
+function saveCurrentTest(){
+  syncState();
+  const now=Date.now();
+  const tests=readSavedTests();
+  const existingIndex=currentSavedTestId?tests.findIndex(item=>item.id===currentSavedTestId):-1;
+  const existing=existingIndex>=0?tests[existingIndex]:null;
+  const id=existing?.id||`test-${now}`;
+  const item={
+    id,
+    ...copyTestState(),
+    createdAt:Number(existing?.createdAt)||now,
+    updatedAt:now
+  };
+  if(existingIndex>=0)tests.splice(existingIndex,1);
+  tests.unshift(item);
+  writeSavedTests(tests);
+  currentSavedTestId=id;
+  saveHistory();
+  saveDraftNow();
+  renderSavedTestList();
+  setDraftStatus("保存しました");
+  setTimeout(()=>setDraftStatus("自動保存済み"),1600);
+  return id;
+}
+function renderSavedTestList(){
+  const host=document.getElementById("savedTestList");
+  if(!host)return;
+  const tests=readSavedTests().sort((a,b)=>(Number(b.updatedAt)||0)-(Number(a.updatedAt)||0));
+  if(!tests.length){
+    host.innerHTML='<div class="saved-test-empty"><strong>保存したテストはまだありません</strong>「＋新しいテストを作る」から作成を始められます。</div>';
+    return;
+  }
+  const sizeLabel={a4:"A4",b5:"B5",a5:"A5"};
+  host.innerHTML=tests.map(item=>{
+    const safeId=String(item.id||"").replace(/[^a-zA-Z0-9_-]/g,"");
+    const title=escapeHtml(item.testName||"名称未設定のテスト");
+    const subtitle=escapeHtml([item.subject,item.unit].filter(Boolean).join(" ／ ")||"教科・単元名は未設定です");
+    const paper=`${sizeLabel[item.paperSize]||"A4"}・${item.orientation==="landscape"?"横":"縦"}`;
+    const updated=Number(item.updatedAt)?new Date(Number(item.updatedAt)).toLocaleString("ja-JP",{year:"numeric",month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit"}):"—";
+    const count=Array.isArray(item.questions)?item.questions.length:0;
+    return `<article class="saved-test-card">
+      <h3>${title}</h3>
+      <p class="saved-test-subtitle">${subtitle}</p>
+      <div class="saved-test-meta"><span>${count}問</span><span>${paper}</span></div>
+      <p class="saved-test-updated">更新：${escapeHtml(updated)}</p>
+      <div class="saved-test-actions">
+        <button class="primary" type="button" onclick="openSavedTest('${safeId}')">選んで開く</button>
+        <button class="secondary saved-test-delete" type="button" aria-label="削除" onclick="deleteSavedTest('${safeId}')">削除</button>
+      </div>
+    </article>`;
+  }).join("");
+}
+function applyTestToEditor(source,id=""){
+  Object.assign(state,copyTestState(source));
+  currentSavedTestId=id;
+  document.getElementById("subject").value=state.subject;
+  document.getElementById("unit").value=state.unit;
+  document.getElementById("testName").value=state.testName;
+  document.getElementById("paperSize").value=state.paperSize;
+  document.querySelector(`input[name="orientation"][value="${state.orientation}"]`).checked=true;
+  document.querySelector(`input[name="flow"][value="${state.flow}"]`).checked=true;
+  document.querySelector(`input[name="answerLine"][value="${state.answerLine}"]`).checked=true;
+  document.getElementById("rows").innerHTML="";
+  document.getElementById("cols").innerHTML="";
+  applyLimits();
+  document.getElementById("rows").value=String(Math.min(document.getElementById("rows").options.length,state.rows));
+  document.getElementById("cols").value=String(Math.min(document.getElementById("cols").options.length,state.cols));
+  document.getElementById("pasteArea").value=state.questions.map((question,index)=>`${question}\t${state.answers[index]||""}`).join("\n");
+  renderQuestionRows();
+  updateCounts();
+  showScreen("editorScreen");
+  setEditorAccordion(0,true);
+  setDraftStatus(id?"保存したテストを開きました":"新しいテスト");
+}
+function openSavedTest(id){
+  const item=readSavedTests().find(test=>test.id===id);
+  if(item)applyTestToEditor(item,item.id);
+}
+function createNewTest(){
+  const hasContent=Boolean(state.subject||state.unit||state.testName||state.questions.some(Boolean)||state.answers.some(Boolean));
+  if(hasContent&&!confirm("現在作成中の内容から新しいテストへ切り替えますか？ 必要な場合は先に「保存」を押してください。"))return;
+  applyTestToEditor({subject:"",unit:"",testName:"",paperSize:"a4",orientation:"portrait",rows:10,cols:3,flow:"column",answerLine:"fourline",questions:[],answers:[]});
+  document.getElementById("subject").focus();
+}
+function deleteSavedTest(id){
+  const tests=readSavedTests();
+  const item=tests.find(test=>test.id===id);
+  if(!item||!confirm(`「${item.testName||"名称未設定のテスト"}」を一覧から削除しますか？`))return;
+  writeSavedTests(tests.filter(test=>test.id!==id));
+  if(currentSavedTestId===id)currentSavedTestId="";
+  renderSavedTestList();
 }
 function openPreview(){
   syncState();
@@ -3851,10 +4129,20 @@ ensureRosters();
 gradingState.gradeColumns=Number(localStorage.getItem("yutori_grade_columns_v023")||7);
 gradingState.grades=JSON.parse(localStorage.getItem("yutori_grades_v021")||"{}");
 
-const saved=localStorage.getItem("yutori_v013a");
-if(saved){
+let initialSaved=null;
+try{
+  const draft=JSON.parse(localStorage.getItem(CURRENT_DRAFT_KEY)||"null");
+  if(draft?.state){
+    initialSaved=draft.state;
+    currentSavedTestId=String(draft.id||"");
+  }
+}catch(e){console.warn(e)}
+if(!initialSaved){
+  try{initialSaved=JSON.parse(localStorage.getItem("yutori_v013a")||"null")}catch(e){console.warn(e)}
+}
+if(initialSaved){
   try{
-    Object.assign(state,JSON.parse(saved));
+    Object.assign(state,copyTestState(initialSaved));
     document.getElementById("subject").value=state.subject||"";
     document.getElementById("unit").value=state.unit||"";
     document.getElementById("testName").value=state.testName||"";
@@ -3865,6 +4153,7 @@ if(saved){
   }catch(e){console.warn(e)}
 }
 loadHistory();
+renderSavedTestList();
 renderQuestionRows();
 applyLimits();
 document.getElementById("rows").value=String(Math.min(document.getElementById("rows").options.length,state.rows||10));

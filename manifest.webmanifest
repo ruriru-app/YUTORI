@@ -6,7 +6,7 @@
   "scope": "./",
   "display": "standalone",
   "background_color": "#F7FAF8",
-  "theme_color": "#8CCBC2",
+  "theme_color": "#F6B26B",
   "icons": [
     {
       "src": "assets/yutori-symbol.svg",
