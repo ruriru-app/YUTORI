@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <meta name="theme-color" content="#FCCC8E">
 <meta name="apple-mobile-web-app-title" content="YUTORI">
-<title>YUTORI v0.3.8</title>
+<title>YUTORI v0.3.9</title>
 <link rel="icon" type="image/svg+xml" href="assets/yutori-symbol.svg">
 <link rel="apple-touch-icon" href="assets/yutori-symbol.svg">
 <link rel="manifest" href="manifest.webmanifest">
@@ -1392,7 +1392,7 @@ body{
 }
 
 
-/* ===== v0.3.8 採点操作・割り当てUI改善 ===== */
+/* ===== v0.3.9 採点タイルの操作分離 ===== */
 :root{
   --workflow-fixed-width:545px;
   --workflow-fixed-height:34px;
@@ -2510,7 +2510,11 @@ button.secondary{background:#F4F0EC;color:var(--brown)}
 .answer-card.pdf-answer:active{transform:scale(.985)}
 .answer-image{height:auto!important;min-height:0!important;aspect-ratio:15/4}
 .answer-crop-canvas{width:100%;height:100%;aspect-ratio:15/4;object-fit:contain}
-.answer-zoom-button{position:absolute;right:6px;bottom:6px;z-index:3;padding:4px 6px!important;border:1px solid rgba(129,104,87,.25);border-radius:7px;background:rgba(255,255,255,.92)!important;color:var(--brown)!important;font-size:9px!important;font-weight:900;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+.answer-card.pdf-answer>.answer-person{padding-right:32px}
+.answer-zoom-button{position:absolute;right:6px;top:5px;bottom:auto;z-index:4;width:28px;height:28px;display:grid;place-items:center;padding:0!important;border:1px solid #E2C5AA;border-radius:8px;background:#FFF8F0!important;color:#7A5520!important;box-shadow:0 1px 4px rgba(0,0,0,.08);touch-action:manipulation}
+.answer-zoom-button:hover{background:#FFEBD7!important;border-color:#D9A46C}
+.answer-zoom-button:focus-visible{outline:3px solid rgba(246,178,107,.48);outline-offset:1px}
+.answer-zoom-button svg{width:15px;height:15px;display:block;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
 .grading-scroll-area{overscroll-behavior:contain}
 
 @media(max-width:700px){
@@ -2656,10 +2660,10 @@ button.secondary{background:#F4F0EC;color:var(--brown)}
 <body>
 <div class="app-shell">
 <header class="app-header no-print">
-  <div class="brand" aria-label="YUTORI v0.3.8">
+  <div class="brand" aria-label="YUTORI v0.3.9">
     <div class="brand-copy">
       <img class="brand-logo-image" src="assets/yutori-logo.svg" alt="YUTORI つくる・つける・つなげる">
-      <span class="brand-version">v0.3.8</span>
+      <span class="brand-version">v0.3.9</span>
     </div>
   </div>
   <nav aria-label="主要メニュー">
@@ -4428,8 +4432,8 @@ function card(c,p,q){
   if(p.absent)return `<article class="answer-card pdf-answer absent"><div class="answer-person">${String(p.no).padStart(2,"0")} ${escapeHtml(p.name)}</div><div class="answer-image"><div class="answer-image-placeholder">欠席</div></div></article>`;
   const realPdf=p.pageId&&gradingState.pageImageUrls[p.pageId];
   const answer=realPdf?`<canvas class="answer-crop-canvas answer-card-loading" data-page-id="${escapeHtml(p.pageId)}"></canvas>`:`<div class="answer-image-placeholder">${escapeHtml(p.snippets?.[q]||"答案画像なし")}</div>`;
-  const zoom=realPdf?`<button class="answer-zoom-button" type="button" aria-label="${escapeHtml(p.name)}の答案全体を拡大" onclick="event.stopPropagation();openAnswerPreview(decodeURIComponent('${encodedClass}'),${p.no})">拡大</button>`:"";
-  return `<article class="answer-card pdf-answer ${m}" tabindex="0" aria-label="${escapeHtml(p.name)}を採点" onclick="applySelectedPen(decodeURIComponent('${encodedClass}'),${p.no})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();applySelectedPen(decodeURIComponent('${encodedClass}'),${p.no})}"><div class="answer-person">${String(p.no).padStart(2,"0")} ${escapeHtml(p.name)}</div><div class="answer-image">${answer}</div>${zoom}<div class="answer-mark-label">${markLabel}</div></article>`;
+  const zoom=realPdf?`<button class="answer-zoom-button" type="button" title="答案用紙を表示" aria-label="${escapeHtml(p.name)}の答案用紙を表示" onpointerdown="event.stopPropagation()" onclick="event.stopPropagation();openAnswerPreview(decodeURIComponent('${encodedClass}'),${p.no})"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="10.5" cy="10.5" r="6.5"></circle><path d="m15.5 15.5 5 5"></path></svg></button>`:"";
+  return `<article class="answer-card pdf-answer ${m}" tabindex="0" aria-label="${escapeHtml(p.name)}を採点" onclick="applySelectedPen(decodeURIComponent('${encodedClass}'),${p.no})" onkeydown="if(event.target===event.currentTarget&&(event.key==='Enter'||event.key===' ')){event.preventDefault();applySelectedPen(decodeURIComponent('${encodedClass}'),${p.no})}"><div class="answer-person">${String(p.no).padStart(2,"0")} ${escapeHtml(p.name)}</div><div class="answer-image">${answer}</div>${zoom}<div class="answer-mark-label">${markLabel}</div></article>`;
 }
 function loadPageImage(pageId){
   if(gradingState.pageImageCache[pageId])return gradingState.pageImageCache[pageId];
