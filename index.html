@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <meta name="theme-color" content="#FCCC8E">
 <meta name="apple-mobile-web-app-title" content="YUTORI">
-<title>YUTORI v0.3.11</title>
+<title>YUTORI v0.3.12</title>
 <link rel="icon" type="image/svg+xml" href="assets/yutori-symbol.svg">
 <link rel="apple-touch-icon" href="assets/yutori-symbol.svg">
 <link rel="manifest" href="manifest.webmanifest">
@@ -2600,6 +2600,32 @@ body.sidebar-dragging{cursor:ew-resize;user-select:none;-webkit-user-select:none
 #mainGradeView .grading-scroll-area{flex:1 1 auto;min-height:0;overflow-y:auto!important;overflow-x:hidden!important;touch-action:pan-y!important;-webkit-overflow-scrolling:touch;overscroll-behavior-y:contain}
 #mainGradeView .problem-info-bar,#mainGradeView #gradeAnswers,#mainGradeView #gradeAnswers section,#mainGradeView .answer-grid,#mainGradeView .answer-card.pdf-answer,#mainGradeView .answer-image,#mainGradeView .answer-crop-canvas{touch-action:pan-y!important}
 
+/* v0.3.12：後日受験した答案の個別追加 */
+.resume-missing{display:grid;gap:6px;margin-top:9px;padding:8px;border:1px solid #EBC79D;border-radius:10px;background:#FFF9F0}
+.resume-missing-title{color:#7A5520;font-size:11px;font-weight:900}
+.resume-missing-list{display:flex;flex-wrap:wrap;gap:5px}
+.resume-missing-chip{padding:4px 7px;border-radius:999px;background:#fff;border:1px solid #E7C18F;color:var(--brown);font-size:10px;font-weight:900}
+.resume-actions{align-items:center;gap:7px;flex-wrap:wrap}
+.resume-late-button{margin-right:auto;background:#FFF0E0;color:#7A5520;border:1px solid #E0A75E}
+
+.late-pdf-modal{width:min(620px,calc(100vw - 32px))}
+.late-pdf-intro{color:var(--muted);font-size:12px}
+.late-pdf-form{display:grid;gap:13px;margin-top:15px}
+.late-pdf-field{display:grid;gap:6px;color:var(--brown);font-size:12px;font-weight:900}
+.late-pdf-field select,.late-pdf-field input{width:100%;height:44px}
+.late-pdf-mode{display:grid;gap:7px;padding:10px;border:1px solid var(--line);border-radius:11px;background:#FFFEFC}
+.late-pdf-mode label{display:flex;align-items:flex-start;gap:8px;color:var(--brown);font-size:12px;font-weight:900}
+.late-pdf-mode input{flex:0 0 16px;width:16px;height:16px;margin-top:2px}
+.late-pdf-mode small{display:block;margin-top:2px;color:var(--muted);font-size:10px;font-weight:700;line-height:1.4}
+.late-pdf-status{min-height:20px;color:var(--muted);font-size:11px;font-weight:800}
+.late-pdf-status.loading{color:#9A6820}.late-pdf-status.error{color:var(--danger)}
+
+.pdf-student-card.late-added{border:3px solid #E0A75E;background:#FFF8EA;box-shadow:0 0 0 3px rgba(252,204,142,.3)}
+.pdf-student-card.late-added.confirmed{border-color:#9BC58D;background:#F4FAF1;box-shadow:0 0 0 3px rgba(155,197,141,.2)}
+.late-confirm-button{background:#FCCC8E!important;color:#6F4D22!important;border:1px solid #D69B54!important}
+.grading-progress-row .save-banner-main{gap:5px!important}
+.grading-scope-select{flex:0 0 90px;width:90px;min-width:90px;height:32px;padding:4px 22px 4px 7px;font-size:9px;font-weight:900;background:#FFF3E4;color:#7A5520}
+
 @media(max-width:820px){
   .sidebar-drag-handle{display:none}
   .grading-toolbar-workflow{max-width:none;flex-basis:100%;order:5;grid-column:1/-1}
@@ -2743,10 +2769,10 @@ body.sidebar-dragging{cursor:ew-resize;user-select:none;-webkit-user-select:none
 <body>
 <div class="app-shell">
 <header class="app-header no-print">
-  <div class="brand" aria-label="YUTORI v0.3.11">
+  <div class="brand" aria-label="YUTORI v0.3.12">
     <div class="brand-copy">
       <img class="brand-logo-image" src="assets/yutori-logo.svg" alt="YUTORI つくる・つける・つなげる">
-      <span class="brand-version">v0.3.11</span>
+      <span class="brand-version">v0.3.12</span>
     </div>
   </div>
   <nav aria-label="主要メニュー">
@@ -3056,6 +3082,10 @@ body.sidebar-dragging{cursor:ew-resize;user-select:none;-webkit-user-select:none
           <button class="save-now" type="button" onclick="saveGradingSessionNow()">今すぐ保存</button>
           <button class="results-jump-button" type="button" onclick="openResultsFromGrading()">結果の確認</button>
           <button id="undoGradeButton" class="secondary undo-grade-button" type="button" onclick="undoLastGradeAction()" disabled>↶ 一つ前に戻す</button>
+          <select id="gradingScopeSelect" class="grading-scope-select" aria-label="採点対象" title="採点対象" onchange="changeGradingScope(this.value)">
+            <option value="all">全員</option>
+            <option value="late-only">追加のみ</option>
+          </select>
         </div>
         <span id="undoGradeStatus" class="help undo-grade-status">取り消せる操作はありません</span>
       </div>
@@ -3927,7 +3957,7 @@ window.addEventListener("beforeprint",()=>{
 });
 
 
-const gradingState={rosters:{},classProfiles:{},testSets:[],selectedTestId:"",classes:[],files:[],issues:[],answers:{},grades:{},q:0,selectedPen:"ok",sessionId:"",status:"in-progress",lastSavedAt:0,gradeColumns:5,workflowCompleted:{},currentWorkflowStep:1,questionScores:[],resultsReturnState:null,pdfPages:[],ignoredPageIds:[],pageImageUrls:{},pageImageCache:{},answerPreview:null,dragPageId:"",gradeHistory:[]};
+const gradingState={rosters:{},classProfiles:{},testSets:[],selectedTestId:"",classes:[],files:[],issues:[],answers:{},grades:{},q:0,selectedPen:"ok",sessionId:"",status:"in-progress",lastSavedAt:0,gradeColumns:5,workflowCompleted:{},currentWorkflowStep:1,questionScores:[],resultsReturnState:null,pdfPages:[],ignoredPageIds:[],pageImageUrls:{},pageImageCache:{},answerPreview:null,dragPageId:"",gradeHistory:[],gradingScope:"all",activeLateBatchId:""};
 let pdfJsModulePromise=null;
 let answerCropRenderToken=0;
 let nameCropRenderToken=0;
@@ -4037,7 +4067,7 @@ function goToWorkflowStep(step){
   showScreen("gradingScreen");gradingEntryView.style.display="none";loadView.style.display="none";reviewView.style.display="none";mainGradeView.style.display="none";
   if(step===1){loadView.style.display="";renderWorkflowBars(1)}
   else if(step===2){reviewView.style.display="";renderIssues();renderWorkflowBars(2)}
-  else if(step===3){mainGradeView.style.display="";gradingPdfName.textContent=gradingState.files.map(f=>f.name).join("、")||"読込済み";gradeColumns.value=String(gradingState.gradeColumns||5);enablePaletteKeyboard();selectPen(gradingState.selectedPen||"ok");renderTabs();renderGradeGrid();renderWorkflowBars(3)}
+  else if(step===3){mainGradeView.style.display="";prepareGradingView()}
   else if(step===4){gradingState.workflowCompleted={...(gradingState.workflowCompleted||{}),4:true};saveGradingSessionNow();renderResultsSummary();showScreen("resultsScreen");renderWorkflowBars(4)}
 }
 
@@ -4064,6 +4094,12 @@ function openGradeFromReview(){
 function prepareGradingView(){
   gradingPdfName.textContent=gradingState.files.map(f=>f.name).join("、")||"読込済み";
   gradeColumns.value=String(gradingState.gradeColumns||5);
+  updateGradingScopeControl();
+  if(gradingState.gradingScope==="late-only"){
+    const test=currentTest(),latePeople=gradingState.classes.flatMap(className=>lateBatchPeople(className).map(person=>({className,person})));
+    const firstPending=(test.questions||[]).findIndex((_,q)=>latePeople.some(item=>!gradingState.grades[key(item.className,item.person.no,q)]));
+    if(firstPending>=0)gradingState.q=firstPending;
+  }
   ensureQuestionScores();
   enablePaletteKeyboard();
   selectPen(gradingState.selectedPen||"ok");
@@ -4071,6 +4107,24 @@ function prepareGradingView(){
   renderGradeGrid();
   gradingState.currentWorkflowStep=3;
   renderWorkflowBars(3);
+}
+function lateBatchPeople(className){
+  return (gradingState.answers[className]||[]).filter(person=>!person.absent&&person.lateBatchId&&person.lateBatchId===gradingState.activeLateBatchId);
+}
+function visibleGradingPeople(className){
+  if(gradingState.gradingScope==="late-only")return lateBatchPeople(className);
+  return gradingState.answers[className]||[];
+}
+function updateGradingScopeControl(){
+  const select=document.getElementById("gradingScopeSelect"),badge=document.getElementById("gradingScopeBadge");
+  const hasLate=gradingState.classes.some(className=>lateBatchPeople(className).length);
+  if(!hasLate&&gradingState.gradingScope==="late-only")gradingState.gradingScope="all";
+  if(select){select.value=gradingState.gradingScope||"all";const lateOption=select.querySelector('option[value="late-only"]');if(lateOption)lateOption.disabled=!hasLate}
+  if(badge)badge.textContent=gradingState.gradingScope==="late-only"?"今回追加した生徒だけ表示":"全員を表示";
+}
+function changeGradingScope(value){
+  gradingState.gradingScope=value==="late-only"?"late-only":"all";
+  updateGradingScopeControl();renderGradeGrid();scheduleAutoSave();
 }
 function openResultsFromGrading(){
   gradingState.workflowCompleted={...(gradingState.workflowCompleted||{}),4:true};
@@ -4177,7 +4231,7 @@ function readAttendanceMarks(canvas,context){
     markConfidence:Number(Math.min(group.confidence||1,tens.status==="blank"?1:tens.confidence||0,ones.confidence||0).toFixed(3))
   };
 }
-async function renderPdfFile(file,fileIndex,sessionId){
+async function renderPdfFile(file,fileIndex,sessionId,options={}){
   const pdfjs=await loadPdfJs();
   const source=new Uint8Array(await file.arrayBuffer());
   const documentTask=pdfjs.getDocument({data:source});
@@ -4185,7 +4239,8 @@ async function renderPdfFile(file,fileIndex,sessionId){
   const rendered=[];
   try{
     for(let pageNumber=1;pageNumber<=pdf.numPages;pageNumber++){
-      pdfSummary.textContent=`PDFを画像へ変換中：${fileIndex+1}/${gradingState.files.length}ファイル・${pageNumber}/${pdf.numPages}ページ`;
+      const progressText=`PDFを画像へ変換中：${fileIndex+1}/${Math.max(gradingState.files.length,fileIndex+1)}ファイル・${pageNumber}/${pdf.numPages}ページ`;
+      if(typeof options.onProgress==="function")options.onProgress(progressText);else pdfSummary.textContent=progressText;
       const page=await pdf.getPage(pageNumber);
       const baseViewport=page.getViewport({scale:1});
       const scale=Math.min(2.4,Math.max(1.25,1500/baseViewport.width));
@@ -4199,7 +4254,7 @@ async function renderPdfFile(file,fileIndex,sessionId){
       await page.render({canvasContext:context,viewport}).promise;
       const markData=readAttendanceMarks(canvas,context);
       const blob=await new Promise((resolve,reject)=>canvas.toBlob(value=>value?resolve(value):reject(new Error("答案画像を作成できませんでした。")),"image/jpeg",.9));
-      const id=`f${fileIndex}-p${pageNumber}`;
+      const id=`${options.idPrefix||"f"}${fileIndex}-p${pageNumber}`;
       const metadata={id,fileIndex,fileName:file.name,pageNumber,width:canvas.width,height:canvas.height,...markData};
       await savePdfPageToIndexedDB(sessionId,metadata,blob);
       gradingState.pageImageUrls[id]=URL.createObjectURL(blob);
@@ -4262,7 +4317,10 @@ function refreshMappingIssues(){
   gradingState.classes.forEach(className=>(gradingState.answers[className]||[]).forEach(person=>{
     if(person.absent)return;
     if(!person.pageId)issues.push({kind:"答案未割り当て",className,no:person.no});
-    else counts[person.pageId]=(counts[person.pageId]||0)+1;
+    else{
+      counts[person.pageId]=(counts[person.pageId]||0)+1;
+      if(person.lateAdded&&!person.lateConfirmed)issues.push({kind:"追加答案の本人確認",className,no:person.no});
+    }
   }));
   Object.entries(counts).filter(([,count])=>count>1).forEach(([pageId])=>issues.push({kind:"同じページの重複",pageId}));
   const assigned=new Set(Object.keys(counts));
@@ -4277,6 +4335,10 @@ function pdfPageRecognition(page){
   if(page.detectedAttendanceNo==null){
     const detail=`番号未認識：${page.markIssue||"マークを確認してください"}`;
     return {text:page.manualAssignment?`手動割り当て（${detail}）`:detail,warning:!page.manualAssignment};
+  }
+  if(page.lateAdded){
+    const recognized=page.detectedAttendanceNo!=null?`自動認識：${page.detectedAttendanceNo}番${group}`:`番号未認識：${page.markIssue||"マークを確認してください"}`;
+    return {text:`個別追加（${recognized}）`,warning:Boolean(page.lateValidationWarning)};
   }
   if(page.manualAssignment)return {text:`手動割り当て（自動認識：${page.detectedAttendanceNo}番${group}）`,warning:false};
   const status={
@@ -4317,6 +4379,8 @@ async function processPdf(){
   gradingState.ignoredPageIds=[];
   gradingState.dragPageId="";
   gradingState.gradeHistory=[];
+  gradingState.gradingScope="all";
+  gradingState.activeLateBatchId="";
   localStorage.setItem("yutori_grades_v021","{}");
   let loadSucceeded=false;
   try{
@@ -4361,14 +4425,17 @@ function renderIssues(){
     const encodedClass=encodeURIComponent(className);
     const page=gradingState.pdfPages.find(item=>item.id===person.pageId);
     const duplicate=person.pageId&&assigned.filter(id=>id===person.pageId).length>1;
-    const problem=!person.absent&&(!person.pageId||duplicate);
+    const latePending=Boolean(person.lateAdded&&!person.lateConfirmed);
+    const problem=!person.absent&&(!person.pageId||duplicate||latePending);
     const recognition=pdfPageRecognition(page);
     const nameCrop=page?`<div class="pdf-name-crop" title="答案全体を開く" onclick="event.stopPropagation();openAnswerPreview(decodeURIComponent('${encodedClass}'),${person.no})"><canvas class="name-crop-canvas answer-card-loading" data-page-id="${escapeHtml(page.id)}"></canvas></div>`:'<div class="pdf-name-crop pdf-empty-name">ここへPDFをドロップ</div>';
-    return `<div class="pdf-student-card ${problem?"problem":""}" data-class="${escapeHtml(className)}" data-no="${person.no}" ondragover="allowPdfDrop(event)" ondragleave="leavePdfDrop(event)" ondrop="dropPdfOnStudent(event,decodeURIComponent('${encodedClass}'),${person.no})" onclick="assignSelectedPdfPage(event,decodeURIComponent('${encodedClass}'),${person.no})">
-      <div class="pdf-student-head"><div>${String(person.no).padStart(2,"0")} ${escapeHtml(person.name)}<small>${escapeHtml(classDisplayName(className))}</small></div><span>${person.absent?"欠席":page?"割当済":"要確認"}</span></div>
+    const lateClass=person.lateAdded?`late-added ${person.lateConfirmed?"confirmed":""}`:"";
+    const statusLabel=person.absent?"欠席":person.lateAdded?(person.lateConfirmed?"個別追加・確認済み":"個別追加・本人確認"):page?"割当済":"要確認";
+    return `<div class="pdf-student-card ${problem?"problem":""} ${lateClass}" data-class="${escapeHtml(className)}" data-no="${person.no}" ondragover="allowPdfDrop(event)" ondragleave="leavePdfDrop(event)" ondrop="dropPdfOnStudent(event,decodeURIComponent('${encodedClass}'),${person.no})" onclick="assignSelectedPdfPage(event,decodeURIComponent('${encodedClass}'),${person.no})">
+      <div class="pdf-student-head"><div>${String(person.no).padStart(2,"0")} ${escapeHtml(person.name)}<small>${escapeHtml(classDisplayName(className))}</small></div><span>${statusLabel}</span></div>
       ${nameCrop}
       ${page?`<div class="pdf-mark-read ${recognition.warning?"warning":""}">${escapeHtml(recognition.text)}</div>`:'<div class="pdf-mark-read warning">答案が割り当てられていません</div>'}
-      <div class="pdf-student-actions"><label class="pdf-absent-toggle" onclick="event.stopPropagation()"><input type="checkbox" ${person.absent?"checked":""} onchange="setStudentAbsent(decodeURIComponent('${encodedClass}'),${person.no},this.checked)">欠席</label><span>${page?`<button class="secondary" type="button" onclick="event.stopPropagation();openAnswerPreview(decodeURIComponent('${encodedClass}'),${person.no})">全体</button> <button class="secondary" type="button" onclick="event.stopPropagation();clearStudentPage(decodeURIComponent('${encodedClass}'),${person.no})">外す</button>`:""}</span></div>
+      <div class="pdf-student-actions"><label class="pdf-absent-toggle" onclick="event.stopPropagation()"><input type="checkbox" ${person.absent?"checked":""} onchange="setStudentAbsent(decodeURIComponent('${encodedClass}'),${person.no},this.checked)">欠席</label><span>${latePending?`<button class="late-confirm-button" type="button" onclick="event.stopPropagation();confirmLateStudent(decodeURIComponent('${encodedClass}'),${person.no})">本人確認済み</button> `:""}${page?`<button class="secondary" type="button" onclick="event.stopPropagation();openAnswerPreview(decodeURIComponent('${encodedClass}'),${person.no})">全体</button> <button class="secondary" type="button" onclick="event.stopPropagation();clearStudentPage(decodeURIComponent('${encodedClass}'),${person.no})">外す</button>`:""}</span></div>
     </div>`;
   })).join("");
   const unassignedCards=unassigned.map(page=>{
@@ -4408,15 +4475,25 @@ async function renderNameCrops(){
 function assignPdfPageToStudent(className,no,pageId){
   const person=findAssignedPerson(className,no),page=gradingState.pdfPages.find(item=>item.id===pageId);
   if(!person||!page)return;
-  gradingState.classes.forEach(value=>(gradingState.answers[value]||[]).forEach(item=>{if(item.pageId===pageId)item.pageId=""}));
+  gradingState.classes.forEach(value=>(gradingState.answers[value]||[]).forEach(item=>{
+    if(item.pageId===pageId){item.pageId="";if(page.lateAdded){item.lateAdded=false;item.lateConfirmed=false;item.lateBatchId=""}}
+  }));
   if(person.pageId&&person.pageId!==pageId){
     const previous=gradingState.pdfPages.find(item=>item.id===person.pageId);
     if(previous){previous.assignmentStatus="removed";previous.assignmentClass=""}
   }
   person.pageId=pageId;person.absent=false;
+  if(page.lateAdded){person.lateAdded=true;person.lateConfirmed=false;person.lateBatchId=page.lateBatchId||gradingState.activeLateBatchId}
   page.manualAssignment=true;page.assignmentStatus="manual";page.assignmentClass=className;
   gradingState.ignoredPageIds=(gradingState.ignoredPageIds||[]).filter(id=>id!==pageId);
   gradingState.dragPageId="";
+  refreshMappingIssues();renderIssues();scheduleAutoSave();
+}
+function confirmLateStudent(className,no){
+  const person=findAssignedPerson(className,no);if(!person||!person.pageId)return;
+  person.lateAdded=true;person.lateConfirmed=true;
+  const page=gradingState.pdfPages.find(item=>item.id===person.pageId);
+  if(page)page.lateValidationWarning=false;
   refreshMappingIssues();renderIssues();scheduleAutoSave();
 }
 function changeStudentPage(className,no,pageId){if(pageId)assignPdfPageToStudent(className,no,pageId);else clearStudentPage(className,no)}
@@ -4554,7 +4631,8 @@ function renderGradeGrid(){
   problemText.textContent=test.questions[q]||"未登録";
   modelAnswer.textContent=test.answers[q]||"未登録";
   applyQuestionScoreInputs();
-  gradeAnswers.innerHTML=gradingState.classes.map(c=>`<section><div class="class-title"><span>${escapeHtml(c)}</span><span>${isClassDone(c,q)?"採点済":"採点中"}</span></div><div class="answer-grid" style="grid-template-columns:repeat(${cols},minmax(0,1fr))">${(gradingState.answers[c]||[]).map(p=>card(c,p,q)).join("")}</div></section>`).join("");
+  const sections=gradingState.classes.map(c=>({className:c,people:visibleGradingPeople(c)})).filter(group=>group.people.length);
+  gradeAnswers.innerHTML=sections.length?sections.map(group=>`<section><div class="class-title"><span>${escapeHtml(group.className)}</span><span>${isClassDone(group.className,q)?"採点済":"採点中"}</span></div><div class="answer-grid" style="grid-template-columns:repeat(${cols},minmax(0,1fr))">${group.people.map(p=>card(group.className,p,q)).join("")}</div></section>`).join(""):'<div class="pdf-review-ok">今回追加した答案はありません。採点対象を「全員の答案」へ切り替えてください。</div>';
   renderAnswerCrops(q,test);
 }
 function isClassDone(c,q){const active=(gradingState.answers[c]||[]).filter(person=>!person.absent);return active.length&&active.every(person=>gradingState.grades[key(c,person.no,q)])}
@@ -4685,7 +4763,7 @@ function bulkGrade(m){
   const point=currentQuestionScore();
   const score=m==="ok"?Number(point.ok):m==="partial"?Number(point.partial):0;
   const changes=[];
-  gradingState.classes.forEach(c=>(gradingState.answers[c]||[]).forEach(p=>{
+  gradingState.classes.forEach(c=>visibleGradingPeople(c).forEach(p=>{
     if(p.absent)return;
     const k=key(c,p.no,gradingState.q);if(!gradingState.grades[k]){changes.push({key:k,before:null});gradingState.grades[k]={mark:m,score}}
   }));
@@ -4821,14 +4899,80 @@ function serializeSession(){
     gradeHistory:(gradingState.gradeHistory||[]).slice(-30),
     fullScore:Number(document.getElementById("fullScore")?.value||1),partialScore:Number(document.getElementById("partialScore")?.value||.5),
     gradeColumns:Number(document.getElementById("gradeColumns")?.value||gradingState.gradeColumns||5),status:gradingState.status||"in-progress",
-    workflowCompleted:gradingState.workflowCompleted||{},currentWorkflowStep:gradingState.currentWorkflowStep||1,lastSavedAt:Date.now()
+    workflowCompleted:gradingState.workflowCompleted||{},currentWorkflowStep:gradingState.currentWorkflowStep||1,gradingScope:gradingState.gradingScope||"all",activeLateBatchId:gradingState.activeLateBatchId||"",lastSavedAt:Date.now()
   };
 }
 function saveGradingSessionNow(){if(!gradingState.sessionId)return;setSaveStatus("saving");const sessions=JSON.parse(localStorage.getItem(sessionsKey())||"[]");const data=serializeSession();gradingState.lastSavedAt=data.lastSavedAt;gradingState.gradeColumns=data.gradeColumns;localStorage.setItem(sessionsKey(),JSON.stringify([data,...sessions.filter(s=>s.id!==data.id)]));localStorage.setItem("yutori_grades_v021",JSON.stringify(gradingState.grades));setTimeout(()=>setSaveStatus("saved"),120)}
 function changeGradeColumns(v){gradingState.gradeColumns=Number(v)||5;localStorage.setItem("yutori_grade_columns_v023",String(gradingState.gradeColumns));renderGradeGrid();scheduleAutoSave()}
 function completedQuestionCount(s){let count=0;for(let q=0;q<(s.questions||[]).length;q++){let total=0,done=0;(s.classes||[]).forEach(c=>(s.answers?.[c]||[]).forEach(p=>{if(p.absent)return;total++;if(s.grades?.[`${c}::${p.no}::${q}`])done++}));if(total&&done===total)count++}return count}
 function formatSavedAt(ts){if(!ts)return"未保存";const d=new Date(ts);return`${d.getMonth()+1}月${d.getDate()}日 ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`}
-function renderResumeList(){const box=document.getElementById("resumeList");if(!box)return;const sessions=JSON.parse(localStorage.getItem(sessionsKey())||"[]");if(!sessions.length){box.innerHTML='<div class="empty-resume">保存された採点データはありません。</div>';return}box.innerHTML=sessions.map(s=>{const c=completedQuestionCount(s),total=(s.questions||[]).length,title=[s.subject,s.unit,s.testName].filter(Boolean).join(" ")||"名称未設定";return`<div class="resume-item"><button class="resume-delete" type="button" title="削除" onclick="openDeleteSessionModal('${escapeHtml(s.id)}','${escapeHtml(title)}')">×</button><h3>${escapeHtml(title)}</h3><div class="resume-meta">${escapeHtml((s.classes||[]).join("・")||"クラス未設定")}<br>${c===total&&total?"採点済み":"採点途中"}：${c} / ${total}問 完了<br>最終保存：${formatSavedAt(s.lastSavedAt)}</div><div class="resume-actions"><button class="primary" onclick="resumeGradingSession('${escapeHtml(s.id)}')">採点を再開</button></div></div>`}).join("")}
+function sessionMissingStudents(session){
+  return (session.classes||[]).flatMap(className=>(session.answers?.[className]||[]).filter(person=>person.absent||!person.pageId).map(person=>({className,no:person.no,name:person.name,absent:Boolean(person.absent)})));
+}
+function renderResumeList(){
+  const box=document.getElementById("resumeList");if(!box)return;
+  const sessions=JSON.parse(localStorage.getItem(sessionsKey())||"[]");
+  if(!sessions.length){box.innerHTML='<div class="empty-resume">保存された採点データはありません。</div>';return}
+  box.innerHTML=sessions.map(session=>{
+    const completed=completedQuestionCount(session),total=(session.questions||[]).length,title=[session.subject,session.unit,session.testName].filter(Boolean).join(" ")||"名称未設定";
+    const missing=sessionMissingStudents(session);
+    const missingHtml=missing.length?`<div class="resume-missing"><div class="resume-missing-title">未受験・答案なし ${missing.length}名</div><div class="resume-missing-list">${missing.map(person=>`<span class="resume-missing-chip">${escapeHtml(classDisplayName(person.className))} ${String(person.no).padStart(2,"0")} ${escapeHtml(person.name)}</span>`).join("")}</div></div>`:"";
+    return `<div class="resume-item"><button class="resume-delete" type="button" title="削除" onclick="openDeleteSessionModal('${escapeHtml(session.id)}','${escapeHtml(title)}')">×</button><h3>${escapeHtml(title)}</h3><div class="resume-meta">${escapeHtml((session.classes||[]).join("・")||"クラス未設定")}<br>${completed===total&&total?"採点済み":"採点途中"}：${completed} / ${total}問 完了<br>最終保存：${formatSavedAt(session.lastSavedAt)}</div>${missingHtml}<div class="resume-actions">${missing.length?`<button class="resume-late-button" type="button" onclick="openLatePdfModal('${escapeHtml(session.id)}')">個別PDFの読込</button>`:""}<button class="primary" onclick="resumeGradingSession('${escapeHtml(session.id)}')">採点を再開</button></div></div>`;
+  }).join("");
+}
+
+let latePdfContext={sessionId:"",candidates:[]};
+function openLatePdfModal(sessionId){
+  const session=JSON.parse(localStorage.getItem(sessionsKey())||"[]").find(item=>item.id===sessionId);if(!session)return alert("採点データを読み込めませんでした。");
+  const candidates=sessionMissingStudents(session);if(!candidates.length)return alert("個別答案を追加できる生徒はいません。");
+  latePdfContext={sessionId,candidates};
+  const title=[session.subject,session.unit,session.testName].filter(Boolean).join(" ")||"名称未設定";
+  document.getElementById("latePdfSessionTitle").textContent=`「${title}」へ後日受験した答案を追加します。`;
+  document.getElementById("latePdfStudentSelect").innerHTML=candidates.map((person,index)=>`<option value="${index}">${escapeHtml(classDisplayName(person.className))}　${String(person.no).padStart(2,"0")} ${escapeHtml(person.name)}</option>`).join("");
+  document.getElementById("latePdfInput").value="";
+  document.querySelector('input[name="lateGradingMode"][value="late-only"]').checked=true;
+  const status=document.getElementById("latePdfStatus");status.className="late-pdf-status";status.textContent="出席番号マークと名前欄は、読み込み後の確認画面で照合できます。";
+  latePdfModal.classList.add("show");latePdfModal.setAttribute("aria-hidden","false");
+}
+function closeLatePdfModal(){latePdfModal.classList.remove("show");latePdfModal.setAttribute("aria-hidden","true");latePdfContext={sessionId:"",candidates:[]}}
+function handleLatePdfBackdrop(event){if(event.target===event.currentTarget)closeLatePdfModal()}
+function latePageMatchesStudent(page,className,no){
+  const expectedGroup=classGroupNumber(className),numberMatches=Number(page.detectedAttendanceNo)===Number(no);
+  const groupMatches=page.detectedGroup==null||expectedGroup==null||Number(page.detectedGroup)===Number(expectedGroup);
+  return numberMatches&&groupMatches;
+}
+async function processLatePdf(){
+  const sessionId=latePdfContext.sessionId,candidate=latePdfContext.candidates[Number(document.getElementById("latePdfStudentSelect").value||0)];
+  const file=document.getElementById("latePdfInput").files?.[0],mode=document.querySelector('input[name="lateGradingMode"]:checked')?.value||"late-only";
+  const status=document.getElementById("latePdfStatus"),button=document.getElementById("latePdfSubmitButton");
+  if(!sessionId||!candidate)return;
+  if(!file){status.className="late-pdf-status error";status.textContent="個別PDFを選択してください。";return}
+  if(file.type!=="application/pdf"&&!file.name.toLowerCase().endsWith(".pdf")){status.className="late-pdf-status error";status.textContent="PDFファイルを選択してください。";return}
+  button.disabled=true;button.textContent="読み込み中…";status.className="late-pdf-status loading";status.textContent="既存の採点データを準備しています…";
+  try{
+    await resumeGradingSession(sessionId);
+    if(gradingState.sessionId!==sessionId)throw new Error("採点データを再開できませんでした。");
+    const person=findAssignedPerson(candidate.className,candidate.no);if(!person)throw new Error("対象の生徒が名簿に見つかりません。");
+    if(person.pageId)throw new Error("この生徒にはすでに答案が登録されています。");
+    const fileIndex=gradingState.files.length,batchId=`late-${Date.now()}`;
+    await saveAdditionalPdfFileToIndexedDB(sessionId,file,fileIndex);
+    const pages=await renderPdfFile(file,fileIndex,sessionId,{idPrefix:`${batchId}-f`,onProgress:text=>{status.textContent=text}});
+    if(!pages.length)throw new Error("PDFに答案ページがありません。");
+    gradingState.files.push(file);
+    pages.forEach(page=>{page.lateAdded=true;page.lateBatchId=batchId;page.assignmentStatus="late-unassigned";page.assignmentClass=""});
+    gradingState.pdfPages.push(...pages);
+    const assignedPage=pages[0],matches=latePageMatchesStudent(assignedPage,candidate.className,candidate.no);
+    assignedPage.manualAssignment=true;assignedPage.assignmentStatus=matches?"late-assigned":"late-review";assignedPage.assignmentClass=candidate.className;assignedPage.lateTargetNo=Number(candidate.no);assignedPage.lateValidationWarning=!matches;
+    person.pageId=assignedPage.id;person.absent=false;person.lateAdded=true;person.lateConfirmed=false;person.lateBatchId=batchId;
+    gradingState.activeLateBatchId=batchId;gradingState.gradingScope=mode==="all"?"all":"late-only";
+    if(gradingState.gradingScope==="late-only")gradingState.gradeColumns=1;
+    gradingState.workflowCompleted={...(gradingState.workflowCompleted||{}),1:true,2:false,4:false};gradingState.currentWorkflowStep=2;
+    refreshMappingIssues();saveGradingSessionNow();
+    closeLatePdfModal();showScreen("gradingScreen");gradingEntryView.style.display="none";loadView.style.display="none";mainGradeView.style.display="none";reviewView.style.display="";renderIssues();renderWorkflowBars(2);
+  }catch(error){
+    console.error(error);status.className="late-pdf-status error";status.textContent=error?.message||"個別PDFを読み込めませんでした。";
+  }finally{button.disabled=false;button.textContent="読み込んで確認"}
+}
 
 let pendingDeleteSessionId="";
 function openDeleteSessionModal(id,title){
@@ -4869,6 +5013,8 @@ async function confirmDeleteSession(){
     gradingState.ignoredPageIds=[];
     gradingState.dragPageId="";
     gradingState.gradeHistory=[];
+    gradingState.gradingScope="all";
+    gradingState.activeLateBatchId="";
   }
 
   const fallbackGrades=
@@ -4926,7 +5072,7 @@ async function resumeGradingSession(id){
     alert("この採点データは、PDFをページ順で割り当てていた旧形式です。正しい出席番号で採点するため、「新しく採点を始める」から答案PDFをもう一度読み込んでください。");
     return;
   }
-  Object.assign(gradingState,{sessionId:s.id,selectedTestId:s.selectedTestId||"current",classes:s.classes||[],files:s.files||[],issues:s.issues||[],answers:s.answers||{},grades:s.grades||{},q:Number(s.q||0),selectedPen:s.selectedPen||"ok",gradeColumns:Number(s.gradeColumns||localStorage.getItem("yutori_grade_columns_v023")||5),status:s.status||"in-progress",workflowCompleted:s.workflowCompleted||{},currentWorkflowStep:s.currentWorkflowStep||1,questionScores:s.questionScores||[],lastSavedAt:s.lastSavedAt||0,pdfPages:s.pdfPages||[],ignoredPageIds:s.ignoredPageIds||[],answerPreview:null,dragPageId:"",gradeHistory:s.gradeHistory||[]});
+  Object.assign(gradingState,{sessionId:s.id,selectedTestId:s.selectedTestId||"current",classes:s.classes||[],files:s.files||[],issues:s.issues||[],answers:s.answers||{},grades:s.grades||{},q:Number(s.q||0),selectedPen:s.selectedPen||"ok",gradeColumns:Number(s.gradeColumns||localStorage.getItem("yutori_grade_columns_v023")||5),status:s.status||"in-progress",workflowCompleted:s.workflowCompleted||{},currentWorkflowStep:s.currentWorkflowStep||1,questionScores:s.questionScores||[],lastSavedAt:s.lastSavedAt||0,pdfPages:s.pdfPages||[],ignoredPageIds:s.ignoredPageIds||[],answerPreview:null,dragPageId:"",gradeHistory:s.gradeHistory||[],gradingScope:s.gradingScope||"all",activeLateBatchId:s.activeLateBatchId||""});
   gradingState.testSets=[{id:s.selectedTestId||"current",name:s.testName||"保存済みテスト",testName:s.testName||"保存済みテスト",subject:s.subject||"",unit:s.unit||"",rows:Number(s.rows)||10,cols:Number(s.cols)||3,flow:s.flow==="row"?"row":"column",questions:s.questions||[],answers:s.modelAnswers||[]}];
   if(gradingState.pdfPages.length){
     try{await restorePdfPagesFromIndexedDB(id)}catch(error){console.warn("答案画像の復元に失敗しました",error)}
@@ -4982,6 +5128,14 @@ async function savePdfFilesToIndexedDB(sessionId,files){
   try{
     const tx=db.transaction("pdfFiles","readwrite"),store=tx.objectStore("pdfFiles");
     files.forEach((file,i)=>store.put({id:`${sessionId}:${i}`,sessionId,name:file.name,type:file.type,size:file.size,blob:file}));
+    await waitForDbTransaction(tx);
+  }finally{db.close()}
+}
+async function saveAdditionalPdfFileToIndexedDB(sessionId,file,fileIndex){
+  const db=await openYutoriDb();
+  try{
+    const tx=db.transaction("pdfFiles","readwrite");
+    tx.objectStore("pdfFiles").put({id:`${sessionId}:${fileIndex}`,sessionId,name:file.name,type:file.type,size:file.size,blob:file});
     await waitForDbTransaction(tx);
   }finally{db.close()}
 }
@@ -5351,6 +5505,32 @@ showScreen("editorScreen");
       <span id="answerPreviewGrade" class="answer-preview-grade">未採点</span>
       <button class="secondary" type="button" onclick="moveAnswerPreview(1)">次の児童 →</button>
     </div>
+  </div>
+</div>
+
+<div id="latePdfModal" class="yutori-modal-backdrop" aria-hidden="true" onclick="handleLatePdfBackdrop(event)">
+  <div class="yutori-modal late-pdf-modal" role="dialog" aria-modal="true" aria-labelledby="latePdfModalTitle">
+    <h3 id="latePdfModalTitle">後日受験した答案を追加</h3>
+    <p id="latePdfSessionTitle" class="late-pdf-intro">既存の採点データへ個別答案を追加します。</p>
+    <form class="late-pdf-form" onsubmit="processLatePdf();return false">
+      <label class="late-pdf-field">対象の生徒
+        <select id="latePdfStudentSelect"></select>
+      </label>
+      <label class="late-pdf-field">個別PDF
+        <input id="latePdfInput" type="file" accept="application/pdf">
+      </label>
+      <div class="late-pdf-field">採点方法
+        <div class="late-pdf-mode">
+          <label><input type="radio" name="lateGradingMode" value="late-only" checked><span>追加した答案だけ採点<small>今回読み込んだ生徒だけを表示し、短時間で採点します。</small></span></label>
+          <label><input type="radio" name="lateGradingMode" value="all"><span>全員の答案と一緒に採点<small>これまでの答案へ追加し、通常の採点画面で確認します。</small></span></label>
+        </div>
+      </div>
+      <div id="latePdfStatus" class="late-pdf-status">出席番号マークと名前欄は、読み込み後の確認画面で照合できます。</div>
+      <div class="yutori-modal-actions">
+        <button class="secondary" type="button" onclick="closeLatePdfModal()">キャンセル</button>
+        <button id="latePdfSubmitButton" class="primary" type="submit">読み込んで確認</button>
+      </div>
+    </form>
   </div>
 </div>
 
