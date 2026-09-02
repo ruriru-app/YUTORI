@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <meta name="theme-color" content="#FCCC8E">
 <meta name="apple-mobile-web-app-title" content="YUTORI">
-<title>YUTORI v0.3.15</title>
+<title>YUTORI v0.3.16</title>
 <link rel="icon" type="image/svg+xml" href="assets/yutori-symbol.svg">
 <link rel="apple-touch-icon" href="assets/yutori-symbol.svg">
 <link rel="manifest" href="manifest.webmanifest">
@@ -1084,7 +1084,7 @@ body{
   font-size:9px!important;
 }
 .step-next-button{display:none!important}
-.step-next-button.show{display:inline-flex!important}
+.step-next-button.show{display:inline-flex!important;align-items:center;justify-content:center;text-align:center}
 .load-actions{
   justify-content:flex-start!important;
   padding-left:12px;
@@ -2601,10 +2601,6 @@ body.sidebar-dragging{cursor:ew-resize;user-select:none;-webkit-user-select:none
 #mainGradeView .problem-info-bar,#mainGradeView #gradeAnswers,#mainGradeView #gradeAnswers section,#mainGradeView .answer-grid,#mainGradeView .answer-card.pdf-answer,#mainGradeView .answer-image,#mainGradeView .answer-crop-canvas{touch-action:pan-y!important}
 
 /* v0.3.12：後日受験した答案の個別追加 */
-.resume-missing{display:grid;gap:6px;margin-top:9px;padding:8px;border:1px solid #EBC79D;border-radius:10px;background:#FFF9F0}
-.resume-missing-title{color:#7A5520;font-size:11px;font-weight:900}
-.resume-missing-list{display:flex;flex-wrap:wrap;gap:5px}
-.resume-missing-chip{padding:4px 7px;border-radius:999px;background:#fff;border:1px solid #E7C18F;color:var(--brown);font-size:10px;font-weight:900}
 .resume-actions{align-items:center;gap:7px;flex-wrap:wrap}
 .resume-late-button{margin-right:auto;background:#FFF0E0;color:#7A5520;border:1px solid #E0A75E}
 
@@ -2621,8 +2617,6 @@ body.sidebar-dragging{cursor:ew-resize;user-select:none;-webkit-user-select:none
 .late-pdf-status.loading{color:#9A6820}.late-pdf-status.error{color:var(--danger)}
 
 .pdf-student-card.late-added{border:3px solid #E0A75E;background:#FFF8EA;box-shadow:0 0 0 3px rgba(252,204,142,.3)}
-.pdf-student-card.late-added.confirmed{border-color:#9BC58D;background:#F4FAF1;box-shadow:0 0 0 3px rgba(155,197,141,.2)}
-.late-confirm-button{background:#FCCC8E!important;color:#6F4D22!important;border:1px solid #D69B54!important}
 .grading-progress-row .save-banner-main{gap:5px!important}
 .grading-scope-select{flex:0 0 90px;width:90px;min-width:90px;height:32px;padding:4px 22px 4px 7px;font-size:9px;font-weight:900;background:#FFF3E4;color:#7A5520}
 
@@ -2697,14 +2691,7 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
 .late-pdf-candidates{display:flex;flex-wrap:wrap;gap:6px;padding:9px;border:1px solid var(--line);border-radius:10px;background:#FFF9F0}
 .late-pdf-candidate{padding:4px 7px;border:1px solid #E7C18F;border-radius:999px;background:#fff;color:#7A5520;font-size:10px;font-weight:900}
 .late-pdf-field>small{color:var(--muted);font-size:10px;font-weight:700;line-height:1.45}
-.review-late-selection{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 12px;padding:10px 12px;border:1px solid #E7C18F;border-radius:11px;background:#FFF9F0;color:#7A5520;font-size:11px;font-weight:900}
-.review-late-selection span{color:var(--muted);font-size:10px;font-weight:800}
-.pdf-student-card.late-grade-selected{border-color:#D69B54!important;box-shadow:0 0 0 4px rgba(252,204,142,.48)!important}
 .pdf-student-choice-actions{display:flex;align-items:center;gap:6px}
-.late-grade-select{display:flex;align-items:center;gap:5px;padding:4px 7px;border:1px solid #E7C18F;border-radius:8px;background:#fff;color:#7A5520;font-size:9px;font-weight:900;white-space:nowrap}
-.late-grade-select input{appearance:auto!important;-webkit-appearance:checkbox!important;width:15px!important;height:15px!important;min-width:15px!important;margin:0!important;padding:0!important}
-.late-grade-select.disabled{opacity:.45}
-.late-confirm-button.confirmed{background:#F4F0EC!important;color:var(--brown)!important;border-color:var(--line)!important}
 
 #mainGradeView.individual-grading #questionTabsWrap,
 #mainGradeView.individual-grading #problemInfoBar{display:none!important}
@@ -2731,6 +2718,21 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
 .individual-answer-image{width:100%;aspect-ratio:15/4;overflow:hidden;border:1px solid var(--line);border-radius:9px;background:#fff}
 .individual-answer-image canvas{width:100%;height:100%;display:block;background:#fff}
 .individual-question-score{display:flex;justify-content:flex-end;color:var(--muted);font-size:9px;font-weight:900}
+
+/* v0.3.16：採点再開タイルと個別答案確認の簡略化 */
+.resume-list{gap:7px;margin-top:7px}
+.resume-item{padding:8px 10px;border-radius:11px}
+.resume-heading{display:flex;align-items:baseline;gap:8px;min-width:0;padding-right:32px;color:var(--brown);font-size:12px;line-height:1.35}
+.resume-title,.resume-classes{font-weight:900;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.resume-title{color:var(--text)}
+.resume-classes{color:var(--brown)}
+.resume-meta-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:3px;color:var(--muted);font-size:10px;font-weight:800;line-height:1.35}
+.resume-missing-simple{display:flex;align-items:flex-start;gap:6px;margin-top:3px;color:var(--muted);font-size:10px;line-height:1.35}
+.resume-missing-simple strong{flex:0 0 auto;color:#7A5520;font-size:10px}
+.resume-missing-names{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.resume-item .resume-actions{margin-top:5px}
+.resume-item .resume-actions button{min-height:29px;padding:5px 9px;border-radius:8px;font-size:10px}
+.resume-item .resume-delete{top:6px;right:7px;width:24px;height:24px;min-width:24px;border-radius:7px;font-size:14px}
 
 @media(max-width:820px){
   .sidebar-drag-handle{display:none}
@@ -2875,10 +2877,10 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
 <body>
 <div class="app-shell">
 <header class="app-header no-print">
-  <div class="brand" aria-label="YUTORI v0.3.15">
+  <div class="brand" aria-label="YUTORI v0.3.16">
     <div class="brand-copy">
       <img class="brand-logo-image" src="assets/yutori-logo.svg" alt="YUTORI つくる・つける・つなげる">
-      <span class="brand-version">v0.3.15</span>
+      <span class="brand-version">v0.3.16</span>
     </div>
   </div>
   <nav aria-label="主要メニュー">
@@ -3157,7 +3159,7 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
         <div class="grade-actions"><button class="primary" onclick="showNewGradingLoad()">新しく採点を始める</button></div>
       </div>
       <div class="entry-card">
-        <h3 class="step-title" style="font-size:17px">採点途中から再開する</h3>
+        <h3 class="step-title" style="font-size:17px">採点を再開する</h3>
         <div id="resumeList" class="resume-list"></div>
       </div>
     </div>
@@ -4297,10 +4299,10 @@ function prepareGradingView(){
   renderWorkflowBars(3);
 }
 function activeLateBatchPeople(className){
-  return (gradingState.answers[className]||[]).filter(person=>!person.absent&&person.pageId&&person.lateConfirmed&&person.lateBatchId&&person.lateBatchId===gradingState.activeLateBatchId);
+  return (gradingState.answers[className]||[]).filter(person=>!person.absent&&person.pageId&&person.lateAdded&&person.lateBatchId&&person.lateBatchId===gradingState.activeLateBatchId);
 }
 function selectedLateBatchPeople(className){
-  return activeLateBatchPeople(className).filter(person=>person.lateGradeSelected);
+  return activeLateBatchPeople(className);
 }
 function lateBatchPeople(className){
   return selectedLateBatchPeople(className);
@@ -4312,9 +4314,8 @@ function visibleGradingPeople(className){
 function updateGradingScopeControl(){
   const select=document.getElementById("gradingScopeSelect"),badge=document.getElementById("gradingScopeBadge");
   const hasLate=gradingState.classes.some(className=>activeLateBatchPeople(className).length);
-  const hasSelected=gradingState.classes.some(className=>selectedLateBatchPeople(className).length);
-  if((!hasLate||!hasSelected)&&gradingState.gradingScope==="late-only")gradingState.gradingScope="all";
-  if(select){select.value=gradingState.gradingScope||"all";const lateOption=select.querySelector('option[value="late-only"]');if(lateOption)lateOption.disabled=!hasSelected}
+  if(!hasLate&&gradingState.gradingScope==="late-only")gradingState.gradingScope="all";
+  if(select){select.value=gradingState.gradingScope||"all";const lateOption=select.querySelector('option[value="late-only"]');if(lateOption)lateOption.disabled=!hasLate}
   if(badge)badge.textContent=gradingState.gradingScope==="late-only"?`追加答案 ${gradingState.classes.reduce((sum,className)=>sum+selectedLateBatchPeople(className).length,0)}名を個人別表示`:"全員を表示";
 }
 function changeGradingScope(value){
@@ -4332,12 +4333,9 @@ function openResultsFromGrading(){
 }
 function openExportPage(){showScreen("outputScreen")}
 function completeReviewStep(){
+  refreshMappingIssues();
   if(gradingState.issues.length){
-    alert("未修正の答案があります。すべて修正してください。");
-    return;
-  }
-  if(gradingState.gradingScope==="late-only"&&!gradingState.classes.some(className=>selectedLateBatchPeople(className).length)){
-    alert("個別に採点する生徒を1名以上選択してください。複数選択できます。");
+    alert("エラーまたは警告が残っています。答案の割り当てを確認してください。");
     return;
   }
   gradingState.workflowCompleted={...(gradingState.workflowCompleted||{}),2:true};
@@ -4516,14 +4514,12 @@ function refreshMappingIssues(){
   gradingState.classes.forEach(className=>(gradingState.answers[className]||[]).forEach(person=>{
     if(person.absent)return;
     if(!person.pageId)issues.push({kind:"答案未割り当て",className,no:person.no});
-    else{
-      counts[person.pageId]=(counts[person.pageId]||0)+1;
-      if(person.lateAdded&&!person.lateConfirmed)issues.push({kind:"追加答案の本人確認",className,no:person.no});
-    }
+    else counts[person.pageId]=(counts[person.pageId]||0)+1;
   }));
   Object.entries(counts).filter(([,count])=>count>1).forEach(([pageId])=>issues.push({kind:"同じページの重複",pageId}));
   const assigned=new Set(Object.keys(counts));
   const ignored=new Set(gradingState.ignoredPageIds||[]);
+  gradingState.pdfPages.filter(page=>assigned.has(page.id)&&pdfPageRecognition(page).warning).forEach(page=>issues.push({kind:"マーク読取の警告",pageId:page.id}));
   gradingState.pdfPages.filter(page=>!assigned.has(page.id)&&!ignored.has(page.id)).forEach(page=>issues.push({kind:"未使用のPDFページ",pageId:page.id}));
   gradingState.issues=issues;
   return issues;
@@ -4619,28 +4615,21 @@ function renderIssues(){
   const ignored=gradingState.pdfPages.filter(page=>ignoredSet.has(page.id));
   const expected=gradingState.classes.reduce((sum,className)=>sum+(gradingState.answers[className]||[]).length,0);
   const recognizedCount=gradingState.pdfPages.filter(page=>page.detectedAttendanceNo!=null).length;
-  const currentLatePeople=gradingState.classes.flatMap(className=>(gradingState.answers[className]||[]).filter(person=>person.pageId&&person.lateAdded&&person.lateBatchId===gradingState.activeLateBatchId).map(person=>({className,person})));
-  const selectedLateCount=currentLatePeople.filter(item=>item.person.lateGradeSelected).length;
   if(gradingState.dragPageId&&!unassigned.some(page=>page.id===gradingState.dragPageId))gradingState.dragPageId="";
   const studentCards=gradingState.classes.flatMap(className=>(gradingState.answers[className]||[]).map(person=>{
     const encodedClass=encodeURIComponent(className);
     const page=gradingState.pdfPages.find(item=>item.id===person.pageId);
     const duplicate=person.pageId&&assigned.filter(id=>id===person.pageId).length>1;
-    const latePending=Boolean(person.lateAdded&&!person.lateConfirmed);
-    const lateCurrentBatch=Boolean(person.lateAdded&&person.lateBatchId===gradingState.activeLateBatchId);
-    const lateSelected=Boolean(person.lateGradeSelected);
-    const problem=!person.absent&&(!person.pageId||duplicate||latePending);
     const recognition=pdfPageRecognition(page);
+    const problem=!person.absent&&(!person.pageId||duplicate||recognition.warning);
     const nameCrop=page?`<div class="pdf-name-crop" title="答案全体を開く" onclick="event.stopPropagation();openAnswerPreview(decodeURIComponent('${encodedClass}'),${person.no})"><canvas class="name-crop-canvas answer-card-loading" data-page-id="${escapeHtml(page.id)}"></canvas></div>`:'<div class="pdf-name-crop pdf-empty-name">ここへPDFをドロップ</div>';
-    const lateClass=person.lateAdded?`late-added ${person.lateConfirmed?"confirmed":""} ${lateSelected?"late-grade-selected":""}`:"";
-    const statusLabel=person.absent?"欠席":person.lateAdded?(person.lateConfirmed?"個別追加・確認済み":"個別追加・本人確認"):page?"割当済":"要確認";
-    const gradeSelect=lateCurrentBatch&&gradingState.gradingScope==="late-only"?`<label class="late-grade-select ${person.lateConfirmed?"":"disabled"}" onclick="event.stopPropagation()"><input type="checkbox" ${lateSelected?"checked":""} ${person.lateConfirmed?"":"disabled"} onchange="toggleLateGradeSelection(decodeURIComponent('${encodedClass}'),${person.no},this.checked)">採点対象</label>`:"";
-    const confirmButton=person.lateAdded&&page?`<button class="late-confirm-button ${person.lateConfirmed?"confirmed":""}" type="button" onclick="event.stopPropagation();toggleLateStudentConfirmation(decodeURIComponent('${encodedClass}'),${person.no})">${person.lateConfirmed?"確認を取り消す":"本人確認済み"}</button> `:"";
+    const lateClass=person.lateAdded?"late-added":"";
+    const statusLabel=person.absent?"欠席":person.lateAdded?"個別追加・割当済":page?"割当済":"要確認";
     return `<div class="pdf-student-card ${problem?"problem":""} ${lateClass}" data-class="${escapeHtml(className)}" data-no="${person.no}" ondragover="allowPdfDrop(event)" ondragleave="leavePdfDrop(event)" ondrop="dropPdfOnStudent(event,decodeURIComponent('${encodedClass}'),${person.no})" onclick="handleReviewStudentCardClick(event,decodeURIComponent('${encodedClass}'),${person.no})">
       <div class="pdf-student-head"><div>${String(person.no).padStart(2,"0")} ${escapeHtml(person.name)}<small>${escapeHtml(classDisplayName(className))}</small></div><span>${statusLabel}</span></div>
       ${nameCrop}
       ${page?`<div class="pdf-mark-read ${recognition.warning?"warning":""}">${escapeHtml(recognition.text)}</div>`:'<div class="pdf-mark-read warning">答案が割り当てられていません</div>'}
-      <div class="pdf-student-actions"><span class="pdf-student-choice-actions"><label class="pdf-absent-toggle" onclick="event.stopPropagation()"><input type="checkbox" ${person.absent?"checked":""} onchange="setStudentAbsent(decodeURIComponent('${encodedClass}'),${person.no},this.checked)">欠席</label>${gradeSelect}</span><span>${confirmButton}${page?`<button class="secondary" type="button" onclick="event.stopPropagation();openAnswerPreview(decodeURIComponent('${encodedClass}'),${person.no})">全体</button> <button class="secondary" type="button" onclick="event.stopPropagation();clearStudentPage(decodeURIComponent('${encodedClass}'),${person.no})">外す</button>`:""}</span></div>
+      <div class="pdf-student-actions"><span class="pdf-student-choice-actions"><label class="pdf-absent-toggle" onclick="event.stopPropagation()"><input type="checkbox" ${person.absent?"checked":""} onchange="setStudentAbsent(decodeURIComponent('${encodedClass}'),${person.no},this.checked)">欠席</label></span><span>${page?`<button class="secondary" type="button" onclick="event.stopPropagation();openAnswerPreview(decodeURIComponent('${encodedClass}'),${person.no})">全体</button> <button class="secondary" type="button" onclick="event.stopPropagation();clearStudentPage(decodeURIComponent('${encodedClass}'),${person.no})">外す</button>`:""}</span></div>
     </div>`;
   })).join("");
   const unassignedCards=unassigned.map(page=>{
@@ -4655,15 +4644,19 @@ function renderIssues(){
   issueList.innerHTML=`
     <div class="pdf-review-summary"><span class="pdf-review-pill">PDF ${gradingState.pdfPages.length}ページ</span><span class="pdf-review-pill">番号認識 ${recognizedCount}ページ</span><span class="pdf-review-pill">名簿 ${expected}名</span><span class="pdf-review-pill ${gradingState.issues.length?"warning":""}">${gradingState.issues.length?`要確認 ${gradingState.issues.length}件`:"割り当て確認済み"}</span></div>
     ${gradingState.issues.length?"":'<div class="pdf-review-ok">すべての答案ページが重複なく割り当てられています。</div>'}
-    ${currentLatePeople.length?`<div class="review-late-selection"><strong>${gradingState.gradingScope==="late-only"?"採点する生徒を選択（複数可）":"全員の答案と一緒に採点"}</strong><span>${gradingState.gradingScope==="late-only"?`${selectedLateCount}名選択中`:`追加答案 ${currentLatePeople.length}名`}</span></div>`:""}
     <div class="pdf-review-layout">
       ${unassigned.length?`<section class="pdf-unassigned-pool"><h3>要確認のPDF ${unassigned.length}ページ</h3><p>名前欄の画像を名簿カードへドラッグ＆ドロップしてください。タッチ操作ではPDFを一度タップし、割り当てる名簿カードをタップします。</p><div class="pdf-unassigned-grid">${unassignedCards}</div></section>`:""}
       <div class="pdf-student-grid">${studentCards}</div>
     </div>
     ${ignored.length?`<div class="pdf-extra-pages"><h3>除外したページ</h3><div class="pdf-extra-page-list">${ignored.map(page=>{const recognition=pdfPageRecognition(page);return `<div class="pdf-extra-page"><span>${escapeHtml(page.fileName)}・${page.pageNumber}ページ<br>${escapeHtml(recognition.text)}</span><button class="secondary" type="button" onclick="ignorePdfPage('${escapeHtml(page.id)}',false)">除外を戻す</button></div>`}).join("")}</div></div>`:""}`;
+  document.getElementById("openGradeButton")?.classList.toggle("show",workflowDone(2)&&!gradingState.issues.length);
   renderNameCrops();
 }
 function findAssignedPerson(className,no){return (gradingState.answers[className]||[]).find(person=>Number(person.no)===Number(no))}
+function invalidateReviewConfirmation(){
+  gradingState.workflowCompleted={...(gradingState.workflowCompleted||{}),2:false};
+  document.getElementById("openGradeButton")?.classList.remove("show");
+}
 function nameCropRect(image){return {x:image.naturalWidth*.335,y:image.naturalHeight*.039,width:image.naturalWidth*.268,height:image.naturalHeight*.047}}
 async function renderNameCrops(){
   const token=++nameCropRenderToken;
@@ -4689,38 +4682,23 @@ function assignPdfPageToStudent(className,no,pageId){
     if(previous){previous.assignmentStatus="removed";previous.assignmentClass=""}
   }
   person.pageId=pageId;person.absent=false;
-  if(page.lateAdded){person.lateAdded=true;person.lateConfirmed=false;person.lateGradeSelected=false;person.lateBatchId=page.lateBatchId||gradingState.activeLateBatchId;page.lateValidationWarning=!latePageMatchesStudent(page,className,no)}
+  if(page.lateAdded){person.lateAdded=true;person.lateConfirmed=true;person.lateGradeSelected=true;person.lateBatchId=page.lateBatchId||gradingState.activeLateBatchId;page.lateValidationWarning=false}
   page.manualAssignment=true;page.assignmentStatus="manual";page.assignmentClass=className;
   gradingState.ignoredPageIds=(gradingState.ignoredPageIds||[]).filter(id=>id!==pageId);
   gradingState.dragPageId="";
+  invalidateReviewConfirmation();
   refreshMappingIssues();renderIssues();scheduleAutoSave();
-}
-function toggleLateStudentConfirmation(className,no){
-  const person=findAssignedPerson(className,no);if(!person||!person.pageId)return;
-  person.lateAdded=true;person.lateConfirmed=!person.lateConfirmed;
-  if(!person.lateConfirmed)person.lateGradeSelected=false;
-  const page=gradingState.pdfPages.find(item=>item.id===person.pageId);
-  if(page)page.lateValidationWarning=person.lateConfirmed?false:!latePageMatchesStudent(page,className,no);
-  refreshMappingIssues();renderIssues();scheduleAutoSave();
-}
-function toggleLateGradeSelection(className,no,selected){
-  const person=findAssignedPerson(className,no);if(!person?.lateAdded||!person.lateConfirmed||!person.pageId)return;
-  person.lateGradeSelected=Boolean(selected);renderIssues();scheduleAutoSave();
 }
 function handleReviewStudentCardClick(event,className,no){
   if(event.target.closest("button,input,label"))return;
-  if(gradingState.dragPageId){assignPdfPageToStudent(className,no,gradingState.dragPageId);return}
-  const person=findAssignedPerson(className,no);
-  if(gradingState.gradingScope==="late-only"&&person?.lateAdded&&person.lateConfirmed&&person.lateBatchId===gradingState.activeLateBatchId){
-    person.lateGradeSelected=!person.lateGradeSelected;renderIssues();scheduleAutoSave();
-  }
+  if(gradingState.dragPageId)assignPdfPageToStudent(className,no,gradingState.dragPageId);
 }
 function changeStudentPage(className,no,pageId){if(pageId)assignPdfPageToStudent(className,no,pageId);else clearStudentPage(className,no)}
 function clearStudentPage(className,no){
   const person=findAssignedPerson(className,no);if(!person)return;
   const page=gradingState.pdfPages.find(item=>item.id===person.pageId);
   if(page){page.assignmentStatus="removed";page.assignmentClass=""}
-  person.pageId="";person.absent=false;person.lateConfirmed=false;person.lateGradeSelected=false;if(page?.lateAdded){person.lateAdded=false;person.lateBatchId=""};refreshMappingIssues();renderIssues();scheduleAutoSave();
+  person.pageId="";person.absent=false;person.lateConfirmed=false;person.lateGradeSelected=false;if(page?.lateAdded){person.lateAdded=false;person.lateBatchId=""};invalidateReviewConfirmation();refreshMappingIssues();renderIssues();scheduleAutoSave();
 }
 function startPdfPageDrag(event,pageId){gradingState.dragPageId=pageId;event.dataTransfer.effectAllowed="move";event.dataTransfer.setData("text/plain",pageId);event.currentTarget.classList.add("selected")}
 function allowPdfDrop(event){event.preventDefault();event.dataTransfer.dropEffect="move";event.currentTarget.classList.add("drop-ready")}
@@ -4732,12 +4710,12 @@ function setStudentAbsent(className,no,absent){
   const person=findAssignedPerson(className,no);if(!person)return;
   let removedPage=null;if(absent&&person.pageId){removedPage=gradingState.pdfPages.find(item=>item.id===person.pageId);if(removedPage){removedPage.assignmentStatus="removed";removedPage.assignmentClass=""}}
   person.absent=Boolean(absent);if(person.absent){person.pageId="";person.lateConfirmed=false;person.lateGradeSelected=false;if(removedPage?.lateAdded){person.lateAdded=false;person.lateBatchId=""}}
-  refreshMappingIssues();renderIssues();scheduleAutoSave();
+  invalidateReviewConfirmation();refreshMappingIssues();renderIssues();scheduleAutoSave();
 }
 function ignorePdfPage(pageId,ignored){
   const values=new Set(gradingState.ignoredPageIds||[]);ignored?values.add(pageId):values.delete(pageId);
   if(gradingState.dragPageId===pageId)gradingState.dragPageId="";
-  gradingState.ignoredPageIds=[...values];refreshMappingIssues();renderIssues();scheduleAutoSave();
+  gradingState.ignoredPageIds=[...values];invalidateReviewConfirmation();refreshMappingIssues();renderIssues();scheduleAutoSave();
 }
 function startGrading(){completeReviewStep()}
 function currentTest(){return gradingState.testSets.find(item=>item.id===gradingState.selectedTestId)||gradingState.testSets[0]}
@@ -4873,7 +4851,7 @@ function renderIndividualGradeGrid(test,cols){
     const completed=(test.questions||[]).filter((_,q)=>gradingState.grades[key(group.className,person.no,q)]).length;
     return `<section class="individual-student-section"><div class="class-title"><span>${escapeHtml(classDisplayName(group.className))}　${String(person.no).padStart(2,"0")} ${escapeHtml(person.name)}</span><span>${completed} / ${(test.questions||[]).length}問</span></div><div class="individual-question-grid" style="grid-template-columns:repeat(${cols},minmax(0,1fr))">${(test.questions||[]).map((_,q)=>individualQuestionCard(group.className,person,q,test)).join("")}</div></section>`;
   })).join("");
-  gradeAnswers.innerHTML=sections?`<div class="individual-grading-note">選択した${totalPeople}名を個人別に表示しています。採点パレットで○・×・△を選び、各問題タイルをタップしてください。</div>${sections}`:'<div class="pdf-review-ok">採点対象の生徒が選択されていません。「確認と修正」へ戻り、採点する生徒を選択してください。</div>';
+  gradeAnswers.innerHTML=sections?`<div class="individual-grading-note">追加した${totalPeople}名を個人別に表示しています。採点パレットで○・×・△を選び、各問題タイルをタップしてください。</div>${sections}`:'<div class="pdf-review-ok">今回追加した答案がありません。「確認と修正」で個別答案を名前へ割り当ててください。</div>';
   renderAnswerCrops(gradingState.q,test);
 }
 function individualQuestionCard(className,person,q,test){
@@ -5178,10 +5156,12 @@ function renderResumeList(){
   const sessions=JSON.parse(localStorage.getItem(sessionsKey())||"[]");
   if(!sessions.length){box.innerHTML='<div class="empty-resume">保存された採点データはありません。</div>';return}
   box.innerHTML=sessions.map(session=>{
-    const completed=completedQuestionCount(session),total=(session.questions||[]).length,title=[session.subject,session.unit,session.testName].filter(Boolean).join(" ")||"名称未設定";
+    const completed=completedQuestionCount(session),total=(session.questions||[]).length,title=session.testName||[session.subject,session.unit].filter(Boolean).join(" ")||"名称未設定";
+    const classes=(session.classes||[]).map(className=>classDisplayName(className)).join("・")||"クラス未設定";
     const missing=sessionMissingStudents(session);
-    const missingHtml=missing.length?`<div class="resume-missing"><div class="resume-missing-title">未受験・答案なし ${missing.length}名</div><div class="resume-missing-list">${missing.map(person=>`<span class="resume-missing-chip">${escapeHtml(classDisplayName(person.className))} ${String(person.no).padStart(2,"0")} ${escapeHtml(person.name)}</span>`).join("")}</div></div>`:"";
-    return `<div class="resume-item"><button class="resume-delete" type="button" title="削除" onclick="openDeleteSessionModal('${escapeHtml(session.id)}','${escapeHtml(title)}')">×</button><h3>${escapeHtml(title)}</h3><div class="resume-meta">${escapeHtml((session.classes||[]).join("・")||"クラス未設定")}<br>${completed===total&&total?"採点済み":"採点途中"}：${completed} / ${total}問 完了<br>最終保存：${formatSavedAt(session.lastSavedAt)}</div>${missingHtml}<div class="resume-actions">${missing.length?`<button class="resume-late-button" type="button" onclick="openLatePdfModal('${escapeHtml(session.id)}')">個別PDFの読込</button>`:""}<button class="primary" onclick="resumeGradingSession('${escapeHtml(session.id)}')">採点を再開</button></div></div>`;
+    const missingNames=missing.map(person=>`${classDisplayName(person.className)} ${String(person.no).padStart(2,"0")} ${person.name}`).join("、");
+    const missingHtml=`<div class="resume-missing-simple"><strong>未受験・答案なし ${missing.length}名</strong>${missingNames?`<span class="resume-missing-names" title="${escapeHtml(missingNames)}">${escapeHtml(missingNames)}</span>`:""}</div>`;
+    return `<div class="resume-item"><button class="resume-delete" type="button" title="削除" onclick="openDeleteSessionModal('${escapeHtml(session.id)}','${escapeHtml(title)}')">×</button><div class="resume-heading"><span class="resume-title">${escapeHtml(title)}</span><span class="resume-classes">${escapeHtml(classes)}</span></div><div class="resume-meta-row"><span>採点途中：${completed} / ${total}問</span><span>最終保存：${formatSavedAt(session.lastSavedAt)}</span></div>${missingHtml}<div class="resume-actions">${missing.length?`<button class="resume-late-button" type="button" onclick="openLatePdfModal('${escapeHtml(session.id)}')">個別のPDF読込</button>`:""}<button class="primary" onclick="resumeGradingSession('${escapeHtml(session.id)}')">採点を再開</button></div></div>`;
   }).join("");
 }
 
@@ -5200,11 +5180,6 @@ function openLatePdfModal(sessionId){
 }
 function closeLatePdfModal(){latePdfModal.classList.remove("show");latePdfModal.setAttribute("aria-hidden","true");latePdfContext={sessionId:"",candidates:[]}}
 function handleLatePdfBackdrop(event){if(event.target===event.currentTarget)closeLatePdfModal()}
-function latePageMatchesStudent(page,className,no){
-  const expectedGroup=classGroupNumber(className),numberMatches=Number(page.detectedAttendanceNo)===Number(no);
-  const groupMatches=page.detectedGroup==null||expectedGroup==null||Number(page.detectedGroup)===Number(expectedGroup);
-  return numberMatches&&groupMatches;
-}
 async function processLatePdf(){
   const sessionId=latePdfContext.sessionId,files=[...(document.getElementById("latePdfInput").files||[])],mode=document.querySelector('input[name="lateGradingMode"]:checked')?.value||"late-only";
   const status=document.getElementById("latePdfStatus"),button=document.getElementById("latePdfSubmitButton");
@@ -5334,6 +5309,12 @@ async function resumeGradingSession(id){
     return;
   }
   Object.assign(gradingState,{sessionId:s.id,selectedTestId:s.selectedTestId||"current",classes:s.classes||[],files:s.files||[],issues:s.issues||[],answers:s.answers||{},grades:s.grades||{},q:Number(s.q||0),selectedPen:s.selectedPen||"ok",gradeColumns:Number(s.gradeColumns||localStorage.getItem("yutori_grade_columns_v023")||5),status:s.status||"in-progress",workflowCompleted:s.workflowCompleted||{},currentWorkflowStep:s.currentWorkflowStep||1,questionScores:s.questionScores||[],lastSavedAt:s.lastSavedAt||0,pdfPages:s.pdfPages||[],ignoredPageIds:s.ignoredPageIds||[],answerPreview:null,dragPageId:"",gradeHistory:s.gradeHistory||[],gradingScope:s.gradingScope||"all",activeLateBatchId:s.activeLateBatchId||""});
+  gradingState.classes.forEach(className=>(gradingState.answers[className]||[]).forEach(person=>{
+    if(!person.lateAdded||!person.pageId)return;
+    person.lateConfirmed=true;person.lateGradeSelected=true;
+    const page=gradingState.pdfPages.find(item=>item.id===person.pageId);
+    if(page?.manualAssignment)page.lateValidationWarning=false;
+  }));
   gradingState.testSets=[{id:s.selectedTestId||"current",name:s.testName||"保存済みテスト",testName:s.testName||"保存済みテスト",subject:s.subject||"",unit:s.unit||"",rows:Number(s.rows)||10,cols:Number(s.cols)||3,flow:s.flow==="row"?"row":"column",questions:s.questions||[],answers:s.modelAnswers||[]}];
   if(gradingState.pdfPages.length){
     try{await restorePdfPagesFromIndexedDB(id)}catch(error){console.warn("答案画像の復元に失敗しました",error)}
@@ -5784,7 +5765,7 @@ showScreen("editorScreen");
       </label>
       <div class="late-pdf-field">採点方法
         <div class="late-pdf-mode">
-          <label><input type="radio" name="lateGradingMode" value="late-only" checked><span>追加した答案だけ採点<small>確認画面で選択した生徒を、個人別の問題タイルで採点します。</small></span></label>
+          <label><input type="radio" name="lateGradingMode" value="late-only" checked><span>追加した答案だけ採点<small>確認画面で名前へ割り当てた生徒を、個人別の問題タイルで採点します。</small></span></label>
           <label><input type="radio" name="lateGradingMode" value="all"><span>全員の答案と一緒に採点<small>これまでの答案へ追加し、通常の採点画面で確認します。</small></span></label>
         </div>
       </div>
