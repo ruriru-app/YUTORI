@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <meta name="theme-color" content="#FCCC8E">
 <meta name="apple-mobile-web-app-title" content="YUTORI">
-<title>YUTORI v0.3.27</title>
+<title>YUTORI v0.3.28</title>
 <link rel="icon" type="image/svg+xml" href="assets/yutori-symbol.svg">
 <link rel="apple-touch-icon" href="assets/yutori-symbol.svg">
 <link rel="manifest" href="manifest.webmanifest">
@@ -2938,6 +2938,15 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
 /* v0.3.27：個別課題の3行を表示グリッドの左端へ揃える */
 .return-practice-details{width:100%;grid-template-columns:minmax(0,1fr);justify-content:stretch!important;box-sizing:border-box}
 
+/* v0.3.28：テストタイトルへ表示する情報を項目ごとに選択 */
+.test-title-field-row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:6px;align-items:center;width:100%;min-width:0}
+.test-title-field-label{color:var(--text);font-size:inherit;font-weight:800;white-space:nowrap}
+.info-inline .title-display-toggle{display:flex;align-items:center;justify-content:flex-start;gap:3px;color:var(--brown);font-size:10px;font-weight:900;white-space:nowrap;cursor:pointer}
+.info-inline .title-display-toggle input[type="checkbox"]{width:15px!important;height:15px!important;min-width:15px;margin:0;padding:0;accent-color:#FCCC8E}
+.editor-controls-host .info-inline .test-title-field-row{grid-template-columns:58px minmax(0,1fr) auto}
+.editor-controls-host .info-inline .test-title-field-label{font-size:11px}
+.editor-controls-host .info-inline .title-display-toggle{display:flex;grid-template-columns:none;gap:3px;font-size:10px;white-space:nowrap}
+
 .test-start-page,.output-library-page{display:grid;gap:14px;align-content:start;min-height:100%;padding:2px}
 .output-library-page{height:100%;min-height:0;overflow:auto;padding-right:3px}
 .start-library-head{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:18px;border:1px solid var(--line);border-radius:14px;background:#fff}
@@ -3111,10 +3120,10 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
 <body>
 <div class="app-shell">
 <header class="app-header no-print">
-  <div class="brand" aria-label="YUTORI v0.3.27">
+  <div class="brand" aria-label="YUTORI v0.3.28">
     <div class="brand-copy">
       <img class="brand-logo-image" src="assets/yutori-logo.svg" alt="YUTORI つくる・つける・つなげる">
-      <span class="brand-version">v0.3.27</span>
+      <span class="brand-version">v0.3.28</span>
     </div>
   </div>
   <nav aria-label="主要メニュー">
@@ -3302,10 +3311,10 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
       <div class="step-line">
         <h2 class="step-title">テスト情報</h2>
         <div class="info-inline">
-          <label>学年<select id="grade" class="grade-input"></select></label>
-          <label>教科<input id="subject" class="subject-input" list="subjectHistory" placeholder="例：外国語"></label>
-          <label>単元名<input id="unit" class="unit-input" list="unitHistory" placeholder="例：Unit 3"></label>
-          <label>テスト名<input id="testName" class="test-input" list="testHistory" placeholder="例：英単語テスト①"></label>
+          <div class="test-title-field-row"><label class="test-title-field-label" for="grade">学年</label><select id="grade" class="grade-input"></select><label class="title-display-toggle"><input id="titleShowGrade" type="checkbox" checked aria-label="学年をタイトルに表示"><span>表示</span></label></div>
+          <div class="test-title-field-row"><label class="test-title-field-label" for="subject">教科</label><input id="subject" class="subject-input" list="subjectHistory" placeholder="例：外国語"><label class="title-display-toggle"><input id="titleShowSubject" type="checkbox" checked aria-label="教科をタイトルに表示"><span>表示</span></label></div>
+          <div class="test-title-field-row"><label class="test-title-field-label" for="unit">単元名</label><input id="unit" class="unit-input" list="unitHistory" placeholder="例：Unit 3"><label class="title-display-toggle"><input id="titleShowUnit" type="checkbox" checked aria-label="単元名をタイトルに表示"><span>表示</span></label></div>
+          <div class="test-title-field-row"><label class="test-title-field-label" for="testName">テスト名</label><input id="testName" class="test-input" list="testHistory" placeholder="例：英単語テスト①"><label class="title-display-toggle"><input id="titleShowTestName" type="checkbox" checked aria-label="テスト名をタイトルに表示"><span>表示</span></label></div>
         </div>
         <datalist id="subjectHistory"></datalist>
         <datalist id="unitHistory"></datalist>
@@ -3757,6 +3766,7 @@ const HEADER_SVG = "<!-- Created with Linearity Curve (http://linearity.io/curve
 
 const state = {
   grade:"", subject:"", unit:"", testName:"",
+  titleVisibility:{grade:true,subject:true,unit:true,testName:true},
   paperSize:"a4", orientation:"portrait",
   rows:10, cols:3, flow:"column", answerLine:"fourline",
   questions:[], answers:[]
@@ -3787,6 +3797,7 @@ function copyTestState(source=state){
     subject:String(source.subject||""),
     unit:String(source.unit||""),
     testName:String(source.testName||""),
+    titleVisibility:normalizeTitleVisibility(source.titleVisibility),
     paperSize:["a4","b5","a5"].includes(source.paperSize)?source.paperSize:"a4",
     orientation:source.orientation==="landscape"?"landscape":"portrait",
     rows:Number(source.rows)||10,
@@ -3816,6 +3827,32 @@ function gradeLabel(value){
   const text=String(value||"").trim();
   if(!text)return "学年未設定";
   return /年|学年/.test(text)?text:`${text}年`;
+}
+function normalizeTitleVisibility(value){
+  const source=value&&typeof value==="object"?value:{};
+  return {
+    grade:source.grade!==false,
+    subject:source.subject!==false,
+    unit:source.unit!==false,
+    testName:source.testName!==false
+  };
+}
+function testDisplayTitle(source=state){
+  const visibility=normalizeTitleVisibility(source?.titleVisibility);
+  return [
+    visibility.grade&&String(source?.grade||"").trim()?gradeLabel(source.grade):"",
+    visibility.subject?String(source?.subject||"").trim():"",
+    visibility.unit?String(source?.unit||"").trim():"",
+    visibility.testName?String(source?.testName||"").trim():""
+  ].filter(Boolean).join("　");
+}
+function testTileTitle(source,fallback="タイトル表示なし"){
+  return testDisplayTitle(source)||String(source?.displayTitle||"").trim()||fallback;
+}
+function applyTitleVisibilityToControls(source=state){
+  const visibility=normalizeTitleVisibility(source?.titleVisibility);
+  const fields={titleShowGrade:"grade",titleShowSubject:"subject",titleShowUnit:"unit",titleShowTestName:"testName"};
+  Object.entries(fields).forEach(([id,key])=>{const input=document.getElementById(id);if(input)input.checked=visibility[key]});
 }
 function setSelectOptions(select,values,current,{blankLabel="選択してください",includeBlank=true}={}){
   if(!select)return;
@@ -4032,6 +4069,7 @@ function scheduleLivePreview(){
 function bindLivePreviewControls(){
   ["subject","unit","testName"].forEach(id=>document.getElementById(id)?.addEventListener("input",updateCounts));
   document.getElementById("grade")?.addEventListener("change",updateCounts);
+  ["titleShowGrade","titleShowSubject","titleShowUnit","titleShowTestName"].forEach(id=>document.getElementById(id)?.addEventListener("change",updateCounts));
   document.getElementById("paperSize")?.addEventListener("change",applyLimits);
   document.querySelectorAll('input[name="orientation"]').forEach(el=>el.addEventListener("change",applyLimits));
   ["rows","cols"].forEach(id=>document.getElementById(id)?.addEventListener("change",updateCounts));
@@ -4274,6 +4312,12 @@ function syncState(){
   state.subject=document.getElementById("subject").value.trim();
   state.unit=document.getElementById("unit").value.trim();
   state.testName=document.getElementById("testName").value.trim();
+  state.titleVisibility={
+    grade:Boolean(document.getElementById("titleShowGrade")?.checked),
+    subject:Boolean(document.getElementById("titleShowSubject")?.checked),
+    unit:Boolean(document.getElementById("titleShowUnit")?.checked),
+    testName:Boolean(document.getElementById("titleShowTestName")?.checked)
+  };
   state.paperSize=document.getElementById("paperSize").value;
   state.orientation=checked("orientation");
   state.rows=Number(document.getElementById("rows").value||1);
@@ -4381,7 +4425,7 @@ function saveCurrentTest(){
 function savedTestCardHtml(item){
   const sizeLabel={a4:"A4",b5:"B5",a5:"A5"};
   const safeId=String(item.id||"").replace(/[^a-zA-Z0-9_-]/g,"");
-  const title=escapeHtml(item.testName||"名称未設定のテスト");
+  const title=escapeHtml(testTileTitle(item));
   const subtitle=escapeHtml([item.subject,item.unit].filter(Boolean).join(" ／ ")||"教科・単元名は未設定です");
   const paper=`${sizeLabel[item.paperSize]||"A4"}・${item.orientation==="landscape"?"横":"縦"}`;
   const updated=Number(item.updatedAt)?new Date(Number(item.updatedAt)).toLocaleString("ja-JP",{year:"numeric",month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit"}):"—";
@@ -4454,6 +4498,7 @@ function applyTestToEditor(source,id=""){
   document.getElementById("subject").value=state.subject;
   document.getElementById("unit").value=state.unit;
   document.getElementById("testName").value=state.testName;
+  applyTitleVisibilityToControls(state);
   document.getElementById("paperSize").value=state.paperSize;
   document.querySelector(`input[name="orientation"][value="${state.orientation}"]`).checked=true;
   document.querySelector(`input[name="flow"][value="${state.flow}"]`).checked=true;
@@ -4523,7 +4568,7 @@ function renderPaper(){
   const warning=state.questions.length>cap?`<div class="paper-warning">※ ${state.questions.length-cap}問が用紙内に収まりません。</div>`:"";
   paper.innerHTML=`
     <div class="paper-header"><img src="assets/test-mark-name-header.svg" alt="組、出席番号、名前、点数の記入欄"></div>
-    <div class="paper-title">${escapeHtml([gradeLabel(state.grade),state.subject,state.unit,state.testName].filter(Boolean).join("　"))}</div>
+    <div class="paper-title">${escapeHtml(testDisplayTitle(state))}</div>
     <div class="sheet-grid ${flowClass}" style="
       grid-template-columns:repeat(${state.cols},minmax(0,1fr));
       grid-template-rows:repeat(${state.rows},minmax(0,1fr));
@@ -4662,11 +4707,13 @@ function refreshGradeUi(){
   const previousTestId=gradingState.selectedTestId||currentSavedTestId||"";
   gradingState.testSets=readSavedTests().map(item=>({
     id:item.id,
-    name:[gradeLabel(item.grade),item.subject,item.testName||"名称未設定"].filter(Boolean).join(" ／ "),
-    testName:item.testName||"名称未設定",
+    name:testTileTitle(item),
+    displayTitle:testDisplayTitle(item),
+    testName:String(item.testName||""),
     grade:item.grade||"",
     subject:item.subject||"",
     unit:item.unit||"",
+    titleVisibility:normalizeTitleVisibility(item.titleVisibility),
     rows:Number(item.rows)||10,
     cols:Number(item.cols)||3,
     flow:item.flow==="row"?"row":"column",
@@ -4674,7 +4721,7 @@ function refreshGradeUi(){
     answers:[...(item.answers||[])]
   }));
   if(!gradingState.testSets.length){
-    gradingState.testSets=[{id:"current",name:state.testName||"現在作成中のテスト",testName:state.testName||"現在作成中のテスト",grade:state.grade||"",subject:state.subject||"",unit:state.unit||"",rows:Number(state.rows)||10,cols:Number(state.cols)||3,flow:state.flow==="row"?"row":"column",questions:[...state.questions],answers:[...state.answers]}];
+    gradingState.testSets=[{id:"current",name:testTileTitle(state,"現在作成中のテスト"),displayTitle:testDisplayTitle(state),testName:String(state.testName||""),grade:state.grade||"",subject:state.subject||"",unit:state.unit||"",titleVisibility:normalizeTitleVisibility(state.titleVisibility),rows:Number(state.rows)||10,cols:Number(state.cols)||3,flow:state.flow==="row"?"row":"column",questions:[...state.questions],answers:[...state.answers]}];
   }
   gradingState.selectedTestId=gradingState.testSets.some(item=>item.id===previousTestId)?previousTestId:gradingState.testSets[0].id;
   const testSelect=document.getElementById("gradingTestSet");
@@ -5621,7 +5668,8 @@ function serializeSession(){
   const t=currentTest()||{};
   return {
     id:gradingState.sessionId||`session-${Date.now()}`,assignmentMode:"attendance-mark",selectedTestId:gradingState.selectedTestId,
-    testName:t.testName||t.name||state.testName||"名称未設定",grade:t.grade||state.grade||"",subject:t.subject||state.subject||"",unit:t.unit||state.unit||"",
+    testName:String(t.testName??state.testName??""),grade:t.grade||state.grade||"",subject:t.subject||state.subject||"",unit:t.unit||state.unit||"",
+    titleVisibility:normalizeTitleVisibility(t.titleVisibility||state.titleVisibility),displayTitle:testDisplayTitle(t)||String(t.displayTitle||t.name||"").trim(),
     rows:Number(t.rows)||10,cols:Number(t.cols)||3,flow:t.flow==="row"?"row":"column",questions:t.questions||[],modelAnswers:t.answers||[],
     classes:[...gradingState.classes],files:gradingState.files.map(f=>({name:f.name,type:f.type,size:f.size,lastModified:f.lastModified})),
     pdfPages:gradingState.pdfPages||[],ignoredPageIds:gradingState.ignoredPageIds||[],issues:gradingState.issues,answers:gradingState.answers,
@@ -5644,7 +5692,7 @@ function renderResumeList(){
   const sessions=JSON.parse(localStorage.getItem(sessionsKey())||"[]");
   if(!sessions.length){box.innerHTML='<div class="empty-resume">保存された採点データはありません。</div>';return}
   box.innerHTML=sessions.map(session=>{
-    const completed=completedQuestionCount(session),total=(session.questions||[]).length,title=session.testName||[session.subject,session.unit].filter(Boolean).join(" ")||"名称未設定";
+    const completed=completedQuestionCount(session),total=(session.questions||[]).length,title=testTileTitle(session,"名称未設定");
     const classes=(session.classes||[]).map(className=>classDisplayName(className)).join("・")||"クラス未設定";
     const missing=sessionMissingStudents(session);
     const missingNames=missing.map(person=>`${classDisplayName(person.className)} ${String(person.no).padStart(2,"0")} ${person.name}`).join("、");
@@ -5803,7 +5851,7 @@ async function resumeGradingSession(id){
     const page=gradingState.pdfPages.find(item=>item.id===person.pageId);
     if(page?.manualAssignment)page.lateValidationWarning=false;
   }));
-  gradingState.testSets=[{id:s.selectedTestId||"current",name:s.testName||"保存済みテスト",testName:s.testName||"保存済みテスト",grade:s.grade||"",subject:s.subject||"",unit:s.unit||"",rows:Number(s.rows)||10,cols:Number(s.cols)||3,flow:s.flow==="row"?"row":"column",questions:s.questions||[],answers:s.modelAnswers||[]}];
+  gradingState.testSets=[{id:s.selectedTestId||"current",name:testTileTitle(s,"保存済みテスト"),displayTitle:testDisplayTitle(s)||String(s.displayTitle||"").trim(),testName:String(s.testName||""),grade:s.grade||"",subject:s.subject||"",unit:s.unit||"",titleVisibility:normalizeTitleVisibility(s.titleVisibility),rows:Number(s.rows)||10,cols:Number(s.cols)||3,flow:s.flow==="row"?"row":"column",questions:s.questions||[],answers:s.modelAnswers||[]}];
   if(gradingState.pdfPages.length){
     try{await restorePdfPagesFromIndexedDB(id)}catch(error){console.warn("答案画像の復元に失敗しました",error)}
   }else{revokePdfPageUrls()}
@@ -5811,7 +5859,7 @@ async function resumeGradingSession(id){
   if(sidebarTestSelect&&!Array.from(sidebarTestSelect.options).some(option=>option.value===gradingState.selectedTestId)){
     const option=document.createElement("option");
     option.value=gradingState.selectedTestId;
-    option.textContent=s.testName||"保存済みテスト";
+    option.textContent=testTileTitle(s,"保存済みテスト");
     sidebarTestSelect.appendChild(option);
   }
   if(sidebarTestSelect)sidebarTestSelect.value=gradingState.selectedTestId;
@@ -5893,10 +5941,12 @@ function loadLatestSessionForResults(){
   if(gradingState.sessionId && gradingState.classes?.length && gradingState.answers){
     return {
       id:gradingState.sessionId,
-      testName:currentTest()?.testName||state.testName||"名称未設定",
+      testName:String(currentTest()?.testName??state.testName??""),
       grade:currentTest()?.grade||state.grade||"",
       subject:currentTest()?.subject||state.subject||"",
       unit:currentTest()?.unit||state.unit||"",
+      titleVisibility:normalizeTitleVisibility(currentTest()?.titleVisibility||state.titleVisibility),
+      displayTitle:testDisplayTitle(currentTest()||state),
       questions:currentTest()?.questions||[],
       modelAnswers:currentTest()?.answers||[],
       classes:[...gradingState.classes],
@@ -5963,7 +6013,7 @@ function renderResultsSummary(){
     return;
   }
 
-  const title=[session.subject,session.unit,session.testName].filter(Boolean).join("　")||session.testName||"名称未設定";
+  const title=testTileTitle(session,"名称未設定");
   titleEl.textContent=title;
 
   const classes=session.classes||[];
@@ -6127,7 +6177,7 @@ function renderOutputSessionCards(){
   if(!sessions.length){host.innerHTML='<div class="saved-test-empty"><strong>採点済みデータはまだありません</strong>「採点」から答案を読み込み、採点を始めてください。</div>';return}
   host.innerHTML=sessions.map(session=>{
     const safeId=String(session.id||"").replace(/[^a-zA-Z0-9_-]/g,"");
-    const title=session.testName||[session.subject,session.unit].filter(Boolean).join(" ")||"名称未設定";
+    const title=testTileTitle(session,"名称未設定");
     const classes=(session.classes||[]).map(className=>classDisplayName(className)).join("・")||"クラス未設定";
     const completed=completedQuestionCount(session),total=(session.questions||[]).length;
     return `<article class="output-session-card"><h3>${escapeHtml(title)}</h3><p>${escapeHtml([gradeLabel(session.grade),session.subject,session.unit].filter(Boolean).join(" ／ "))}</p><div class="output-session-meta"><span>${escapeHtml(classes)}</span><span>採点済み ${completed}/${total}問</span><span>最終保存 ${escapeHtml(formatSavedAt(session.lastSavedAt))}</span></div><button class="primary" type="button" onclick="openReturnOutputSession('${safeId}')">返却資料を作る</button></article>`;
@@ -6189,7 +6239,7 @@ async function prepareReturnOutput(preferredSessionId=""){
   }
   const previous=sessionSelect.value;
   sessionSelect.innerHTML=sessions.map(session=>{
-    const title=session.testName||[session.subject,session.unit].filter(Boolean).join(" ")||"名称未設定";
+    const title=testTileTitle(session,"名称未設定");
     const classes=(session.classes||[]).map(className=>classDisplayName(className)).join("・")||"クラス未設定";
     return `<option value="${escapeHtml(session.id)}">${escapeHtml(title)}｜${escapeHtml(classes)}</option>`;
   }).join("");
@@ -6440,6 +6490,7 @@ if(initialSaved){
     document.getElementById("subject").value=state.subject||"";
     document.getElementById("unit").value=state.unit||"";
     document.getElementById("testName").value=state.testName||"";
+    applyTitleVisibilityToControls(state);
     document.getElementById("paperSize").value=state.paperSize||"a4";
     document.querySelector(`input[name="orientation"][value="${state.orientation||"portrait"}"]`).checked=true;
     document.querySelector(`input[name="flow"][value="${state.flow||"column"}"]`).checked=true;
@@ -6448,6 +6499,7 @@ if(initialSaved){
 }
 populateGradeControls(state.grade);
 document.getElementById("grade").value=state.grade||"";
+applyTitleVisibilityToControls(state);
 loadHistory();
 renderSettingsChoices();
 renderSavedTestList();
