@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <meta name="theme-color" content="#FCCC8E">
 <meta name="apple-mobile-web-app-title" content="YUTORI">
-<title>YUTORI v0.3.12</title>
+<title>YUTORI v0.3.13</title>
 <link rel="icon" type="image/svg+xml" href="assets/yutori-symbol.svg">
 <link rel="apple-touch-icon" href="assets/yutori-symbol.svg">
 <link rel="manifest" href="manifest.webmanifest">
@@ -2626,6 +2626,73 @@ body.sidebar-dragging{cursor:ew-resize;user-select:none;-webkit-user-select:none
 .grading-progress-row .save-banner-main{gap:5px!important}
 .grading-scope-select{flex:0 0 90px;width:90px;min-width:90px;height:32px;padding:4px 22px 4px 7px;font-size:9px;font-weight:900;background:#FFF3E4;color:#7A5520}
 
+/* v0.3.13：確認画面とメニュー境界のスクロール操作 */
+#reviewView{
+  height:100%;
+  min-height:0;
+  overflow-y:scroll;
+  overflow-x:hidden;
+  touch-action:pan-y;
+  -webkit-overflow-scrolling:touch;
+  overscroll-behavior-y:contain;
+  scrollbar-width:thin;
+  scrollbar-color:var(--mint) #F7F3EF;
+}
+#reviewView::-webkit-scrollbar{width:7px}
+#reviewView::-webkit-scrollbar-track{background:#F7F3EF;border-radius:999px}
+#reviewView::-webkit-scrollbar-thumb{min-height:48px;border-radius:999px;background:var(--mint);border:1px solid #E0A75E}
+#reviewView:focus{outline:none}
+#reviewView:focus-visible{box-shadow:inset 0 0 0 3px rgba(252,204,142,.48)}
+#reviewView .pdf-review-layout,
+#reviewView .pdf-unassigned-pool,
+#reviewView .pdf-unassigned-grid,
+#reviewView .pdf-unassigned-card,
+#reviewView .pdf-name-crop,
+#reviewView .name-crop-canvas,
+#reviewView .pdf-student-grid,
+#reviewView .pdf-student-card{touch-action:pan-y!important}
+
+@media(min-width:821px){
+  .app-sidebar,
+  .editor-controls-host,
+  .special-controls-host,
+  .settings-controls-host{scrollbar-width:none}
+  .app-sidebar::-webkit-scrollbar,
+  .editor-controls-host::-webkit-scrollbar,
+  .special-controls-host::-webkit-scrollbar,
+  .settings-controls-host::-webkit-scrollbar{width:0;height:0}
+}
+.sidebar-drag-handle{
+  --sidebar-track-padding:8px;
+  --sidebar-thumb-top:0px;
+  --sidebar-thumb-height:84px;
+  cursor:grab!important;
+}
+.sidebar-drag-handle::after{
+  top:var(--sidebar-track-padding)!important;
+  bottom:var(--sidebar-track-padding)!important;
+  right:4px!important;
+  width:3px!important;
+  height:auto!important;
+  transform:none!important;
+  border-radius:999px!important;
+  background:rgba(252,204,142,.42)!important;
+}
+.sidebar-drag-handle::before{
+  top:calc(var(--sidebar-track-padding) + var(--sidebar-thumb-top))!important;
+  right:2px!important;
+  width:8px!important;
+  height:var(--sidebar-thumb-height)!important;
+  transform:none!important;
+  border-color:#D69B54!important;
+  background:var(--mint)!important;
+}
+.sidebar-drag-handle.scrollable::before{box-shadow:0 2px 7px rgba(122,85,32,.24)}
+.sidebar-drag-handle.dragging-x{cursor:ew-resize!important}
+.sidebar-drag-handle.dragging-y{cursor:ns-resize!important}
+.sidebar-drag-handle:focus-visible{outline:3px solid rgba(252,204,142,.58);outline-offset:-1px;border-radius:999px}
+body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:none}
+
 @media(max-width:820px){
   .sidebar-drag-handle{display:none}
   .grading-toolbar-workflow{max-width:none;flex-basis:100%;order:5;grid-column:1/-1}
@@ -2769,10 +2836,10 @@ body.sidebar-dragging{cursor:ew-resize;user-select:none;-webkit-user-select:none
 <body>
 <div class="app-shell">
 <header class="app-header no-print">
-  <div class="brand" aria-label="YUTORI v0.3.12">
+  <div class="brand" aria-label="YUTORI v0.3.13">
     <div class="brand-copy">
       <img class="brand-logo-image" src="assets/yutori-logo.svg" alt="YUTORI つくる・つける・つなげる">
-      <span class="brand-version">v0.3.12</span>
+      <span class="brand-version">v0.3.13</span>
     </div>
   </div>
   <nav aria-label="主要メニュー">
@@ -2789,7 +2856,7 @@ body.sidebar-dragging{cursor:ew-resize;user-select:none;-webkit-user-select:none
 
 <div id="workspaceShell" class="workspace-shell">
   <aside class="app-sidebar no-print" aria-label="YUTORIメニュー">
-    <div id="sidebarDragHandle" class="sidebar-drag-handle" title="左右にドラッグしてメニューを開閉" aria-label="左右にドラッグしてメニューを開閉" onpointerdown="startSidebarDrag(event)"></div>
+    <div id="sidebarDragHandle" class="sidebar-drag-handle" title="上下にメニューをスクロール／左右に開閉" aria-label="上下にメニューをスクロール、左右にドラッグして開閉" role="scrollbar" aria-orientation="vertical" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" tabindex="0" onpointerdown="startSidebarDrag(event)" onkeydown="handleSidebarRailKey(event)"></div>
     <div class="sidebar-head">
       <div class="sidebar-copy">
         <h2 id="sidebarTitle" class="sidebar-title">テスト作成メニュー</h2>
@@ -3061,8 +3128,8 @@ body.sidebar-dragging{cursor:ew-resize;user-select:none;-webkit-user-select:none
     <div class="grading-load-guide"><strong>左側で採点の準備を行います</strong><span>対象テスト・クラス・答案PDFを選び、「PDFを読み込む」を押してください。</span></div>
   </div>
 
-  <div id="reviewView" class="grade-card" style="display:none">
-    <h2 class="step-title">答案と名簿の確認</h2>
+  <div id="reviewView" class="grade-card" style="display:none" tabindex="0" aria-label="確認と修正の内容" onkeydown="handleReviewScrollKey(event)">
+    <h2 class="step-title">確認と修正</h2>
     <p class="pdf-review-intro">答案上部の出席番号マークから名簿へ割り当てました。未記入・二重マークなどの要確認答案だけを修正し、答案のない児童は欠席にしてください。</p>
     <div id="issueList"></div>
     <div class="grade-actions review-actions step-action-grid">
@@ -3589,6 +3656,7 @@ function showScreen(id){
   if(isSettings){renderSettingsChoices();renderClassSettings();applySettingsPanelMeta()}
   const scroll=document.querySelector(".workspace-scroll");
   if(scroll)scroll.scrollTop=0;
+  scheduleSidebarRailUpdate();
 }
 function handleSidebarPrimary(){
   const active=document.querySelector(".screen.active")?.id;
@@ -3614,24 +3682,94 @@ function setAppSidebarCollapsed(collapsed){
     button.setAttribute("aria-label",collapsed?"メニューを展開する":"メニューを折りたたむ");
     button.title=collapsed?"メニューを展開する":"メニューを折りたたむ";
   }
-  setTimeout(positionFloatingPalette,200);
+  setTimeout(()=>{positionFloatingPalette();updateSidebarDragHandle()},200);
+}
+function sidebarScrollCandidates(){
+  const sidebar=document.querySelector(".app-sidebar");if(!sidebar)return[];
+  return [sidebar,...sidebar.querySelectorAll(".editor-controls-host,.special-controls-host,.settings-controls-host")].filter(element=>{
+    const style=getComputedStyle(element);
+    return style.display!=="none"&&style.visibility!=="hidden"&&element.clientHeight>0&&style.overflowY!=="hidden";
+  });
+}
+function sidebarScrollTarget(){
+  const candidates=sidebarScrollCandidates(),sidebar=document.querySelector(".app-sidebar");
+  return candidates.sort((a,b)=>(b.scrollHeight-b.clientHeight)-(a.scrollHeight-a.clientHeight))[0]||sidebar;
+}
+let sidebarRailUpdateFrame=0;
+function scheduleSidebarRailUpdate(){
+  cancelAnimationFrame(sidebarRailUpdateFrame);
+  sidebarRailUpdateFrame=requestAnimationFrame(updateSidebarDragHandle);
+}
+function updateSidebarDragHandle(){
+  const handle=document.getElementById("sidebarDragHandle"),target=sidebarScrollTarget();if(!handle||!target)return;
+  const trackPadding=8,trackHeight=Math.max(1,handle.clientHeight-trackPadding*2);
+  const scrollRange=Math.max(0,target.scrollHeight-target.clientHeight);
+  const fallbackHeight=Math.min(84,trackHeight);
+  const thumbHeight=scrollRange>0?Math.max(54,Math.min(trackHeight,trackHeight*(target.clientHeight/target.scrollHeight))):fallbackHeight;
+  const thumbTravel=Math.max(0,trackHeight-thumbHeight);
+  const thumbTop=scrollRange>0?(target.scrollTop/scrollRange)*thumbTravel:Math.max(0,(trackHeight-thumbHeight)/2);
+  handle.style.setProperty("--sidebar-thumb-top",`${Math.round(thumbTop)}px`);
+  handle.style.setProperty("--sidebar-thumb-height",`${Math.round(thumbHeight)}px`);
+  handle.classList.toggle("scrollable",scrollRange>0);
+  handle.setAttribute("aria-valuenow",String(scrollRange>0?Math.round(target.scrollTop/scrollRange*100):0));
+}
+function bindSidebarDragHandle(){
+  const sidebar=document.querySelector(".app-sidebar");if(!sidebar)return;
+  [sidebar,...sidebar.querySelectorAll(".editor-controls-host,.special-controls-host,.settings-controls-host")].forEach(element=>{
+    if(element.dataset.sidebarRailBound)return;
+    element.dataset.sidebarRailBound="true";
+    element.addEventListener("scroll",scheduleSidebarRailUpdate,{passive:true});
+  });
+  if("ResizeObserver" in window){
+    const observer=new ResizeObserver(scheduleSidebarRailUpdate);
+    observer.observe(sidebar);
+    sidebar.querySelectorAll(".editor-controls-host,.special-controls-host,.settings-controls-host").forEach(element=>observer.observe(element));
+  }
+  if("MutationObserver" in window)new MutationObserver(scheduleSidebarRailUpdate).observe(sidebar,{subtree:true,childList:true});
+  scheduleSidebarRailUpdate();
 }
 function startSidebarDrag(event){
   if(window.matchMedia("(max-width:820px)").matches)return;
-  const handle=event.currentTarget,shell=document.getElementById("workspaceShell");if(!shell)return;
-  const startX=event.clientX,wasCollapsed=shell.classList.contains("sidebar-collapsed");
+  const handle=event.currentTarget,shell=document.getElementById("workspaceShell"),target=sidebarScrollTarget();if(!shell||!target)return;
+  const startX=event.clientX,startY=event.clientY,startScrollTop=target.scrollTop,wasCollapsed=shell.classList.contains("sidebar-collapsed");
+  const scrollRange=Math.max(0,target.scrollHeight-target.clientHeight),trackHeight=Math.max(1,handle.clientHeight-16);
+  const thumbHeight=parseFloat(getComputedStyle(handle).getPropertyValue("--sidebar-thumb-height"))||84;
+  const thumbTravel=Math.max(1,trackHeight-thumbHeight);
+  let axis="",horizontalApplied=false;
   event.preventDefault();
-  handle.setPointerCapture?.(event.pointerId);handle.classList.add("dragging");document.body.classList.add("sidebar-dragging");
+  handle.setPointerCapture?.(event.pointerId);handle.classList.add("dragging");
   const move=moveEvent=>{
-    const delta=moveEvent.clientX-startX;
-    if(!wasCollapsed&&delta<-38)setAppSidebarCollapsed(true);
-    else if(wasCollapsed&&delta>38)setAppSidebarCollapsed(false);
+    const deltaX=moveEvent.clientX-startX,deltaY=moveEvent.clientY-startY;
+    if(!axis&&Math.max(Math.abs(deltaX),Math.abs(deltaY))>=6){
+      axis=Math.abs(deltaY)>Math.abs(deltaX)&&scrollRange>0?"y":"x";
+      handle.classList.add(axis==="y"?"dragging-y":"dragging-x");
+      document.body.classList.add(axis==="y"?"sidebar-scrolling":"sidebar-dragging");
+    }
+    if(axis==="y"){
+      target.scrollTop=Math.max(0,Math.min(scrollRange,startScrollTop+deltaY*(scrollRange/thumbTravel)));
+      updateSidebarDragHandle();
+    }else if(axis==="x"&&!horizontalApplied){
+      if(!wasCollapsed&&deltaX<-38){setAppSidebarCollapsed(true);horizontalApplied=true}
+      else if(wasCollapsed&&deltaX>38){setAppSidebarCollapsed(false);horizontalApplied=true}
+    }
   };
   const finish=()=>{
-    handle.classList.remove("dragging");document.body.classList.remove("sidebar-dragging");
+    handle.classList.remove("dragging","dragging-x","dragging-y");document.body.classList.remove("sidebar-dragging","sidebar-scrolling");
     window.removeEventListener("pointermove",move);window.removeEventListener("pointerup",finish);window.removeEventListener("pointercancel",finish);
+    scheduleSidebarRailUpdate();
   };
   window.addEventListener("pointermove",move);window.addEventListener("pointerup",finish,{once:true});window.addEventListener("pointercancel",finish,{once:true});
+}
+function handleSidebarRailKey(event){
+  const target=sidebarScrollTarget(),shell=document.getElementById("workspaceShell");if(!target||!shell)return;
+  const amounts={ArrowUp:-48,ArrowDown:48,PageUp:-Math.max(120,target.clientHeight*.8),PageDown:Math.max(120,target.clientHeight*.8)};
+  if(event.key in amounts)target.scrollBy({top:amounts[event.key],behavior:"smooth"});
+  else if(event.key==="Home")target.scrollTo({top:0,behavior:"smooth"});
+  else if(event.key==="End")target.scrollTo({top:target.scrollHeight,behavior:"smooth"});
+  else if(event.key==="ArrowLeft")setAppSidebarCollapsed(true);
+  else if(event.key==="ArrowRight")setAppSidebarCollapsed(false);
+  else return;
+  event.preventDefault();scheduleSidebarRailUpdate();
 }
 function positionFloatingPalette(){
   const palette=document.querySelector("#mainGradeView .palette-fixed"),view=document.getElementById("mainGradeView"),main=document.querySelector(".workspace-main");
@@ -4066,9 +4204,19 @@ function goToWorkflowStep(step){
   if(gradingState.sessionId)saveGradingSessionNow();
   showScreen("gradingScreen");gradingEntryView.style.display="none";loadView.style.display="none";reviewView.style.display="none";mainGradeView.style.display="none";
   if(step===1){loadView.style.display="";renderWorkflowBars(1)}
-  else if(step===2){reviewView.style.display="";renderIssues();renderWorkflowBars(2)}
+  else if(step===2){reviewView.style.display="";reviewView.scrollTop=0;renderIssues();renderWorkflowBars(2)}
   else if(step===3){mainGradeView.style.display="";prepareGradingView()}
   else if(step===4){gradingState.workflowCompleted={...(gradingState.workflowCompleted||{}),4:true};saveGradingSessionNow();renderResultsSummary();showScreen("resultsScreen");renderWorkflowBars(4)}
+}
+function handleReviewScrollKey(event){
+  if(event.target!==event.currentTarget)return;
+  const view=event.currentTarget;
+  const amounts={ArrowUp:-48,ArrowDown:48,PageUp:-Math.max(140,view.clientHeight*.82),PageDown:Math.max(140,view.clientHeight*.82)};
+  if(event.key in amounts)view.scrollBy({top:amounts[event.key],behavior:"smooth"});
+  else if(event.key==="Home")view.scrollTo({top:0,behavior:"smooth"});
+  else if(event.key==="End")view.scrollTo({top:view.scrollHeight,behavior:"smooth"});
+  else return;
+  event.preventDefault();
 }
 
 function openReviewFromLoad(){
@@ -4077,6 +4225,7 @@ function openReviewFromLoad(){
   gradingEntryView.style.display="none";
   loadView.style.display="none";
   reviewView.style.display="";
+  reviewView.scrollTop=0;
   mainGradeView.style.display="none";
   renderIssues();
   gradingState.currentWorkflowStep=2;
@@ -5445,6 +5594,7 @@ document.getElementById("rows").value=String(Math.min(document.getElementById("r
 document.getElementById("cols").value=String(Math.min(document.getElementById("cols").options.length,state.cols||3));
 updateCounts();
 bindLivePreviewControls();
+bindSidebarDragHandle();
 showScreen("editorScreen");
 </script>
 
