@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <meta name="theme-color" content="#FCCC8E">
 <meta name="apple-mobile-web-app-title" content="YUTORI">
-<title>YUTORI v0.3.26</title>
+<title>YUTORI v0.3.27</title>
 <link rel="icon" type="image/svg+xml" href="assets/yutori-symbol.svg">
 <link rel="apple-touch-icon" href="assets/yutori-symbol.svg">
 <link rel="manifest" href="manifest.webmanifest">
@@ -2935,6 +2935,9 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
 .return-practice-detail-answer{display:block;padding:.08em 0 .18em;overflow:hidden;font-weight:400;line-height:1.24;box-sizing:border-box}
 .return-practice-detail-rate{align-self:start;justify-self:start}
 
+/* v0.3.27：個別課題の3行を表示グリッドの左端へ揃える */
+.return-practice-details{width:100%;grid-template-columns:minmax(0,1fr);justify-content:stretch!important;box-sizing:border-box}
+
 .test-start-page,.output-library-page{display:grid;gap:14px;align-content:start;min-height:100%;padding:2px}
 .output-library-page{height:100%;min-height:0;overflow:auto;padding-right:3px}
 .start-library-head{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:18px;border:1px solid var(--line);border-radius:14px;background:#fff}
@@ -3108,10 +3111,10 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
 <body>
 <div class="app-shell">
 <header class="app-header no-print">
-  <div class="brand" aria-label="YUTORI v0.3.26">
+  <div class="brand" aria-label="YUTORI v0.3.27">
     <div class="brand-copy">
       <img class="brand-logo-image" src="assets/yutori-logo.svg" alt="YUTORI つくる・つける・つなげる">
-      <span class="brand-version">v0.3.26</span>
+      <span class="brand-version">v0.3.27</span>
     </div>
   </div>
   <nav aria-label="主要メニュー">
