@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <meta name="theme-color" content="#FCCC8E">
 <meta name="apple-mobile-web-app-title" content="YUTORI">
-<title>YUTORI v0.3.24</title>
+<title>YUTORI v0.3.25</title>
 <link rel="icon" type="image/svg+xml" href="assets/yutori-symbol.svg">
 <link rel="apple-touch-icon" href="assets/yutori-symbol.svg">
 <link rel="manifest" href="manifest.webmanifest">
@@ -2900,7 +2900,6 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
 @media(max-width:820px){.workspace-shell.results-mode{grid-template-columns:1fr}.palette-settings-grid{grid-template-columns:1fr}}
 
 /* v0.3.24：入口画面、工程表示、可動パレット、返却資料の文字調整 */
-@font-face{font-family:"YUTORI UD Kyokasho";src:local("UD Digi Kyokasho N-R"),local("UDデジタル教科書体 N-R"),local("UD Digi Kyokasho NK-R");font-display:swap}
 .workspace-shell.grading-mode .grading-toolbar-workflow,
 .workspace-shell.results-mode .grading-toolbar-workflow{display:grid;flex:0 1 390px;width:min(390px,42vw);max-width:390px;grid-template-columns:repeat(4,minmax(0,1fr))}
 .workspace-shell.grading-mode .workspace-hint,
@@ -2913,12 +2912,21 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
 .palette-drag-handle:active,.palette-drag-handle.dragging{cursor:grabbing;background:#FCCC8E;color:#68481E}
 #mainGradeView .palette-fixed{overflow:visible!important}
 
-.return-correct-answer,.return-practice-detail-answer{font-family:"YUTORI UD Kyokasho","BIZ UDPGothic","Yu Gothic",sans-serif}
+.return-correct-answer,.return-practice-detail-answer{font-family:"BIZ UDPGothic","Yu Gothic",sans-serif}
 .return-practice-details{display:grid;grid-template-rows:minmax(0,1fr) minmax(0,2fr) minmax(0,.8fr);gap:0;padding-top:.1cqw;padding-bottom:.1cqw}
 .return-practice-detail-first{align-self:center;font-size:1.16cqw;line-height:1.15}
 .return-practice-detail-answer{align-self:center;font-size:2.2cqw;line-height:1.02}
 .return-practice-detail-answer-label{font-size:.5em}
 .return-practice-detail-rate{align-self:start;font-size:.93cqw;line-height:1.05}
+
+/* v0.3.25：模範解答をAndikaへ変更し、個別課題の説明欄を左揃えに統一 */
+@font-face{font-family:"YUTORI Andika";src:url("assets/fonts/andika/Andika-Regular.ttf") format("truetype");font-style:normal;font-weight:400;font-display:swap}
+@font-face{font-family:"YUTORI Andika";src:url("assets/fonts/andika/Andika-Bold.ttf") format("truetype");font-style:normal;font-weight:700;font-display:swap}
+.return-correct-answer,.return-practice-detail-answer{font-family:"YUTORI Andika","BIZ UDPGothic","Yu Gothic",sans-serif}
+.return-practice-details,.return-practice-detail-first,.return-practice-detail-answer,.return-practice-detail-rate{text-align:left}
+.return-practice-detail-first,.return-practice-detail-answer{width:100%;justify-self:stretch}
+.return-practice-detail-answer{font-weight:700}
+.return-practice-detail-rate{justify-self:start}
 
 .test-start-page,.output-library-page{display:grid;gap:14px;align-content:start;min-height:100%;padding:2px}
 .output-library-page{height:100%;min-height:0;overflow:auto;padding-right:3px}
@@ -3093,10 +3101,10 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
 <body>
 <div class="app-shell">
 <header class="app-header no-print">
-  <div class="brand" aria-label="YUTORI v0.3.24">
+  <div class="brand" aria-label="YUTORI v0.3.25">
     <div class="brand-copy">
       <img class="brand-logo-image" src="assets/yutori-logo.svg" alt="YUTORI つくる・つける・つなげる">
-      <span class="brand-version">v0.3.24</span>
+      <span class="brand-version">v0.3.25</span>
     </div>
   </div>
   <nav aria-label="主要メニュー">
@@ -6337,6 +6345,7 @@ async function printReturnPdfs(){
   root.innerHTML=people.flatMap(person=>returnPagesForPerson(session,className,person,options)).join("");
   root.setAttribute("aria-hidden","false");
   await waitForReturnImages(root);
+  if(document.fonts?.ready)await Promise.race([document.fonts.ready,new Promise(resolve=>setTimeout(resolve,3000))]);
   let style=document.getElementById("dynamicPrintStyle");if(!style){style=document.createElement("style");style.id="dynamicPrintStyle";document.head.appendChild(style)}
   style.textContent="@page { size:A4 portrait; margin:0; }";
   document.body.classList.add("return-printing");
