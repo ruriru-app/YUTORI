@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <meta name="theme-color" content="#FCCC8E">
 <meta name="apple-mobile-web-app-title" content="YUTORI">
-<title>YUTORI v0.3.25</title>
+<title>YUTORI v0.3.26</title>
 <link rel="icon" type="image/svg+xml" href="assets/yutori-symbol.svg">
 <link rel="apple-touch-icon" href="assets/yutori-symbol.svg">
 <link rel="manifest" href="manifest.webmanifest">
@@ -2928,6 +2928,13 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
 .return-practice-detail-answer{font-weight:700}
 .return-practice-detail-rate{justify-self:start}
 
+/* v0.3.26：個別課題の左揃えとAndikaの字形表示を修正、テスト一覧を作成入口へ統合 */
+.return-practice-details{justify-items:start;align-items:stretch;text-align:left!important}
+.return-practice-detail-first,.return-practice-detail-first>*,.return-practice-detail-answer,.return-practice-detail-rate{text-align:left!important}
+.return-practice-detail-first,.return-practice-detail-answer{align-self:stretch;justify-self:stretch}
+.return-practice-detail-answer{display:block;padding:.08em 0 .18em;overflow:hidden;font-weight:400;line-height:1.24;box-sizing:border-box}
+.return-practice-detail-rate{align-self:start;justify-self:start}
+
 .test-start-page,.output-library-page{display:grid;gap:14px;align-content:start;min-height:100%;padding:2px}
 .output-library-page{height:100%;min-height:0;overflow:auto;padding-right:3px}
 .start-library-head{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:18px;border:1px solid var(--line);border-radius:14px;background:#fff}
@@ -3101,20 +3108,19 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
 <body>
 <div class="app-shell">
 <header class="app-header no-print">
-  <div class="brand" aria-label="YUTORI v0.3.25">
+  <div class="brand" aria-label="YUTORI v0.3.26">
     <div class="brand-copy">
       <img class="brand-logo-image" src="assets/yutori-logo.svg" alt="YUTORI つくる・つける・つなげる">
-      <span class="brand-version">v0.3.25</span>
+      <span class="brand-version">v0.3.26</span>
     </div>
   </div>
   <nav aria-label="主要メニュー">
-    <button class="active" data-screen="testStartScreen" onclick="openTestStart()">テスト作成</button>
-    <button data-screen="testListScreen" onclick="showScreen('testListScreen')">テスト一覧</button>
+    <button class="active" data-screen="testListScreen" onclick="showScreen('testListScreen')">テスト一覧</button>
     <button data-screen="gradingScreen" onclick="openGrading()">採点</button>
     <button data-screen="outputScreen" onclick="openExportPage()">結果出力</button>
   </nav>
   <div class="header-tools">
-    <button class="header-tool home asset-button" type="button" aria-label="ホーム" title="テスト作成へ" onclick="openTestStart()"><img src="assets/yutori-app-icon.svg" alt=""></button>
+    <button class="header-tool home asset-button" type="button" aria-label="ホーム" title="テスト一覧へ" onclick="openTestStart()"><img src="assets/yutori-app-icon.svg" alt=""></button>
     <button class="header-tool settings asset-button" type="button" aria-label="各種設定" title="設定へ" onclick="showScreen('rosterScreen')"><img src="assets/settings.svg" alt=""></button>
   </div>
 </header>
@@ -3124,8 +3130,8 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
     <div id="sidebarDragHandle" class="sidebar-drag-handle" title="上下にメニューをスクロール／左右に開閉" aria-label="上下にメニューをスクロール、左右にドラッグして開閉" role="scrollbar" aria-orientation="vertical" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" tabindex="0" onpointerdown="startSidebarDrag(event)" onkeydown="handleSidebarRailKey(event)"></div>
     <div class="sidebar-head">
       <div class="sidebar-copy">
-        <h2 id="sidebarTitle" class="sidebar-title">テスト作成メニュー</h2>
-        <p id="sidebarSubtitle" class="sidebar-subtitle">問題用紙の作成と印刷</p>
+        <h2 id="sidebarTitle" class="sidebar-title">テスト一覧</h2>
+        <p id="sidebarSubtitle" class="sidebar-subtitle">保存したテストを選択</p>
       </div>
       <button id="sidebarCollapse" class="sidebar-collapse" type="button" aria-label="メニューを折りたたむ" title="メニューを折りたたむ" onclick="toggleAppSidebar()">‹</button>
     </div>
@@ -3247,30 +3253,29 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
     <div id="mainNavPanel" class="sidebar-panel">
       <div class="sidebar-panel-title"><span>操作メニュー</span><span>−</span></div>
       <div class="sidebar-nav">
-        <button class="active" data-screen="testStartScreen" onclick="openTestStart()"><span class="sidebar-nav-icon">作</span><span class="sidebar-nav-label">テスト作成</span></button>
-        <button data-screen="testListScreen" onclick="showScreen('testListScreen')"><span class="sidebar-nav-icon">覧</span><span class="sidebar-nav-label">テスト一覧</span></button>
+        <button class="active" data-screen="testListScreen" onclick="showScreen('testListScreen')"><span class="sidebar-nav-icon">覧</span><span class="sidebar-nav-label">テスト一覧</span></button>
         <button data-screen="gradingScreen" onclick="openGrading()"><span class="sidebar-nav-icon">採</span><span class="sidebar-nav-label">採点</span></button>
         <button data-screen="outputScreen" onclick="openExportPage()"><span class="sidebar-nav-icon">出</span><span class="sidebar-nav-label">結果出力</span></button>
       </div>
     </div>
 
     <div id="sidebarCurrentPanel" class="sidebar-panel sidebar-current">
-      <div id="sidebarCurrentLabel" class="sidebar-current-label">現在の画面：テスト作成</div>
-      <div id="sidebarCurrentText" class="sidebar-current-text">テスト情報と問題を入力し、印刷用レイアウトを作成します。</div>
+      <div id="sidebarCurrentLabel" class="sidebar-current-label">現在の画面：テスト一覧</div>
+      <div id="sidebarCurrentText" class="sidebar-current-text">保存したテストを開くか、新しいテストを作成します。</div>
     </div>
-    <button id="sidebarPrimary" class="sidebar-primary" type="button" onclick="handleSidebarPrimary()">テストを保存</button>
+    <button id="sidebarPrimary" class="sidebar-primary" type="button" onclick="handleSidebarPrimary()">新しいテストを作る</button>
   </aside>
 
 <main class="workspace-main">
   <div class="workspace-toolbar no-print">
-    <span id="workspaceTab" class="workspace-tab">テスト作成</span>
-    <strong id="workspaceTitle" class="workspace-title">問題用紙の作成とプレビュー</strong>
+    <span id="workspaceTab" class="workspace-tab">テスト一覧</span>
+    <strong id="workspaceTitle" class="workspace-title">保存したテスト</strong>
     <div id="gradingToolbarWorkflow" class="grading-toolbar-workflow" aria-label="採点の流れ"></div>
-    <span id="workspaceHint" class="workspace-hint">入力内容はこの端末に自動保存されます</span>
+    <span id="workspaceHint" class="workspace-hint">この端末に保存したテストが表示されます</span>
     <span class="workspace-badge">YUTORI</span>
   </div>
   <div class="workspace-scroll">
-<section id="testStartScreen" class="screen active">
+<section id="testStartScreen" class="screen">
   <div class="test-start-page">
     <div class="start-library-head">
       <div>
@@ -3434,7 +3439,7 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
   </div>
 </section>
 
-<section id="testListScreen" class="screen">
+<section id="testListScreen" class="screen active">
   <div class="test-library-page">
     <div class="test-library-head">
       <div>
@@ -4066,7 +4071,7 @@ function showScreen(id){
       collapseButton.title="メニューを折りたたむ";
     }
   }
-  const navId=(id==="editorScreen"||id==="previewScreen")?"testStartScreen":id==="resultsScreen"?"gradingScreen":id;
+  const navId=(id==="editorScreen"||id==="previewScreen"||id==="testStartScreen")?"testListScreen":id==="resultsScreen"?"gradingScreen":id;
   document.querySelectorAll("[data-screen]").forEach(button=>{
     const active=button.dataset.screen===navId;
     button.classList.toggle("active",active);
@@ -4395,7 +4400,7 @@ function renderTestStartList(){
   const tests=readSavedTests().sort((a,b)=>(Number(b.updatedAt)||0)-(Number(a.updatedAt)||0)).slice(0,6);
   host.innerHTML=tests.length?tests.map(savedTestCardHtml).join(""):'<div class="saved-test-empty"><strong>保存したテストはまだありません</strong>「＋新しくテストを作る」から作成を始められます。</div>';
 }
-function openTestStart(){showScreen("testStartScreen")}
+function openTestStart(){showScreen("testListScreen")}
 function renderSavedTestList(){
   const host=document.getElementById("savedTestList");
   if(!host)return;
@@ -6450,7 +6455,7 @@ document.getElementById("cols").value=String(Math.min(document.getElementById("c
 updateCounts();
 bindLivePreviewControls();
 bindSidebarDragHandle();
-showScreen("testStartScreen");
+showScreen("testListScreen");
 </script>
 
 <div id="classModal" class="yutori-modal-backdrop" aria-hidden="true" onclick="handleClassModalBackdrop(event)">
