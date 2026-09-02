@@ -1,4 +1,9 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-  <path d="M58 8 C38 3 20 12 11 30 C1 49 7 72 24 86 C41 100 66 96 82 80 C98 64 98 41 86 24 C79 14 69 8 57 9" fill="none" stroke="#D92525" stroke-width="5.6" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M60 11 C40 7 23 16 15 32 C7 49 12 68 26 82 C40 95 61 93 76 82" fill="none" stroke="#EF4B4B" stroke-width="1.8" stroke-linecap="round" opacity=".38"/>
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<!-- Created with Linearity Curve (http://linearity.io/curve) -->
+<svg height="790.0px" stroke-miterlimit="10" style="fill-rule:nonzero;clip-rule:evenodd;stroke-linecap:round;stroke-linejoin:round;" version="1.1" viewBox="0 0 700 790" width="700.0px" xml:space="preserve" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<defs/>
+<g id="レイヤー-1">
+<path d="M365.685 654.759C-209.848 736.978 29.1495 134.015 391.407 31.9239C666.682-45.6537 753.958 220.455 615.554 421.425C517.381 563.978 368.069 666.103 224.215 757.646" fill="none" opacity="1" stroke="#ec0014" stroke-linecap="round" stroke-linejoin="round" stroke-width="30"/>
+</g>
 </svg>

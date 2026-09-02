@@ -1,4 +1,12 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-  <path d="M52 7 C40 29 27 55 11 86 C34 83 62 88 91 81 C77 57 65 31 52 7" fill="none" stroke="#D92525" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M49 12 C39 33 28 57 16 81 C37 80 61 84 85 79" fill="none" stroke="#EF4B4B" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" opacity=".36"/>
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<!-- Created with Linearity Curve (http://linearity.io/curve) -->
+<svg height="680.0px" stroke-miterlimit="10" style="fill-rule:nonzero;clip-rule:evenodd;stroke-linecap:round;stroke-linejoin:round;" version="1.1" viewBox="0 0 770 680" width="770.0px" xml:space="preserve" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<defs/>
+<clipPath id="ArtboardFrame">
+<rect height="680" width="770" x="0" y="0"/>
+</clipPath>
+<g clip-path="url(#ArtboardFrame)" id="レイヤー-1">
+<path d="M456.607 37.162C328.72 223.262 150.745 470.009 18.0141 665.215C101.878 658.764 647.763 623.658 751.986 623.658C694.434 541.966 424.642 190.61 307.426 14.7849" fill="none" opacity="1" stroke="#ec0014" stroke-linecap="round" stroke-linejoin="round" stroke-width="30"/>
+</g>
 </svg>
