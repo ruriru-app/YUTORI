@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <meta name="theme-color" content="#FCCC8E">
 <meta name="apple-mobile-web-app-title" content="YUTORI">
-<title>YUTORI v0.3.16</title>
+<title>YUTORI v0.3.17</title>
 <link rel="icon" type="image/svg+xml" href="assets/yutori-symbol.svg">
 <link rel="apple-touch-icon" href="assets/yutori-symbol.svg">
 <link rel="manifest" href="manifest.webmanifest">
@@ -2734,6 +2734,71 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
 .resume-item .resume-actions button{min-height:29px;padding:5px 9px;border-radius:8px;font-size:10px}
 .resume-item .resume-delete{top:6px;right:7px;width:24px;height:24px;min-width:24px;border-radius:7px;font-size:14px}
 
+/* v0.3.17：返却用PDF */
+.output-control-section{display:grid;gap:8px}
+.output-control-section+.output-control-section{margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
+.output-control-section h3{margin:0;color:var(--brown);font-size:13px}
+.output-control-section label{display:grid;gap:4px;color:var(--brown);font-size:11px;font-weight:900}
+.output-control-section select{width:100%;height:36px}
+.output-check-row{display:flex!important;grid-template-columns:none!important;align-items:center;gap:7px!important;color:var(--brown)!important;font-size:11px!important;font-weight:800!important}
+.output-check-row input,.return-student-row input{appearance:auto!important;-webkit-appearance:checkbox!important;flex:0 0 15px;width:15px!important;min-width:15px!important;height:15px!important;min-height:15px!important;margin:0!important;padding:0!important}
+.return-student-actions{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.return-student-actions button{padding:6px 7px;font-size:10px}
+.return-student-list{display:grid;gap:3px;max-height:190px;overflow:auto;padding:5px;border:1px solid var(--line);border-radius:9px;background:#fff}
+.return-student-row{display:flex;align-items:center;gap:7px;min-height:27px;padding:4px 5px;border-radius:6px;color:var(--brown);font-size:10px;font-weight:800}
+.return-student-row:hover{background:#FFF6EE}
+.return-student-row.disabled{opacity:.48}
+.return-student-row small{margin-left:auto;color:var(--muted);font-size:8px}
+.return-output-sidebar-button{width:100%;margin-top:4px}
+
+#outputScreen{height:100%!important;overflow:hidden!important}
+.return-output-shell{height:100%;min-height:0;display:grid;grid-template-rows:auto auto minmax(0,1fr);gap:9px}
+.return-output-toolbar{display:flex;align-items:center;gap:10px;min-height:54px;padding:9px 11px;border:1px solid var(--line);border-radius:12px;background:#fff}
+.return-output-heading{min-width:0;margin-right:auto}
+.return-output-heading strong{display:block;color:var(--brown);font-size:14px}
+.return-output-heading span{display:block;margin-top:2px;color:var(--muted);font-size:10px;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.return-output-toolbar label{display:flex;align-items:center;gap:5px;color:var(--brown);font-size:10px;font-weight:900;white-space:nowrap}
+.return-output-toolbar select{height:32px;max-width:180px}
+.return-page-tabs{display:flex;gap:4px}
+.return-page-tabs button{min-width:76px;padding:6px 8px;background:#F4F0EC;color:var(--brown);font-size:10px}
+.return-page-tabs button.active{background:var(--mint);color:#624B45}
+.return-output-toolbar .primary{min-width:150px}
+.return-output-notice{min-height:34px;padding:8px 11px;border:1px solid #E7C18F;border-radius:9px;background:#FFF9F0;color:#7A5520;font-size:10px;font-weight:800;line-height:1.45}
+.return-output-notice.error{border-color:#F0C9C5;background:#FFF5F5;color:var(--danger)}
+.return-preview-scroll{min-height:0;overflow:auto;display:flex;justify-content:center;align-items:flex-start;padding:14px;border-radius:12px;background:#E9E6E2;touch-action:pan-y}
+.return-preview-page{width:min(100%,794px)}
+.return-sheet{container-type:inline-size;position:relative;width:100%;aspect-ratio:210/297;overflow:hidden;background:#fff;color:#222;box-shadow:0 5px 18px rgba(55,45,40,.16);font-family:"Yu Gothic","Meiryo",sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.return-answer-image{position:absolute;inset:0;width:100%;height:100%;object-fit:fill;background:#fff}
+.return-answer-placeholder{position:absolute;inset:0;display:grid;place-items:center;background:#fff;color:#888;font-size:2cqw;font-weight:900}
+.return-question-annotation{position:absolute;color:#D92525;font-weight:900;pointer-events:none}
+.return-question-mark{position:absolute;top:22%;right:3%;font-family:"Yu Gothic","Meiryo",sans-serif;font-size:4.2cqw;line-height:1;text-shadow:0 0 .1px #D92525}
+.return-correct-answer{position:absolute;left:3%;right:25%;bottom:4%;overflow:hidden;color:#D92525;font-size:1.35cqw;line-height:1.25;text-overflow:ellipsis;white-space:nowrap}
+.return-question-rate{position:absolute;right:3%;bottom:4%;color:#D92525;font-size:1.05cqw;line-height:1.2;white-space:nowrap}
+.return-score-overlay,.return-extra-overlay{position:absolute;top:4.05%;height:4.6%;display:flex;align-items:center;justify-content:center;color:#D92525;font-weight:900;text-align:center;line-height:1.15}
+.return-score-overlay{left:60.5%;width:14.5%;font-size:2.05cqw}
+.return-extra-overlay{left:75.5%;right:4.2%;flex-direction:column;font-size:1.25cqw}
+
+.return-practice-sheet{display:grid;grid-template-rows:auto minmax(0,1fr);padding:5.5% 6%;background:#fff}
+.return-practice-head{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2%;align-items:end;padding-bottom:2%;border-bottom:.35cqw solid #FCCC8E}
+.return-practice-title{color:#7A5520;font-size:3.2cqw;font-weight:900}
+.return-practice-meta{margin-top:.8%;color:#777;font-size:1.45cqw;font-weight:800}
+.return-practice-name{color:#7A5520;font-size:1.8cqw;font-weight:900;text-align:right}
+.return-practice-list{min-height:0;display:grid;gap:1.2%;padding-top:2.2%}
+.return-practice-item{min-height:0;display:grid;grid-template-rows:auto minmax(0,1fr);gap:4%;padding:1.2% 1.4%;border:1px solid #E6DDD6;border-radius:1.2cqw;background:#FFFEFC}
+.return-practice-question{display:grid;grid-template-columns:5.5cqw minmax(0,1fr) auto;gap:1.2cqw;align-items:center;color:#4A4A4A;font-size:1.65cqw;font-weight:900}
+.return-practice-number{color:#7A5520}
+.return-practice-rate{color:#8A7D76;font-size:1.25cqw;white-space:nowrap}
+.return-practice-work{min-height:0;display:grid;grid-template-columns:23% minmax(0,1fr);gap:2.4%;align-items:stretch}
+.return-practice-model{min-width:0;display:flex;align-items:center;padding:0 6%;border-right:1px solid #E6DDD6;color:#252525;font-family:"Segoe Print","Comic Sans MS","Yu Gothic",sans-serif;font-size:2.35cqw;font-weight:800;overflow-wrap:anywhere}
+.return-four-lines{position:relative;min-height:0}
+.return-four-lines i{position:absolute;left:0;right:0;border-top:.18cqw solid #7E96B0}
+.return-four-lines i:nth-child(1){top:8%}
+.return-four-lines i:nth-child(2){top:35%;border-top-style:dashed;border-top-color:#AEBBC8}
+.return-four-lines i:nth-child(3){top:62%;border-top-style:dashed;border-top-color:#AEBBC8}
+.return-four-lines i:nth-child(4){top:89%}
+.return-practice-empty{display:grid;place-items:center;color:#7A5520;font-size:2.3cqw;font-weight:900;text-align:center}
+.return-print-root{display:none}
+
 @media(max-width:820px){
   .sidebar-drag-handle{display:none}
   .grading-toolbar-workflow{max-width:none;flex-basis:100%;order:5;grid-column:1/-1}
@@ -2871,16 +2936,20 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
     -webkit-print-color-adjust:exact!important;
     print-color-adjust:exact!important;
   }
+  body.return-printing .app-shell{display:none!important}
+  body.return-printing #returnPrintRoot{display:block!important;width:210mm!important;margin:0!important;padding:0!important}
+  body.return-printing #returnPrintRoot .return-sheet{display:grid!important;width:210mm!important;height:297mm!important;max-width:none!important;aspect-ratio:auto!important;margin:0!important;box-shadow:none!important;break-after:page!important;page-break-after:always!important;break-inside:avoid-page!important;page-break-inside:avoid!important}
+  body.return-printing #returnPrintRoot .return-sheet:last-child{break-after:auto!important;page-break-after:auto!important}
 }
 </style>
 </head>
 <body>
 <div class="app-shell">
 <header class="app-header no-print">
-  <div class="brand" aria-label="YUTORI v0.3.16">
+  <div class="brand" aria-label="YUTORI v0.3.17">
     <div class="brand-copy">
       <img class="brand-logo-image" src="assets/yutori-logo.svg" alt="YUTORI つくる・つける・つなげる">
-      <span class="brand-version">v0.3.16</span>
+      <span class="brand-version">v0.3.17</span>
     </div>
   </div>
   <nav aria-label="主要メニュー">
@@ -2946,9 +3015,38 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
       </div>
     </div>
     <div id="outputControlsHost" class="special-controls-host output-controls-host" aria-label="結果出力メニュー">
-      <div class="special-sidebar-section output-sidebar-note">
-        <h3>結果出力</h3>
-        <p>実データで検証しながら、必要な出力条件をここへ追加します。</p>
+      <div class="special-sidebar-section output-control-section">
+        <h3>返却用PDF</h3>
+        <label>採点データ
+          <select id="returnSessionSelect" onchange="changeReturnOutputSession(this.value)"></select>
+        </label>
+        <label>対象クラス
+          <select id="returnClassSelect" onchange="changeReturnOutputClass(this.value)"></select>
+        </label>
+      </div>
+      <div class="special-sidebar-section output-control-section">
+        <h3>対象生徒</h3>
+        <div class="return-student-actions">
+          <button class="secondary" type="button" onclick="selectAllReturnStudents(true)">全員を選択</button>
+          <button class="secondary" type="button" onclick="selectAllReturnStudents(false)">選択を解除</button>
+        </div>
+        <div id="returnStudentList" class="return-student-list"></div>
+      </div>
+      <div class="special-sidebar-section output-control-section">
+        <h3>1ページ目</h3>
+        <label class="output-check-row"><input id="returnShowQuestionRate" type="checkbox" checked onchange="updateReturnOutputOptions()">問題ごとの正答率</label>
+        <label class="output-check-row"><input id="returnShowAverage" type="checkbox" checked onchange="updateReturnOutputOptions()">クラス平均点</label>
+        <label class="output-check-row"><input id="returnShowRank" type="checkbox" onchange="updateReturnOutputOptions()">順位</label>
+      </div>
+      <div class="special-sidebar-section output-control-section">
+        <h3>2ページ目・個別課題</h3>
+        <label>出題数
+          <select id="returnPracticeCount" onchange="updateReturnOutputOptions()">
+            <option value="3">3問</option><option value="5" selected>5問</option><option value="8">8問</option><option value="all">すべて</option>
+          </select>
+        </label>
+        <label class="output-check-row"><input id="returnIncludePartial" type="checkbox" onchange="updateReturnOutputOptions()">△の問題も含める</label>
+        <button class="primary return-output-sidebar-button" type="button" onclick="printReturnPdfs()">返却用PDFを保存</button>
       </div>
     </div>
     <div id="settingsControlsHost" class="settings-controls-host" aria-label="設定メニュー">
@@ -3377,16 +3475,30 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
 </section>
 
 <section id="outputScreen" class="screen">
-  <div class="export-placeholder">
-    <h2 class="step-title">結果出力</h2>
-    <p>確認済みデータを書き出すための専用ページです。</p>
-    <p>CSV・Excel・返却個票PDF・クラス一覧PDFは今後実装します。</p>
+  <div class="return-output-shell">
+    <div class="return-output-toolbar">
+      <div class="return-output-heading"><strong>返却用PDFプレビュー</strong><span id="returnOutputTitle">採点データを選択してください</span></div>
+      <label>プレビュー
+        <select id="returnPreviewStudentSelect" onchange="changeReturnPreviewStudent(this.value)"></select>
+      </label>
+      <div class="return-page-tabs" aria-label="プレビューページ">
+        <button id="returnPreviewPage1" class="active" type="button" onclick="setReturnPreviewPage(1)">1ページ目</button>
+        <button id="returnPreviewPage2" type="button" onclick="setReturnPreviewPage(2)">2ページ目</button>
+      </div>
+      <button class="primary" type="button" onclick="printReturnPdfs()">PDFに保存</button>
+    </div>
+    <div id="returnOutputNotice" class="return-output-notice">採点済み答案へ赤字で結果を重ね、個別練習課題と一緒に出力します。</div>
+    <div class="return-preview-scroll">
+      <div id="returnOutputPreview" class="return-preview-page"></div>
+    </div>
   </div>
 </section>
 </div>
 </main>
 </div>
 </div>
+
+<div id="returnPrintRoot" class="return-print-root" aria-hidden="true"></div>
 
 <script src="assets/pdfjs/pdf.min.js"></script>
 <script>
@@ -3684,7 +3796,7 @@ function showScreen(id){
     gradingScreen:{tab:"採点",title:"答案の読み込みと採点",side:"採点メニュー",sub:"答案PDFの確認と採点",description:"答案PDFを読み込み、問題ごとに採点します。途中経過は自動保存されます。",hint:"採点内容はこの端末に自動保存されます",primary:"新しく採点を始める"},
     rosterScreen:{tab:"設定",title:"設定",side:"設定",sub:"学年・教科・クラス設定",description:"YUTORIで使用する学年・教科・クラスを登録します。",hint:"左側から設定項目を選択してください",primary:"クラスを追加"},
     resultsScreen:{tab:"結果確認",title:"採点結果の確認",side:"結果確認メニュー",sub:"得点・正答率の確認",description:"クラスごとの得点、問題別の採点結果、正答率を確認します。",hint:"問題名に触れると詳細を確認できます",primary:"採点へ戻る"},
-    outputScreen:{tab:"結果出力",title:"採点結果の書き出し",side:"結果出力メニュー",sub:"CSV・PDF出力",description:"確認済みの採点結果を書き出すための画面です。",hint:"出力機能は今後追加予定です",primary:"テスト作成へ戻る"}
+    outputScreen:{tab:"結果出力",title:"返却用PDFの作成",side:"結果出力メニュー",sub:"採点済み答案と個別課題",description:"採点結果を答案へ赤字で加筆し、個別練習課題と一緒にPDF保存します。",hint:"プレビューを確認してからPDFへ保存できます",primary:"返却用PDFを保存"}
   };
   const meta=screenMeta[id]||screenMeta.editorScreen;
   const assignments={workspaceTab:meta.tab,workspaceTitle:meta.title,workspaceHint:meta.hint,sidebarTitle:meta.side,sidebarSubtitle:meta.sub,sidebarCurrentLabel:`現在の画面：${meta.tab}`,sidebarCurrentText:meta.description};
@@ -3707,6 +3819,7 @@ function handleSidebarPrimary(){
   if(active==="gradingScreen")return showNewGradingLoad();
   if(active==="rosterScreen"&&activeSettingsPanel==="class")return openClassModal();
   if(active==="resultsScreen")return returnToGradingFromResults();
+  if(active==="outputScreen")return printReturnPdfs();
   showScreen("editorScreen");
 }
 function toggleAppSidebar(){
@@ -4130,9 +4243,14 @@ document.getElementById("rows").addEventListener("change",updateCounts);
 document.getElementById("cols").addEventListener("change",updateCounts);
 
 window.addEventListener("beforeprint",()=>{
+  if(document.body.classList.contains("return-printing"))return;
   syncState();
   renderPaper();
   applyPrintPageStyle();
+});
+window.addEventListener("afterprint",()=>{
+  document.body.classList.remove("return-printing");
+  const root=document.getElementById("returnPrintRoot");if(root)root.setAttribute("aria-hidden","true");
 });
 
 
@@ -4331,7 +4449,11 @@ function openResultsFromGrading(){
   renderWorkflowBars(4);
   restoreResultsPosition();
 }
-function openExportPage(){showScreen("outputScreen")}
+async function openExportPage(){
+  if(gradingState.sessionId)saveGradingSessionNow();
+  showScreen("outputScreen");
+  await prepareReturnOutput();
+}
 function completeReviewStep(){
   refreshMappingIssues();
   if(gradingState.issues.length){
@@ -5592,6 +5714,214 @@ function renderSelectedResultClass(){
       </div>
     </section>
   `;
+}
+
+const returnOutputState={session:null,className:"",selectedNos:new Set(),previewNo:null,previewPage:1,imageUrls:{},ownedUrls:[],loadToken:0};
+function returnOutputSessions(){
+  try{return JSON.parse(localStorage.getItem(sessionsKey())||"[]")}catch(error){return[]}
+}
+function setReturnOutputNotice(message,isError=false){
+  const notice=document.getElementById("returnOutputNotice");if(!notice)return;
+  notice.textContent=message;notice.classList.toggle("error",Boolean(isError));
+}
+function revokeReturnOutputUrls(){
+  (returnOutputState.ownedUrls||[]).forEach(url=>{try{URL.revokeObjectURL(url)}catch(error){}});
+  returnOutputState.ownedUrls=[];returnOutputState.imageUrls={};
+}
+async function loadReturnOutputImages(session){
+  const token=++returnOutputState.loadToken;
+  revokeReturnOutputUrls();
+  const urls={};
+  if(gradingState.sessionId===session.id){
+    Object.entries(gradingState.pageImageUrls||{}).forEach(([pageId,url])=>{if(url)urls[pageId]=url});
+  }
+  try{
+    const db=await openYutoriDb();
+    try{
+      const entries=await new Promise((resolve,reject)=>{const request=db.transaction("pdfPages","readonly").objectStore("pdfPages").getAll();request.onsuccess=()=>resolve(request.result||[]);request.onerror=()=>reject(request.error)});
+      entries.filter(entry=>entry.sessionId===session.id&&entry.blob&&!urls[entry.pageId]).forEach(entry=>{
+        const url=URL.createObjectURL(entry.blob);urls[entry.pageId]=url;returnOutputState.ownedUrls.push(url);
+      });
+    }finally{db.close()}
+  }catch(error){console.warn("返却用答案画像の復元に失敗しました",error)}
+  if(token!==returnOutputState.loadToken)return false;
+  returnOutputState.imageUrls=urls;
+  return true;
+}
+async function prepareReturnOutput(){
+  const sessions=returnOutputSessions();
+  const sessionSelect=document.getElementById("returnSessionSelect"),classSelect=document.getElementById("returnClassSelect");
+  if(!sessions.length){
+    returnOutputState.session=null;returnOutputState.className="";returnOutputState.selectedNos=new Set();
+    sessionSelect.innerHTML='<option value="">採点データなし</option>';classSelect.innerHTML='<option value="">クラスなし</option>';
+    document.getElementById("returnStudentList").innerHTML='<div class="empty-resume">保存された採点データはありません。</div>';
+    document.getElementById("returnPreviewStudentSelect").innerHTML='<option value="">生徒なし</option>';
+    document.getElementById("returnOutputPreview").innerHTML='<div class="return-sheet"><div class="return-answer-placeholder">採点データがありません</div></div>';
+    document.getElementById("returnOutputTitle").textContent="採点を完了してから開いてください";
+    setReturnOutputNotice("返却用PDFを作成できる採点データがありません。",true);return;
+  }
+  const previous=sessionSelect.value;
+  sessionSelect.innerHTML=sessions.map(session=>{
+    const title=session.testName||[session.subject,session.unit].filter(Boolean).join(" ")||"名称未設定";
+    const classes=(session.classes||[]).map(className=>classDisplayName(className)).join("・")||"クラス未設定";
+    return `<option value="${escapeHtml(session.id)}">${escapeHtml(title)}｜${escapeHtml(classes)}</option>`;
+  }).join("");
+  const target=sessions.some(session=>session.id===previous)?previous:(sessions.some(session=>session.id===gradingState.sessionId)?gradingState.sessionId:sessions[0].id);
+  sessionSelect.value=target;
+  await changeReturnOutputSession(target);
+}
+async function changeReturnOutputSession(sessionId){
+  const session=returnOutputSessions().find(item=>item.id===sessionId);if(!session)return;
+  returnOutputState.session=session;returnOutputState.previewPage=1;
+  const classSelect=document.getElementById("returnClassSelect"),previous=returnOutputState.className;
+  classSelect.innerHTML=(session.classes||[]).map(className=>`<option value="${escapeHtml(className)}">${escapeHtml(classDisplayName(className))}</option>`).join("");
+  returnOutputState.className=(session.classes||[]).includes(previous)?previous:(session.classes||[])[0]||"";
+  classSelect.value=returnOutputState.className;
+  document.getElementById("returnOutputTitle").textContent="答案画像を準備しています…";
+  setReturnOutputNotice("保存済みの答案画像を読み込んでいます。",false);
+  await loadReturnOutputImages(session);
+  changeReturnOutputClass(returnOutputState.className);
+}
+function returnOutputPeople(){
+  const session=returnOutputState.session,className=returnOutputState.className;
+  return session?.answers?.[className]||[];
+}
+function changeReturnOutputClass(className){
+  const session=returnOutputState.session;if(!session)return;
+  returnOutputState.className=className;
+  const people=returnOutputPeople(),completed=people.filter(person=>person.pageId&&!person.absent&&calculateStudentResult(session,className,person).complete);
+  const defaults=completed.length?completed:people.filter(person=>person.pageId&&!person.absent);
+  returnOutputState.selectedNos=new Set(defaults.map(person=>Number(person.no)));
+  returnOutputState.previewNo=defaults[0]?Number(defaults[0].no):null;
+  renderReturnStudentList();refreshReturnPreviewStudents();renderReturnOutputPreview();
+}
+function renderReturnStudentList(){
+  const host=document.getElementById("returnStudentList"),session=returnOutputState.session,className=returnOutputState.className;
+  if(!host||!session||!className){if(host)host.innerHTML='<div class="empty-resume">対象クラスがありません。</div>';return}
+  const people=returnOutputPeople();
+  host.innerHTML=people.length?people.map(person=>{
+    const result=calculateStudentResult(session,className,person),available=Boolean(person.pageId&&!person.absent),checked=available&&returnOutputState.selectedNos.has(Number(person.no));
+    const status=person.absent?"欠席":!person.pageId?"答案なし":result.complete?"採点済":"採点途中";
+    return `<label class="return-student-row ${available?"":"disabled"}"><input type="checkbox" ${checked?"checked":""} ${available?"":"disabled"} onchange="toggleReturnStudent(${person.no},this.checked)"><span>${String(person.no).padStart(2,"0")} ${escapeHtml(person.name)}</span><small>${status}</small></label>`;
+  }).join(""):'<div class="empty-resume">名簿がありません。</div>';
+}
+function selectAllReturnStudents(selected){
+  const values=returnOutputPeople().filter(person=>person.pageId&&!person.absent).map(person=>Number(person.no));
+  returnOutputState.selectedNos=selected?new Set(values):new Set();
+  if(selected&&!values.includes(Number(returnOutputState.previewNo)))returnOutputState.previewNo=values[0]??null;
+  renderReturnStudentList();refreshReturnPreviewStudents();renderReturnOutputPreview();
+}
+function toggleReturnStudent(no,selected){
+  const values=new Set(returnOutputState.selectedNos);selected?values.add(Number(no)):values.delete(Number(no));returnOutputState.selectedNos=values;
+  if(selected&&returnOutputState.previewNo==null)returnOutputState.previewNo=Number(no);
+  refreshReturnPreviewStudents();renderReturnOutputPreview();
+}
+function refreshReturnPreviewStudents(){
+  const select=document.getElementById("returnPreviewStudentSelect"),people=returnOutputPeople().filter(person=>returnOutputState.selectedNos.has(Number(person.no)));
+  if(!people.some(person=>Number(person.no)===Number(returnOutputState.previewNo)))returnOutputState.previewNo=people[0]?Number(people[0].no):null;
+  select.innerHTML=people.length?people.map(person=>`<option value="${person.no}">${String(person.no).padStart(2,"0")} ${escapeHtml(person.name)}</option>`).join(""):'<option value="">生徒を選択してください</option>';
+  if(returnOutputState.previewNo!=null)select.value=String(returnOutputState.previewNo);
+}
+function changeReturnPreviewStudent(no){returnOutputState.previewNo=no===""?null:Number(no);renderReturnOutputPreview()}
+function setReturnPreviewPage(page){returnOutputState.previewPage=Number(page)===2?2:1;renderReturnOutputPreview()}
+function updateReturnOutputOptions(){renderReturnOutputPreview()}
+function returnOutputOptions(){
+  return {
+    showQuestionRate:Boolean(document.getElementById("returnShowQuestionRate")?.checked),
+    showAverage:Boolean(document.getElementById("returnShowAverage")?.checked),
+    showRank:Boolean(document.getElementById("returnShowRank")?.checked),
+    includePartial:Boolean(document.getElementById("returnIncludePartial")?.checked),
+    practiceCount:document.getElementById("returnPracticeCount")?.value||"5"
+  };
+}
+function returnQuestionRates(session,className){
+  const people=(session.answers?.[className]||[]).filter(person=>!person.absent);
+  return (session.questions||[]).map((_,q)=>{
+    const marks=people.map(person=>session.grades?.[`${className}::${person.no}::${q}`]?.mark).filter(Boolean);
+    return marks.length?Math.round(marks.filter(mark=>mark==="ok").length/marks.length*100):0;
+  });
+}
+function returnMaximumScore(session){
+  return (session.questions||[]).reduce((sum,_,q)=>sum+Number(session.questionScores?.[q]?.ok??session.fullScore??1),0);
+}
+function returnClassStats(session,className,person){
+  const rows=(session.answers?.[className]||[]).map(value=>({person:value,result:calculateStudentResult(session,className,value)})).filter(row=>row.result.complete);
+  const average=rows.length?rows.reduce((sum,row)=>sum+Number(row.result.score||0),0)/rows.length:0;
+  const own=calculateStudentResult(session,className,person),rank=own.complete?1+rows.filter(row=>Number(row.result.score)>Number(own.score)).length:null;
+  return {average,rank,count:rows.length};
+}
+function formatReturnScore(value){const number=Number(value||0);return Number.isInteger(number)?String(number):String(Math.round(number*10)/10)}
+function returnQuestionRect(session,q){
+  const rows=Math.max(1,Number(session.rows)||10),cols=Math.max(1,Number(session.cols)||3),flow=session.flow==="row"?"row":"column";
+  const column=flow==="row"?(q%cols):Math.floor(q/rows),row=flow==="row"?Math.floor(q/cols):(q%rows);
+  const left=4.5,top=13.4,right=95.5,bottom=96.8,width=(right-left)/cols,height=(bottom-top)/rows;
+  return {left:left+column*width,top:top+row*height,width,height};
+}
+function returnAnswerPageHtml(session,className,person,options){
+  const rates=returnQuestionRates(session,className),result=calculateStudentResult(session,className,person),maximum=returnMaximumScore(session),stats=returnClassStats(session,className,person);
+  const imageUrl=returnOutputState.imageUrls[person.pageId]||"";
+  const annotations=(session.questions||[]).map((_,q)=>{
+    const grade=session.grades?.[`${className}::${person.no}::${q}`],rect=returnQuestionRect(session,q),mark=grade?.mark==="ok"?"○":grade?.mark==="ng"?"×":grade?.mark==="partial"?"△":"";
+    const correct=grade&&grade.mark!=="ok"?(session.modelAnswers?.[q]||""):"";
+    if(!mark&&!options.showQuestionRate)return"";
+    return `<div class="return-question-annotation" style="left:${rect.left.toFixed(4)}%;top:${rect.top.toFixed(4)}%;width:${rect.width.toFixed(4)}%;height:${rect.height.toFixed(4)}%">${mark?`<span class="return-question-mark">${mark}</span>`:""}${correct?`<span class="return-correct-answer">正：${escapeHtml(correct)}</span>`:""}${options.showQuestionRate?`<span class="return-question-rate">正答率 ${rates[q]}%</span>`:""}</div>`;
+  }).join("");
+  const extras=[];if(options.showAverage)extras.push(`平均 ${formatReturnScore(stats.average)}点`);if(options.showRank&&stats.rank!=null)extras.push(`順位 ${stats.rank}/${stats.count}`);
+  return `<section class="return-sheet return-answer-sheet" aria-label="${escapeHtml(person.name)}の採点済み答案">${imageUrl?`<img class="return-answer-image" src="${escapeHtml(imageUrl)}" alt="${escapeHtml(person.name)}の答案">`:'<div class="return-answer-placeholder">答案画像を表示できません</div>'}${annotations}<div class="return-score-overlay">${formatReturnScore(result.score)} / ${formatReturnScore(maximum)}点</div>${extras.length?`<div class="return-extra-overlay">${extras.map(value=>`<span>${escapeHtml(value)}</span>`).join("")}</div>`:""}</section>`;
+}
+function returnPracticeQuestions(session,className,person,options){
+  const rates=returnQuestionRates(session,className);
+  const items=(session.questions||[]).map((question,q)=>({q,question,answer:session.modelAnswers?.[q]||"",rate:rates[q],mark:session.grades?.[`${className}::${person.no}::${q}`]?.mark||""})).filter(item=>item.mark==="ng"||(options.includePartial&&item.mark==="partial")).sort((a,b)=>b.rate-a.rate||a.q-b.q);
+  const limit=options.practiceCount==="all"?items.length:Math.max(1,Number(options.practiceCount)||5);
+  return items.slice(0,limit);
+}
+function returnPracticeSheetHtml(session,className,person,items,pageIndex=0,pageCount=1){
+  const title=session.testName||[session.subject,session.unit].filter(Boolean).join(" ")||"テスト";
+  const itemHtml=items.map(item=>`<article class="return-practice-item"><div class="return-practice-question"><span class="return-practice-number">${String(item.q+1).padStart(2,"0")}</span><span>${escapeHtml(item.question||"未登録")}</span><span class="return-practice-rate">正答率 ${item.rate}%</span></div><div class="return-practice-work"><div class="return-practice-model">${escapeHtml(item.answer||"未登録")}</div><div class="return-four-lines" aria-label="英語4線"><i></i><i></i><i></i><i></i></div></div></article>`).join("");
+  return `<section class="return-sheet return-practice-sheet" aria-label="${escapeHtml(person.name)}の個別練習課題"><header class="return-practice-head"><div><div class="return-practice-title">個別練習プリント${pageCount>1?` ${pageIndex+1}`:""}</div><div class="return-practice-meta">${escapeHtml(title)}　正答率が高い問題から復習します</div></div><div class="return-practice-name">${escapeHtml(classDisplayName(className))}<br>${String(person.no).padStart(2,"0")} ${escapeHtml(person.name)}</div></header>${items.length?`<div class="return-practice-list" style="grid-template-rows:repeat(${items.length},minmax(0,1fr))">${itemHtml}</div>`:'<div class="return-practice-empty">全問正解です。よくできました！</div>'}</section>`;
+}
+function returnPracticePagesHtml(session,className,person,options){
+  const items=returnPracticeQuestions(session,className,person,options),chunks=[];
+  for(let index=0;index<items.length;index+=8)chunks.push(items.slice(index,index+8));
+  if(!chunks.length)chunks.push([]);
+  return chunks.map((chunk,index)=>returnPracticeSheetHtml(session,className,person,chunk,index,chunks.length));
+}
+function returnPagesForPerson(session,className,person,options){return [returnAnswerPageHtml(session,className,person,options),...returnPracticePagesHtml(session,className,person,options)]}
+function selectedReturnPeople(){
+  return returnOutputPeople().filter(person=>returnOutputState.selectedNos.has(Number(person.no))&&person.pageId&&!person.absent).sort((a,b)=>Number(a.no)-Number(b.no));
+}
+function renderReturnOutputPreview(){
+  const preview=document.getElementById("returnOutputPreview"),session=returnOutputState.session,className=returnOutputState.className,options=returnOutputOptions();if(!preview)return;
+  const people=selectedReturnPeople(),person=people.find(value=>Number(value.no)===Number(returnOutputState.previewNo))||people[0];
+  document.getElementById("returnPreviewPage1")?.classList.toggle("active",returnOutputState.previewPage===1);
+  document.getElementById("returnPreviewPage2")?.classList.toggle("active",returnOutputState.previewPage===2);
+  if(!session||!className||!person){
+    preview.innerHTML='<div class="return-sheet"><div class="return-answer-placeholder">左側で対象生徒を選択してください</div></div>';
+    document.getElementById("returnOutputTitle").textContent="対象生徒が選択されていません";setReturnOutputNotice("PDFへ出力する生徒を1名以上選択してください。",true);return;
+  }
+  returnOutputState.previewNo=Number(person.no);
+  const pages=returnPagesForPerson(session,className,person,options);
+  preview.innerHTML=returnOutputState.previewPage===1?pages[0]:pages[1];
+  const title=session.testName||"名称未設定";document.getElementById("returnOutputTitle").textContent=`${title}｜${classDisplayName(className)}｜${person.no} ${person.name}`;
+  const totalPages=people.reduce((sum,value)=>sum+returnPagesForPerson(session,className,value,options).length,0);
+  setReturnOutputNotice(`${people.length}名を選択中です。合計${totalPages}ページを、生徒ごとに採点済み答案・個別練習課題の順で出力します。`,false);
+}
+async function waitForReturnImages(root){
+  const images=[...root.querySelectorAll("img")];
+  await Promise.all(images.map(image=>image.complete?Promise.resolve():Promise.race([new Promise(resolve=>{image.addEventListener("load",resolve,{once:true});image.addEventListener("error",resolve,{once:true})}),new Promise(resolve=>setTimeout(resolve,3000))])));
+}
+async function printReturnPdfs(){
+  const session=returnOutputState.session,className=returnOutputState.className,people=selectedReturnPeople();
+  if(!session||!className)return alert("出力する採点データとクラスを選択してください。");
+  if(!people.length)return alert("出力する生徒を1名以上選択してください。");
+  const options=returnOutputOptions(),root=document.getElementById("returnPrintRoot");
+  root.innerHTML=people.flatMap(person=>returnPagesForPerson(session,className,person,options)).join("");
+  root.setAttribute("aria-hidden","false");
+  await waitForReturnImages(root);
+  let style=document.getElementById("dynamicPrintStyle");if(!style){style=document.createElement("style");style.id="dynamicPrintStyle";document.head.appendChild(style)}
+  style.textContent="@page { size:A4 portrait; margin:0; }";
+  document.body.classList.add("return-printing");
+  requestAnimationFrame(()=>setTimeout(()=>window.print(),60));
 }
 
 function captureResultsPosition(questionIndex=null){
