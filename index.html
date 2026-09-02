@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <meta name="theme-color" content="#FCCC8E">
 <meta name="apple-mobile-web-app-title" content="YUTORI">
-<title>YUTORI v0.3.14</title>
+<title>YUTORI v0.3.15</title>
 <link rel="icon" type="image/svg+xml" href="assets/yutori-symbol.svg">
 <link rel="apple-touch-icon" href="assets/yutori-symbol.svg">
 <link rel="manifest" href="manifest.webmanifest">
@@ -2707,26 +2707,30 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
 .late-confirm-button.confirmed{background:#F4F0EC!important;color:var(--brown)!important;border-color:var(--line)!important}
 
 #mainGradeView.individual-grading #questionTabsWrap,
-#mainGradeView.individual-grading #problemInfoBar,
-#mainGradeView.individual-grading #gradeColumnsControl{display:none!important}
+#mainGradeView.individual-grading #problemInfoBar{display:none!important}
 .individual-grading-note{margin:0 0 11px;padding:9px 11px;border:1px solid #E7C18F;border-radius:10px;background:#FFF9F0;color:#7A5520;font-size:11px;font-weight:900}
 .individual-student-section{display:grid;gap:9px;margin-bottom:18px}
-.individual-question-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(265px,1fr));gap:10px;align-items:start}
+.individual-question-grid{display:grid;gap:10px;align-items:start}
 .individual-question-card{min-width:0;display:grid;gap:7px;padding:9px;border:1.5px solid var(--line);border-radius:13px;background:#fff;cursor:pointer;touch-action:pan-y;user-select:none;-webkit-user-select:none}
 .individual-question-card:active{transform:scale(.99)}
-.individual-question-card.ok{background:#F5FBF2;border-color:var(--green)}
-.individual-question-card.ng{background:#FFF5F6;border-color:#F4A6A6}
-.individual-question-card.partial{background:#FFF9F1;border-color:var(--orange)}
+.individual-question-card.ok{background:#FCE8E8;border-color:#F4A6A6}
+.individual-question-card.ng{background:#E8F0FC;border-color:#A4C2F4}
+.individual-question-card.partial{background:#EDF5E9;border-color:#B7D7A8}
 .individual-question-head{display:grid;grid-template-columns:34px minmax(0,1fr) auto;gap:8px;align-items:start}
 .individual-question-number{width:32px;height:32px;display:grid;place-items:center;border-radius:9px;background:#FFF0EC;color:#7A5520;font-size:13px;font-weight:900}
 .individual-question-copy{min-width:0;display:grid;gap:3px;color:var(--brown);font-size:11px;font-weight:900;line-height:1.4}
 .individual-question-copy span{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .individual-question-copy small{margin-right:4px;color:var(--muted);font-size:8px;font-weight:900}
-.individual-question-mark{width:28px;min-height:32px;display:grid;place-items:center;color:#7A5520;font-size:26px;font-weight:900}
+.individual-question-actions{display:flex;align-items:center;justify-content:flex-end;gap:3px;min-height:32px}
+.individual-question-mark{width:25px;min-height:32px;display:grid;place-items:center;color:#7A5520;font-size:24px;font-weight:900}
+.individual-question-card.ok .individual-question-mark{color:#F4A6A6}
+.individual-question-card.ng .individual-question-mark{color:#A4C2F4}
+.individual-question-card.partial .individual-question-mark{color:#B7D7A8}
+.individual-question-card .answer-zoom-button{position:static!important;flex:0 0 24px;width:24px;height:24px;padding:0!important;border-radius:7px}
+.individual-question-card .answer-zoom-button svg{width:13px;height:13px}
 .individual-answer-image{width:100%;aspect-ratio:15/4;overflow:hidden;border:1px solid var(--line);border-radius:9px;background:#fff}
 .individual-answer-image canvas{width:100%;height:100%;display:block;background:#fff}
 .individual-question-score{display:flex;justify-content:flex-end;color:var(--muted);font-size:9px;font-weight:900}
-@media(max-width:700px){.individual-question-grid{grid-template-columns:1fr}}
 
 @media(max-width:820px){
   .sidebar-drag-handle{display:none}
@@ -2871,10 +2875,10 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
 <body>
 <div class="app-shell">
 <header class="app-header no-print">
-  <div class="brand" aria-label="YUTORI v0.3.14">
+  <div class="brand" aria-label="YUTORI v0.3.15">
     <div class="brand-copy">
       <img class="brand-logo-image" src="assets/yutori-logo.svg" alt="YUTORI つくる・つける・つなげる">
-      <span class="brand-version">v0.3.14</span>
+      <span class="brand-version">v0.3.15</span>
     </div>
   </div>
   <nav aria-label="主要メニュー">
@@ -4853,7 +4857,7 @@ function renderGradeGrid(){
   const test=currentTest(),q=gradingState.q,cols=Number(gradeColumns.value||7);
   const individualMode=gradingState.gradingScope==="late-only";
   mainGradeView.classList.toggle("individual-grading",individualMode);
-  if(individualMode){renderIndividualGradeGrid(test);return}
+  if(individualMode){renderIndividualGradeGrid(test,cols);return}
   problemSeq.textContent=String(q+1).padStart(2,"0");
   problemText.textContent=test.questions[q]||"未登録";
   modelAnswer.textContent=test.answers[q]||"未登録";
@@ -4862,12 +4866,12 @@ function renderGradeGrid(){
   gradeAnswers.innerHTML=sections.length?sections.map(group=>`<section><div class="class-title"><span>${escapeHtml(group.className)}</span><span>${isClassDone(group.className,q)?"採点済":"採点中"}</span></div><div class="answer-grid" style="grid-template-columns:repeat(${cols},minmax(0,1fr))">${group.people.map(p=>card(group.className,p,q)).join("")}</div></section>`).join(""):'<div class="pdf-review-ok">今回追加した答案はありません。採点対象を「全員の答案」へ切り替えてください。</div>';
   renderAnswerCrops(q,test);
 }
-function renderIndividualGradeGrid(test){
+function renderIndividualGradeGrid(test,cols){
   const groups=gradingState.classes.map(className=>({className,people:selectedLateBatchPeople(className)})).filter(group=>group.people.length);
   const totalPeople=groups.reduce((sum,group)=>sum+group.people.length,0);
   const sections=groups.flatMap(group=>group.people.map(person=>{
     const completed=(test.questions||[]).filter((_,q)=>gradingState.grades[key(group.className,person.no,q)]).length;
-    return `<section class="individual-student-section"><div class="class-title"><span>${escapeHtml(classDisplayName(group.className))}　${String(person.no).padStart(2,"0")} ${escapeHtml(person.name)}</span><span>${completed} / ${(test.questions||[]).length}問</span></div><div class="individual-question-grid">${(test.questions||[]).map((_,q)=>individualQuestionCard(group.className,person,q,test)).join("")}</div></section>`;
+    return `<section class="individual-student-section"><div class="class-title"><span>${escapeHtml(classDisplayName(group.className))}　${String(person.no).padStart(2,"0")} ${escapeHtml(person.name)}</span><span>${completed} / ${(test.questions||[]).length}問</span></div><div class="individual-question-grid" style="grid-template-columns:repeat(${cols},minmax(0,1fr))">${(test.questions||[]).map((_,q)=>individualQuestionCard(group.className,person,q,test)).join("")}</div></section>`;
   })).join("");
   gradeAnswers.innerHTML=sections?`<div class="individual-grading-note">選択した${totalPeople}名を個人別に表示しています。採点パレットで○・×・△を選び、各問題タイルをタップしてください。</div>${sections}`:'<div class="pdf-review-ok">採点対象の生徒が選択されていません。「確認と修正」へ戻り、採点する生徒を選択してください。</div>';
   renderAnswerCrops(gradingState.q,test);
@@ -4877,7 +4881,8 @@ function individualQuestionCard(className,person,q,test){
   const markLabel=mark==="ok"?"○":mark==="ng"?"×":mark==="partial"?"△":"";
   const encodedClass=encodeURIComponent(className),realPdf=person.pageId&&gradingState.pageImageUrls[person.pageId];
   const answer=realPdf?`<canvas class="answer-crop-canvas answer-card-loading" data-page-id="${escapeHtml(person.pageId)}" data-question-index="${q}"></canvas>`:`<div class="answer-image-placeholder">答案画像なし</div>`;
-  return `<article class="individual-question-card ${mark}" tabindex="0" aria-label="${escapeHtml(person.name)}の問題${q+1}を採点" onclick="applySelectedPenToQuestion(decodeURIComponent('${encodedClass}'),${person.no},${q})" onkeydown="if(event.target===event.currentTarget&&(event.key==='Enter'||event.key===' ')){event.preventDefault();applySelectedPenToQuestion(decodeURIComponent('${encodedClass}'),${person.no},${q})}"><div class="individual-question-head"><span class="individual-question-number">${String(q+1).padStart(2,"0")}</span><div class="individual-question-copy"><span><small>問題</small>${escapeHtml(test.questions[q]||"未登録")}</span><span><small>模範解答</small>${escapeHtml(test.answers[q]||"未登録")}</span></div><span class="individual-question-mark">${markLabel}</span></div><div class="individual-answer-image">${answer}</div><div class="individual-question-score">${mark?`${Number(grade.score||0)}点`:"未採点"}</div></article>`;
+  const zoom=realPdf?`<button class="answer-zoom-button" type="button" title="答案用紙を表示" aria-label="${escapeHtml(person.name)}の問題${q+1}を拡大表示" onpointerdown="event.stopPropagation()" onclick="event.stopPropagation();openAnswerPreview(decodeURIComponent('${encodedClass}'),${person.no},${q})"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="10.5" cy="10.5" r="6.5"></circle><path d="m15.5 15.5 5 5"></path></svg></button>`:"";
+  return `<article class="individual-question-card ${mark}" tabindex="0" aria-label="${escapeHtml(person.name)}の問題${q+1}を採点" onclick="applySelectedPenToQuestion(decodeURIComponent('${encodedClass}'),${person.no},${q})" onkeydown="if(event.target===event.currentTarget&&(event.key==='Enter'||event.key===' ')){event.preventDefault();applySelectedPenToQuestion(decodeURIComponent('${encodedClass}'),${person.no},${q})}"><div class="individual-question-head"><span class="individual-question-number">${String(q+1).padStart(2,"0")}</span><div class="individual-question-copy"><span><small>問題</small>${escapeHtml(test.questions[q]||"未登録")}</span><span><small>模範解答</small>${escapeHtml(test.answers[q]||"未登録")}</span></div><div class="individual-question-actions"><span class="individual-question-mark">${markLabel}</span>${zoom}</div></div><div class="individual-answer-image">${answer}</div><div class="individual-question-score">${mark?`${Number(grade.score||0)}点`:"未採点"}</div></article>`;
 }
 function isClassDone(c,q){const active=(gradingState.answers[c]||[]).filter(person=>!person.absent);return active.length&&active.every(person=>gradingState.grades[key(c,person.no,q)])}
 function card(c,p,q){
@@ -4935,8 +4940,9 @@ async function renderAnswerCrops(q,test){
 function previewableStudents(){
   return gradingState.classes.flatMap(className=>(gradingState.answers[className]||[]).filter(person=>!person.absent&&person.pageId).map(person=>({className,person})));
 }
-function openAnswerPreview(className,no){
+function openAnswerPreview(className,no,questionIndex=gradingState.q){
   const person=findAssignedPerson(className,no);if(!person?.pageId)return;
+  if(Number.isFinite(Number(questionIndex)))gradingState.q=Number(questionIndex);
   gradingState.answerPreview={className,no:Number(no)};
   updateAnswerPreview();
   answerPreviewModal.classList.add("show");answerPreviewModal.setAttribute("aria-hidden","false");
