@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <meta name="theme-color" content="#FCCC8E">
 <meta name="apple-mobile-web-app-title" content="YUTORI">
-<title>YUTORI v0.3.18</title>
+<title>YUTORI v0.3.19</title>
 <link rel="icon" type="image/svg+xml" href="assets/yutori-symbol.svg">
 <link rel="apple-touch-icon" href="assets/yutori-symbol.svg">
 <link rel="manifest" href="manifest.webmanifest">
@@ -2813,6 +2813,18 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
 .return-four-lines i:nth-child(1),.return-four-lines i:nth-child(2),.return-four-lines i:nth-child(4){border-top-style:dashed;border-top-color:#69BFE5}
 .return-four-lines i:nth-child(3){border-top-style:solid;border-top-color:#E35B5B}
 
+/* v0.3.19：個別課題の自由出題数・4線中央間隔・手書き風採点 */
+.return-practice-count-field{display:flex;align-items:center;gap:7px}
+.return-practice-count-field input{width:100%;height:36px;text-align:right}
+.return-practice-count-field span{flex:0 0 auto;color:var(--brown);font-size:11px;font-weight:900}
+.return-four-lines i:nth-child(1){top:8%}
+.return-four-lines i:nth-child(2){top:32%}
+.return-four-lines i:nth-child(3){top:65%}
+.return-four-lines i:nth-child(4){top:89%}
+.return-question-mark{top:15%;right:4%;display:block;width:4.5cqw;height:4.5cqw;font-size:0;line-height:0;text-shadow:none}
+.return-question-mark svg{display:block;width:100%;height:100%;overflow:visible}
+.return-question-mark path{fill:none;stroke:currentColor;stroke-width:5.4;stroke-linecap:round;stroke-linejoin:round}
+
 @media(max-width:820px){
   .sidebar-drag-handle{display:none}
   .grading-toolbar-workflow{max-width:none;flex-basis:100%;order:5;grid-column:1/-1}
@@ -2960,10 +2972,10 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
 <body>
 <div class="app-shell">
 <header class="app-header no-print">
-  <div class="brand" aria-label="YUTORI v0.3.18">
+  <div class="brand" aria-label="YUTORI v0.3.19">
     <div class="brand-copy">
       <img class="brand-logo-image" src="assets/yutori-logo.svg" alt="YUTORI つくる・つける・つなげる">
-      <span class="brand-version">v0.3.18</span>
+      <span class="brand-version">v0.3.19</span>
     </div>
   </div>
   <nav aria-label="主要メニュー">
@@ -3054,10 +3066,8 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
       </div>
       <div class="special-sidebar-section output-control-section">
         <h3>2ページ目・個別課題</h3>
-        <label>出題数
-          <select id="returnPracticeCount" onchange="updateReturnOutputOptions()">
-            <option value="3">3問</option><option value="5" selected>5問</option><option value="8">8問</option><option value="all">すべて</option>
-          </select>
+        <label>出題数（自由入力）
+          <span class="return-practice-count-field"><input id="returnPracticeCount" type="number" min="1" step="1" value="5" inputmode="numeric" oninput="updateReturnOutputOptions()" onchange="normalizeReturnPracticeCount(this)"><span>問</span></span>
         </label>
         <label class="output-check-row"><input id="returnIncludePartial" type="checkbox" onchange="updateReturnOutputOptions()">△の問題も含める</label>
         <button class="primary return-output-sidebar-button" type="button" onclick="printReturnPdfs()">返却用PDFを保存</button>
@@ -5840,13 +5850,19 @@ function changeReturnPreviewStudent(no){returnOutputState.previewNo=no===""?null
 function setReturnPreviewPage(page){returnOutputState.previewPage=Number(page)===2?2:1;renderReturnOutputPreview()}
 function updateReturnOutputOptions(){renderReturnOutputPreview()}
 function returnOutputOptions(){
+  const practiceValue=Math.floor(Number(document.getElementById("returnPracticeCount")?.value));
   return {
     showQuestionRate:Boolean(document.getElementById("returnShowQuestionRate")?.checked),
     showAverage:Boolean(document.getElementById("returnShowAverage")?.checked),
     showRank:Boolean(document.getElementById("returnShowRank")?.checked),
     includePartial:Boolean(document.getElementById("returnIncludePartial")?.checked),
-    practiceCount:document.getElementById("returnPracticeCount")?.value||"5"
+    practiceCount:Number.isFinite(practiceValue)&&practiceValue>0?practiceValue:5
   };
+}
+function normalizeReturnPracticeCount(input){
+  const value=Math.floor(Number(input?.value));
+  if(input)input.value=String(Number.isFinite(value)&&value>0?value:1);
+  updateReturnOutputOptions();
 }
 function returnQuestionRates(session,className){
   const people=(session.answers?.[className]||[]).filter(person=>!person.absent);
@@ -5871,14 +5887,23 @@ function returnQuestionRect(session,q){
   const left=4.5,top=13.4,right=95.5,bottom=96.8,width=(right-left)/cols,height=(bottom-top)/rows;
   return {left:left+column*width,top:top+row*height,width,height};
 }
+function returnHandwrittenMark(mark,q){
+  const paths={
+    ok:'<path d="M52 9 C29 6 12 22 9 45 C6 68 23 89 47 92 C71 95 91 78 93 54 C96 31 79 12 58 9 C56 9 54 9 52 9 Z"/>',
+    ng:'<path d="M14 16 C35 36 56 60 86 86"/><path d="M85 13 C66 31 42 61 16 86"/>',
+    partial:'<path d="M51 8 C39 31 26 55 12 84 C35 83 62 87 89 83 C75 58 63 31 51 8 Z"/>'
+  };
+  const labels={ok:"○",ng:"×",partial:"△"},tilts=[-4,2,-2,3];
+  return paths[mark]?`<span class="return-question-mark ${mark}" role="img" aria-label="${labels[mark]}" style="transform:rotate(${tilts[q%tilts.length]}deg)"><svg viewBox="0 0 100 100" aria-hidden="true">${paths[mark]}</svg></span>`:"";
+}
 function returnAnswerPageHtml(session,className,person,options){
   const rates=returnQuestionRates(session,className),result=calculateStudentResult(session,className,person),maximum=returnMaximumScore(session),stats=returnClassStats(session,className,person);
   const imageUrl=returnOutputState.imageUrls[person.pageId]||"";
   const annotations=(session.questions||[]).map((_,q)=>{
-    const grade=session.grades?.[`${className}::${person.no}::${q}`],rect=returnQuestionRect(session,q),mark=grade?.mark==="ok"?"○":grade?.mark==="ng"?"×":grade?.mark==="partial"?"△":"";
+    const grade=session.grades?.[`${className}::${person.no}::${q}`],rect=returnQuestionRect(session,q),mark=grade?.mark||"";
     const correct=grade&&grade.mark!=="ok"?(session.modelAnswers?.[q]||""):"";
     if(!mark&&!options.showQuestionRate)return"";
-    return `<div class="return-question-annotation" style="left:${rect.left.toFixed(4)}%;top:${rect.top.toFixed(4)}%;width:${rect.width.toFixed(4)}%;height:${rect.height.toFixed(4)}%">${mark?`<span class="return-question-mark">${mark}</span>`:""}${correct?`<span class="return-correct-answer">正：${escapeHtml(correct)}</span>`:""}${options.showQuestionRate?`<span class="return-question-rate">正答率 ${rates[q]}%</span>`:""}</div>`;
+    return `<div class="return-question-annotation" style="left:${rect.left.toFixed(4)}%;top:${rect.top.toFixed(4)}%;width:${rect.width.toFixed(4)}%;height:${rect.height.toFixed(4)}%">${returnHandwrittenMark(mark,q)}${correct?`<span class="return-correct-answer">正：${escapeHtml(correct)}</span>`:""}${options.showQuestionRate?`<span class="return-question-rate">正答率 ${rates[q]}%</span>`:""}</div>`;
   }).join("");
   const extras=[];if(options.showAverage)extras.push(`平均 ${formatReturnScore(stats.average)}点`);if(options.showRank&&stats.rank!=null)extras.push(`順位 ${stats.rank}/${stats.count}`);
   return `<section class="return-sheet return-answer-sheet" aria-label="${escapeHtml(person.name)}の採点済み答案">${imageUrl?`<img class="return-answer-image" src="${escapeHtml(imageUrl)}" alt="${escapeHtml(person.name)}の答案">`:'<div class="return-answer-placeholder">答案画像を表示できません</div>'}${annotations}<div class="return-score-overlay">${formatReturnScore(result.score)} / ${formatReturnScore(maximum)}点</div>${extras.length?`<div class="return-extra-overlay">${extras.map(value=>`<span>${escapeHtml(value)}</span>`).join("")}</div>`:""}</section>`;
@@ -5886,7 +5911,7 @@ function returnAnswerPageHtml(session,className,person,options){
 function returnPracticeQuestions(session,className,person,options){
   const rates=returnQuestionRates(session,className);
   const items=(session.questions||[]).map((question,q)=>({q,question,answer:session.modelAnswers?.[q]||"",rate:rates[q],mark:session.grades?.[`${className}::${person.no}::${q}`]?.mark||""})).filter(item=>item.mark==="ng"||(options.includePartial&&item.mark==="partial")).sort((a,b)=>b.rate-a.rate||a.q-b.q);
-  const limit=options.practiceCount==="all"?items.length:Math.max(1,Number(options.practiceCount)||5);
+  const limit=Math.max(1,Math.floor(Number(options.practiceCount)||5));
   return items.slice(0,limit);
 }
 function returnPracticeSheetHtml(session,className,person,items,pageIndex=0,pageCount=1){
