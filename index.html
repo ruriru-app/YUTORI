@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <meta name="theme-color" content="#FCCC8E">
 <meta name="apple-mobile-web-app-title" content="YUTORI">
-<title>YUTORI v0.3.22</title>
+<title>YUTORI v0.3.23</title>
 <link rel="icon" type="image/svg+xml" href="assets/yutori-symbol.svg">
 <link rel="apple-touch-icon" href="assets/yutori-symbol.svg">
 <link rel="manifest" href="manifest.webmanifest">
@@ -2852,6 +2852,53 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
 .return-question-mark{top:10%;left:10%;right:auto;width:80%;height:80%;transform-origin:center}
 .return-correct-answer{font-family:"Comic Sans MS","Comic Sans","Segoe Print","Yu Gothic",sans-serif}
 
+/* v0.3.23：印刷、複製、結果集計、採点パレット設定 */
+.return-four-lines i:nth-child(1),.return-four-lines i:nth-child(4){border-top-style:solid}
+.return-practice-detail-first{font-size:1.2cqw;line-height:1.22}
+.return-practice-detail-answer{font-size:1.82cqw;line-height:1.08}
+.return-practice-detail-rate{font-size:1.08cqw;line-height:1.08}
+.saved-test-actions .saved-test-delete{flex:1!important}
+.answer-preview-marks .okbtn{border:1px solid #F4A6A6;background:#F4E8E8;color:#F4A6A6}
+.answer-preview-marks .ngbtn{border:1px solid #A4C2F4;background:#E8ECF4;color:#7899D0}
+.answer-preview-marks .partbtn{border:1px solid #B7D7A8;background:#ECF5E9;color:#79A566}
+#mainGradeView .grading-head-area,#mainGradeView .tabs-wrap,#mainGradeView .problem-info-bar{flex:0 0 auto}
+#mainGradeView .problem-info-bar{z-index:78;margin-top:0;background:#fff}
+.workflow-check{display:none!important}
+.grading-toolbar-workflow .sidebar-workflow-step{grid-template-columns:18px minmax(0,1fr)}
+.workspace-shell.results-mode{grid-template-columns:344px minmax(0,1fr)}
+.app-sidebar.results-mode #mainNavPanel,.app-sidebar.results-mode #sidebarCurrentPanel,.app-sidebar.results-mode .sidebar-primary{display:none}
+.app-sidebar.results-mode .results-controls-host{display:block}
+.results-toolbar-workflow{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;width:100%}
+.results-toolbar-workflow .sidebar-workflow-step{display:grid;grid-template-columns:20px minmax(0,1fr);align-items:center;gap:6px;min-height:34px;padding:5px 8px;border:1px solid #E5D7CB;border-radius:8px;background:#FAF8F6;color:#7A6D65;font-size:10px;font-weight:900;text-align:left}
+.results-toolbar-workflow .sidebar-workflow-step.active{border-color:#E6A95F;background:#FCCC8E;color:#68481E}
+.results-toolbar-workflow .sidebar-workflow-step.done{border-color:#DCCFC5;background:#FFF4E8;color:#7A5520}
+.results-toolbar-workflow .step-number{display:grid;place-items:center;width:19px;height:19px;border-radius:50%;background:rgba(255,255,255,.7);font-size:9px}
+.results-export-button{width:100%;margin-top:8px}
+.palette-vertical{display:none;width:100%;grid-template-columns:1fr;gap:6px}
+.palette-vertical button{width:100%;min-height:44px;padding:5px 3px;border-radius:10px;font-size:19px;font-weight:900}
+.palette-vertical .palette-fill-button{min-height:34px;font-size:10px}
+.palette-vertical .ok{border:1px solid #F4A6A6;background:#F4E8E8;color:#F4A6A6}
+.palette-vertical .ng{border:1px solid #A4C2F4;background:#E8ECF4;color:#7899D0}
+.palette-vertical .partial{border:1px solid #B7D7A8;background:#ECF5E9;color:#79A566}
+.palette-vertical button.selected{outline:3px solid currentColor;outline-offset:1px;box-shadow:0 3px 8px rgba(92,69,53,.16)}
+#mainGradeView .palette-fixed[data-direction="vertical"]{height:auto!important;padding:8px!important}
+#mainGradeView .palette-fixed[data-direction="vertical"] .palette-svg{display:none}
+#mainGradeView .palette-fixed[data-direction="vertical"] .palette-vertical{display:grid}
+#mainGradeView .palette-fixed[data-size="small"][data-direction="horizontal"]{width:240px!important;min-width:240px!important;max-width:240px!important;height:62px!important}
+#mainGradeView .palette-fixed[data-size="medium"][data-direction="horizontal"]{width:300px!important;min-width:300px!important;max-width:300px!important;height:76px!important}
+#mainGradeView .palette-fixed[data-size="large"][data-direction="horizontal"]{width:360px!important;min-width:360px!important;max-width:360px!important;height:92px!important}
+#mainGradeView .palette-fixed[data-size="small"][data-direction="vertical"]{width:72px!important;min-width:72px!important;max-width:72px!important}
+#mainGradeView .palette-fixed[data-size="medium"][data-direction="vertical"]{width:88px!important;min-width:88px!important;max-width:88px!important}
+#mainGradeView .palette-fixed[data-size="large"][data-direction="vertical"]{width:106px!important;min-width:106px!important;max-width:106px!important}
+#mainGradeView .palette-fixed[data-position="top-right"]{top:var(--floating-palette-top,184px)!important;right:var(--floating-palette-right,28px)!important;bottom:auto!important;left:auto!important}
+#mainGradeView .palette-fixed[data-position="top-left"]{top:var(--floating-palette-top,184px)!important;right:auto!important;bottom:auto!important;left:var(--floating-palette-left,372px)!important}
+#mainGradeView .palette-fixed[data-position="bottom-right"]{top:auto!important;right:var(--floating-palette-right,28px)!important;bottom:var(--floating-palette-bottom,28px)!important;left:auto!important}
+#mainGradeView .palette-fixed[data-position="bottom-left"]{top:auto!important;right:auto!important;bottom:var(--floating-palette-bottom,28px)!important;left:var(--floating-palette-left,372px)!important}
+.palette-settings-grid{display:grid;grid-template-columns:repeat(3,minmax(150px,1fr));gap:14px;margin-top:18px}
+.palette-settings-grid label{display:grid;gap:7px;color:var(--brown);font-size:12px;font-weight:900}
+.palette-settings-preview{margin-top:18px;padding:18px;border:1px dashed #E2C5AA;border-radius:14px;background:#FFF9F3;color:var(--muted);font-size:12px;line-height:1.7}
+@media(max-width:820px){.workspace-shell.results-mode{grid-template-columns:1fr}.palette-settings-grid{grid-template-columns:1fr}}
+
 @media(max-width:820px){
   .sidebar-drag-handle{display:none}
   .grading-toolbar-workflow{max-width:none;flex-basis:100%;order:5;grid-column:1/-1}
@@ -2999,10 +3046,10 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
 <body>
 <div class="app-shell">
 <header class="app-header no-print">
-  <div class="brand" aria-label="YUTORI v0.3.22">
+  <div class="brand" aria-label="YUTORI v0.3.23">
     <div class="brand-copy">
       <img class="brand-logo-image" src="assets/yutori-logo.svg" alt="YUTORI つくる・つける・つなげる">
-      <span class="brand-version">v0.3.22</span>
+      <span class="brand-version">v0.3.23</span>
     </div>
   </div>
   <nav aria-label="主要メニュー">
@@ -3067,6 +3114,31 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
         <button id="openReviewButton" class="green step-next-button sidebar-review-button" type="button" onclick="openReviewFromLoad()">確認と修正へ</button>
       </div>
     </div>
+    <div id="resultsControlsHost" class="special-controls-host results-controls-host" aria-label="結果確認メニュー">
+      <div class="special-sidebar-section">
+        <h3>表示</h3>
+        <label>表示クラス
+          <select id="resultsClassSelect" onchange="renderSelectedResultClass()"></select>
+        </label>
+        <label>並び順
+          <select id="resultsSortSelect" onchange="applyResultsSort()">
+            <option value="number">出席番号順</option>
+            <option value="score">合計点順</option>
+          </select>
+        </label>
+        <label>問題別正答率
+          <select id="resultsRateScope" onchange="renderSelectedResultClass()">
+            <option value="class">表示クラスの正答率</option>
+            <option value="grade">同学年の正答率</option>
+          </select>
+        </label>
+      </div>
+      <div class="special-sidebar-section">
+        <h3>結果を書き出す</h3>
+        <p class="pdf-format-note">ExcelとGoogleスプレッドシートで開けるCSV形式で保存します。</p>
+        <button class="primary results-export-button" type="button" onclick="exportResultsCsv()">CSVを書き出す</button>
+      </div>
+    </div>
     <div id="outputControlsHost" class="special-controls-host output-controls-host" aria-label="結果出力メニュー">
       <div class="special-sidebar-section output-control-section">
         <h3>返却用PDF</h3>
@@ -3087,6 +3159,12 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
       </div>
       <div class="special-sidebar-section output-control-section">
         <h3>1ページ目</h3>
+        <label>表示する正答率
+          <select id="returnRateScope" onchange="updateReturnOutputOptions()">
+            <option value="class">対象クラスの正答率</option>
+            <option value="grade">同学年の正答率</option>
+          </select>
+        </label>
         <label class="output-check-row"><input id="returnShowQuestionRate" type="checkbox" checked onchange="updateReturnOutputOptions()">問題ごとの正答率</label>
         <label class="output-check-row"><input id="returnShowAverage" type="checkbox" checked onchange="updateReturnOutputOptions()">クラス平均点</label>
         <label class="output-check-row"><input id="returnShowRank" type="checkbox" onchange="updateReturnOutputOptions()">順位</label>
@@ -3106,6 +3184,7 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
           <button data-settings-panel="grade" type="button" onclick="showSettingsPanel('grade')"><span class="sidebar-nav-label">学年設定</span></button>
           <button data-settings-panel="subject" type="button" onclick="showSettingsPanel('subject')"><span class="sidebar-nav-label">教科設定</span></button>
           <button class="active" data-settings-panel="class" type="button" onclick="showSettingsPanel('class')"><span class="sidebar-nav-label">クラス設定</span></button>
+          <button data-settings-panel="palette" type="button" onclick="showSettingsPanel('palette')"><span class="sidebar-nav-label">採点パレット設定</span></button>
         </div>
       </div>
     </div>
@@ -3230,7 +3309,7 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
           <div class="help">問題と解答欄を1枚にまとめて表示します。</div>
         </div>
         <div class="actions end">
-          <button class="green" onclick="openPreview()">プレビュー</button>
+          <button class="green" onclick="printDocument()">印刷・PDF保存</button>
         </div>
       </div>
     </div>
@@ -3246,7 +3325,7 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
         <span id="draftSaveStatus" class="draft-save-status">自動保存済み</span>
         <span id="livePreviewInfo" class="editor-live-info">A4・縦／0問</span>
         <button class="secondary" type="button" onclick="saveCurrentTest()">保存</button>
-        <button class="primary" type="button" onclick="openPreview()">印刷画面を開く</button>
+        <button class="primary" type="button" onclick="printDocument()">印刷・PDF保存</button>
       </div>
     </div>
     <div id="editorPaperHost" class="editor-live-stage" aria-label="テスト用紙プレビュー"></div>
@@ -3437,20 +3516,27 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
 
 </svg>
 </div>
+      <div class="palette-vertical" aria-label="縦型採点パレット">
+        <button class="ok" type="button" data-mark="ok" onclick="selectPen('ok')" aria-label="○を選択">○</button>
+        <button class="ng" type="button" data-mark="ng" onclick="selectPen('ng')" aria-label="×を選択">×</button>
+        <button class="partial" type="button" data-mark="partial" onclick="selectPen('partial')" aria-label="△を選択">△</button>
+        <button class="ok palette-fill-button" type="button" onclick="bulkGrade('ok')">残りを○</button>
+        <button class="ng palette-fill-button" type="button" onclick="bulkGrade('ng')">残りを×</button>
+      </div>
     </aside>
   </div>
 
   <div id="questionTabsWrap" class="tabs-wrap"><div id="questionTabs" class="tabs"></div></div>
 
-  <div class="grading-scroll-area">
-    <div id="problemInfoBar" class="problem-info-bar">
-      <div><span id="problemSeq" class="problem-seq">01</span><span class="problem-label">問題：</span><span id="problemText" class="problem-text-value">—</span></div>
-      <div><span class="problem-label">模範解答：</span><span id="modelAnswer" class="model">—</span></div>
-      <label>○配点 <input id="fullScore" class="bulk-score" type="number" min="0" step="0.5" value="1" onchange="updateCurrentQuestionScores()"></label>
-      <label>△配点 <input id="partialScore" class="bulk-score" type="number" min="0" step="0.5" value="0.5" onchange="updateCurrentQuestionScores()"></label>
-      <button class="reset-question-btn" type="button" onclick="resetCurrentQuestion()">この問題をリセット</button>
-    </div>
+  <div id="problemInfoBar" class="problem-info-bar">
+    <div><span id="problemSeq" class="problem-seq">01</span><span class="problem-label">問題：</span><span id="problemText" class="problem-text-value">—</span></div>
+    <div><span class="problem-label">模範解答：</span><span id="modelAnswer" class="model">—</span></div>
+    <label>○配点 <input id="fullScore" class="bulk-score" type="number" min="0" step="0.5" value="1" onchange="updateCurrentQuestionScores()"></label>
+    <label>△配点 <input id="partialScore" class="bulk-score" type="number" min="0" step="0.5" value="0.5" onchange="updateCurrentQuestionScores()"></label>
+    <button class="reset-question-btn" type="button" onclick="resetCurrentQuestion()">この問題をリセット</button>
+  </div>
 
+  <div class="grading-scroll-area">
     <div id="gradeAnswers"></div>
   </div>
 </div>
@@ -3490,25 +3576,47 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
     </div>
     <div id="classSettingsList" class="class-settings-list"></div>
   </div>
+
+  <div id="paletteSettingsPanel" class="class-settings-page settings-content-panel">
+    <div class="class-settings-head">
+      <div>
+        <h2 class="step-title">採点パレット設定</h2>
+        <p>採点画面で常時表示するパレットの位置・大きさ・表示方向を選べます。</p>
+      </div>
+    </div>
+    <div class="palette-settings-grid">
+      <label>表示位置
+        <select id="palettePositionSetting" onchange="savePaletteSettings()">
+          <option value="top-right">右上</option>
+          <option value="top-left">左上</option>
+          <option value="bottom-right">右下</option>
+          <option value="bottom-left">左下</option>
+        </select>
+      </label>
+      <label>大きさ
+        <select id="paletteSizeSetting" onchange="savePaletteSettings()">
+          <option value="small">小</option>
+          <option value="medium">標準</option>
+          <option value="large">大</option>
+        </select>
+      </label>
+      <label>表示方向
+        <select id="paletteDirectionSetting" onchange="savePaletteSettings()">
+          <option value="horizontal">横</option>
+          <option value="vertical">縦</option>
+        </select>
+      </label>
+    </div>
+    <div class="palette-settings-preview">変更は採点画面へすぐに反映され、この端末に保存されます。縦型でも、○・×・△・残りを○・残りを×を利用できます。</div>
+  </div>
 </section>
 
 <section id="resultsScreen" class="screen">
   <div class="results-shell">
     <div class="results-header-card results-workflow-card">
-      <div id="workflowResults" class="workflow-bar"></div>
+      <div id="workflowResults" class="results-toolbar-workflow"></div>
       <div class="results-header-row">
         <div id="resultsTestTitle" class="help">採点済みデータから得点を集計します。</div>
-        <div class="results-controls">
-        <label>並び順
-          <select id="resultsSortSelect" onchange="applyResultsSort()">
-            <option value="number">出席番号順</option>
-            <option value="score">合計点順</option>
-          </select>
-        </label>
-        <label class="results-class-selector">クラス
-          <select id="resultsClassSelect" onchange="renderSelectedResultClass()"></select>
-        </label>
-        </div>
       </div>
     </div>
 
@@ -3573,6 +3681,7 @@ const CURRENT_DRAFT_KEY="yutori_current_draft_v1";
 const GRADE_SETTINGS_KEY="yutori_grade_settings_v1";
 const SUBJECT_SETTINGS_KEY="yutori_subject_settings_v1";
 const CLASS_PROFILES_KEY="yutori_class_profiles_v1";
+const PALETTE_SETTINGS_KEY="yutori_palette_settings_v1";
 const DEFAULT_GRADES=["1","2","3","4","5","6"];
 const DEFAULT_SUBJECTS=["国語","社会","算数","数学","理科","生活","音楽","図画工作","美術","体育","保健体育","家庭","技術・家庭","外国語","道徳","総合"];
 let currentSavedTestId="";
@@ -3679,12 +3788,39 @@ function removeSubjectSetting(value){
   loadHistory();
   renderSavedTestList();
 }
-function renderSettingsChoices(){renderGradeSettings();renderSubjectSettings();populateGradeControls()}
+function readPaletteSettings(){
+  try{
+    const saved=JSON.parse(localStorage.getItem(PALETTE_SETTINGS_KEY)||"{}");
+    return {
+      position:["top-right","top-left","bottom-right","bottom-left"].includes(saved.position)?saved.position:"top-right",
+      size:["small","medium","large"].includes(saved.size)?saved.size:"medium",
+      direction:["horizontal","vertical"].includes(saved.direction)?saved.direction:"horizontal"
+    };
+  }catch(error){return {position:"top-right",size:"medium",direction:"horizontal"}}
+}
+function applyPaletteSettings(){
+  const palette=document.querySelector("#mainGradeView .palette-fixed");if(!palette)return;
+  const settings=readPaletteSettings();
+  palette.dataset.position=settings.position;palette.dataset.size=settings.size;palette.dataset.direction=settings.direction;
+  requestAnimationFrame(positionFloatingPalette);
+}
+function renderPaletteSettings(){
+  const settings=readPaletteSettings();
+  const position=document.getElementById("palettePositionSetting"),size=document.getElementById("paletteSizeSetting"),direction=document.getElementById("paletteDirectionSetting");
+  if(position)position.value=settings.position;if(size)size.value=settings.size;if(direction)direction.value=settings.direction;
+  applyPaletteSettings();
+}
+function savePaletteSettings(){
+  const settings={position:document.getElementById("palettePositionSetting")?.value||"top-right",size:document.getElementById("paletteSizeSetting")?.value||"medium",direction:document.getElementById("paletteDirectionSetting")?.value||"horizontal"};
+  localStorage.setItem(PALETTE_SETTINGS_KEY,JSON.stringify(settings));applyPaletteSettings();
+}
+function renderSettingsChoices(){renderGradeSettings();renderSubjectSettings();populateGradeControls();renderPaletteSettings()}
 function applySettingsPanelMeta(){
   const meta={
     grade:{title:"学年設定",hint:"担当学年など、学年別に整理するための名称を自由に登録できます"},
     subject:{title:"教科設定",hint:"国語・算数・外国語など、テストで使用する教科名を自由に登録できます"},
-    class:{title:"クラス設定",hint:"右上の「＋クラスを追加」から登録できます"}
+    class:{title:"クラス設定",hint:"右上の「＋クラスを追加」から登録できます"},
+    palette:{title:"採点パレット設定",hint:"位置・大きさ・縦横を選ぶと採点画面へ反映されます"}
   }[activeSettingsPanel];
   document.querySelectorAll("[data-settings-panel]").forEach(button=>button.classList.toggle("active",button.dataset.settingsPanel===activeSettingsPanel));
   document.querySelectorAll(".settings-content-panel").forEach(panel=>panel.classList.remove("active"));
@@ -3697,7 +3833,7 @@ function applySettingsPanelMeta(){
   if(subtitle)subtitle.textContent=meta.title;
 }
 function showSettingsPanel(panel){
-  activeSettingsPanel=["grade","subject","class"].includes(panel)?panel:"class";
+  activeSettingsPanel=["grade","subject","class","palette"].includes(panel)?panel:"class";
   if(document.querySelector(".screen.active")?.id!=="rosterScreen")showScreen("rosterScreen");
   renderSettingsChoices();
   renderClassSettings();
@@ -3813,6 +3949,7 @@ function showScreen(id){
   const isSettings=id==="rosterScreen";
   const isTestList=id==="testListScreen";
   const isGrading=id==="gradingScreen";
+  const isResults=id==="resultsScreen";
   const isOutput=id==="outputScreen";
   const shell=document.getElementById("workspaceShell");
   const sidebar=document.querySelector(".app-sidebar");
@@ -3820,13 +3957,15 @@ function showScreen(id){
   shell?.classList.toggle("settings-mode",isSettings);
   shell?.classList.toggle("test-list-mode",isTestList);
   shell?.classList.toggle("grading-mode",isGrading);
+  shell?.classList.toggle("results-mode",isResults);
   shell?.classList.toggle("output-mode",isOutput);
   sidebar?.classList.toggle("editor-mode",isEditor);
   sidebar?.classList.toggle("settings-mode",isSettings);
   sidebar?.classList.toggle("test-list-mode",isTestList);
   sidebar?.classList.toggle("grading-mode",isGrading);
+  sidebar?.classList.toggle("results-mode",isResults);
   sidebar?.classList.toggle("output-mode",isOutput);
-  if((isEditor||isSettings||isTestList||isGrading||isOutput)&&shell?.classList.contains("sidebar-collapsed")){
+  if((isEditor||isSettings||isTestList||isGrading||isResults||isOutput)&&shell?.classList.contains("sidebar-collapsed")){
     shell.classList.remove("sidebar-collapsed");
     const collapseButton=document.getElementById("sidebarCollapse");
     if(collapseButton){
@@ -3845,7 +3984,7 @@ function showScreen(id){
     testListScreen:{tab:"テスト一覧",title:"保存したテスト",side:"テスト一覧",sub:"保存したテストを選択",description:"保存したテストを開いて、編集や印刷を続けられます。",hint:"この端末に保存したテストが表示されます",primary:"新しいテストを作る"},
     previewScreen:{tab:"プレビュー",title:"印刷レイアウトの確認",side:"印刷プレビュー",sub:"用紙レイアウトの確認と印刷",description:"作成したテストの用紙レイアウトを確認し、印刷またはPDF保存します。",hint:"推奨設定：倍率100％・余白なし",primary:"印刷・PDF保存"},
     gradingScreen:{tab:"採点",title:"答案の読み込みと採点",side:"採点メニュー",sub:"答案PDFの確認と採点",description:"答案PDFを読み込み、問題ごとに採点します。途中経過は自動保存されます。",hint:"採点内容はこの端末に自動保存されます",primary:"新しく採点を始める"},
-    rosterScreen:{tab:"設定",title:"設定",side:"設定",sub:"学年・教科・クラス設定",description:"YUTORIで使用する学年・教科・クラスを登録します。",hint:"左側から設定項目を選択してください",primary:"クラスを追加"},
+    rosterScreen:{tab:"設定",title:"設定",side:"設定",sub:"学年・教科・クラス・採点パレット",description:"YUTORIで使用する学年・教科・クラスと採点パレットを設定します。",hint:"左側から設定項目を選択してください",primary:"クラスを追加"},
     resultsScreen:{tab:"結果確認",title:"採点結果の確認",side:"結果確認メニュー",sub:"得点・正答率の確認",description:"クラスごとの得点、問題別の採点結果、正答率を確認します。",hint:"問題名に触れると詳細を確認できます",primary:"採点へ戻る"},
     outputScreen:{tab:"結果出力",title:"返却用PDFの作成",side:"結果出力メニュー",sub:"採点済み答案と個別課題",description:"採点結果を答案へ赤字で加筆し、個別練習課題と一緒にPDF保存します。",hint:"プレビューを確認してからPDFへ保存できます",primary:"返却用PDFを保存"}
   };
@@ -3982,6 +4121,8 @@ function positionFloatingPalette(){
   const viewRect=view.getBoundingClientRect(),mainRect=main.getBoundingClientRect();
   palette.style.setProperty("--floating-palette-top",`${Math.max(12,Math.round(viewRect.top+7))}px`);
   palette.style.setProperty("--floating-palette-right",`${Math.max(12,Math.round(window.innerWidth-mainRect.right+17))}px`);
+  palette.style.setProperty("--floating-palette-left",`${Math.max(12,Math.round(mainRect.left+17))}px`);
+  palette.style.setProperty("--floating-palette-bottom",`${Math.max(12,Math.round(window.innerHeight-mainRect.bottom+17))}px`);
 }
 window.addEventListener("resize",()=>requestAnimationFrame(positionFloatingPalette));
 function checked(name){return document.querySelector(`input[name="${name}"]:checked`).value}
@@ -4139,7 +4280,8 @@ function renderSavedTestList(){
       <p class="saved-test-updated">更新：${escapeHtml(updated)}</p>
       <div class="saved-test-actions">
         <button class="primary" type="button" onclick="openSavedTest('${safeId}')">選んで開く</button>
-        <button class="secondary saved-test-delete" type="button" aria-label="削除" onclick="deleteSavedTest('${safeId}')">削除</button>
+        <button class="secondary" type="button" onclick="duplicateSavedTest('${safeId}')">複製</button>
+        <button class="secondary saved-test-delete" type="button" onclick="deleteSavedTest('${safeId}')">削除</button>
       </div>
     </article>`;
   }).join("");
@@ -4180,6 +4322,11 @@ function applyTestToEditor(source,id=""){
 function openSavedTest(id){
   const item=readSavedTests().find(test=>test.id===id);
   if(item)applyTestToEditor(item,item.id);
+}
+function duplicateSavedTest(id){
+  const tests=readSavedTests(),source=tests.find(test=>test.id===id);if(!source)return;
+  const now=Date.now(),copy={...copyTestState(source),id:`test-${now}`,testName:`${source.testName||"名称未設定のテスト"}（コピー）`,createdAt:now,updatedAt:now};
+  tests.unshift(copy);writeSavedTests(tests);renderSavedTestList();
 }
 function createNewTest(){
   const hasContent=Boolean(state.subject||state.unit||state.testName||state.questions.some(Boolean)||state.answers.some(Boolean));
@@ -4224,7 +4371,7 @@ function renderPaper(){
   const warning=state.questions.length>cap?`<div class="paper-warning">※ ${state.questions.length-cap}問が用紙内に収まりません。</div>`:"";
   paper.innerHTML=`
     <div class="paper-header"><img src="assets/test-mark-name-header.svg" alt="組、出席番号、名前、点数の記入欄"></div>
-    <div class="paper-title">${escapeHtml([state.subject,state.unit,state.testName].filter(Boolean).join("　"))}</div>
+    <div class="paper-title">${escapeHtml([gradeLabel(state.grade),state.subject,state.unit,state.testName].filter(Boolean).join("　"))}</div>
     <div class="sheet-grid ${flowClass}" style="
       grid-template-columns:repeat(${state.cols},minmax(0,1fr));
       grid-template-rows:repeat(${state.rows},minmax(0,1fr));
@@ -4276,6 +4423,13 @@ function applyPrintPageStyle(){
   }
   style.textContent=`@page { size:${sizes[state.paperSize][state.orientation]}; margin:0; }`;
 }
+let printTitleBeforeDialog="";
+function safeFileNamePart(value){return String(value||"").trim().replace(/[\\/:*?"<>|\u0000-\u001f]/g,"_").replace(/[. ]+$/g,"")}
+function joinFileNameParts(parts,fallback="YUTORI"){const name=parts.map(safeFileNamePart).filter(Boolean).join("_");return name||fallback}
+function testPdfBaseName(){return joinFileNameParts([gradeLabel(state.grade),state.subject,state.unit,state.testName],"YUTORI_テスト")}
+function gradingResultBaseName(session,className){return joinFileNameParts([className,session?.unit,session?.testName,"採点結果"],"YUTORI_採点結果")}
+function setPrintDocumentTitle(name){if(!printTitleBeforeDialog)printTitleBeforeDialog=document.title;document.title=name}
+function restoreDocumentTitle(){if(printTitleBeforeDialog){document.title=printTitleBeforeDialog;printTitleBeforeDialog=""}}
 function printDocument(){
   syncState();
   renderPaper();
@@ -4283,7 +4437,10 @@ function printDocument(){
 
   if(!validateBeforePrint()) return;
 
+  mountPaperForScreen("previewScreen");
+  renderPaper();
   applyPrintPageStyle();
+  setPrintDocumentTitle(testPdfBaseName());
   window.print();
 }
 function escapeHtml(v){return String(v??"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]))}
@@ -4296,12 +4453,17 @@ document.getElementById("cols").addEventListener("change",updateCounts);
 window.addEventListener("beforeprint",()=>{
   if(document.body.classList.contains("return-printing"))return;
   syncState();
+  mountPaperForScreen("previewScreen");
   renderPaper();
   applyPrintPageStyle();
+  setPrintDocumentTitle(testPdfBaseName());
 });
 window.addEventListener("afterprint",()=>{
   document.body.classList.remove("return-printing");
   const root=document.getElementById("returnPrintRoot");if(root)root.setAttribute("aria-hidden","true");
+  restoreDocumentTitle();
+  const active=document.querySelector(".screen.active")?.id;
+  if(active==="editorScreen"){mountPaperForScreen("editorScreen");scheduleLivePreview()}
 });
 
 
@@ -4392,17 +4554,16 @@ function workflowHtml(current){
   return [1,2,3,4].map(step=>`
     <div class="workflow-step ${current===step?"active":workflowDone(step)?"done":""}" aria-current="${current===step?"step":"false"}">
       ${workflowStepLabel(step)}
-      ${workflowDone(step)?'<span class="workflow-check">✔</span>':""}
     </div>`).join("");
 }
 function sidebarWorkflowHtml(current){
   const labels={1:"答案の読込",2:"確認と修正",3:"採点",4:"結果の確認"};
-  return [1,2,3,4].map(step=>`<button class="sidebar-workflow-step ${current===step?"active":workflowDone(step)?"done":""}" type="button" onclick="goToWorkflowStep(${step})" ${canOpenWorkflowStep(step)?"":"disabled"}><span class="step-number">${step}</span><span>${labels[step]}</span><span>${workflowDone(step)?"✔":""}</span></button>`).join("");
+  return [1,2,3,4].map(step=>`<button class="sidebar-workflow-step ${current===step?"active":workflowDone(step)?"done":""}" type="button" onclick="goToWorkflowStep(${step})" ${canOpenWorkflowStep(step)?"":"disabled"}><span class="step-number">${step}</span><span>${labels[step]}</span></button>`).join("");
 }
 function renderWorkflowBars(current){
   gradingState.currentWorkflowStep=current;
   const resultsWorkflow=document.getElementById("workflowResults");
-  if(resultsWorkflow)resultsWorkflow.innerHTML=workflowHtml(current);
+  if(resultsWorkflow)resultsWorkflow.innerHTML=sidebarWorkflowHtml(current);
   const toolbarWorkflow=document.getElementById("gradingToolbarWorkflow");
   if(toolbarWorkflow)toolbarWorkflow.innerHTML=sidebarWorkflowHtml(current);
   updateUndoButton();
@@ -4902,6 +5063,8 @@ function isDone(q){
 function selectPen(mark){
   gradingState.selectedPen=mark;
 
+  document.querySelectorAll(".palette-vertical button[data-mark]").forEach(button=>button.classList.toggle("selected",button.dataset.mark===mark));
+
   const effects={
     ok:"effect-circle",
     ng:"effect-cross",
@@ -5306,7 +5469,7 @@ function serializeSession(){
   const t=currentTest()||{};
   return {
     id:gradingState.sessionId||`session-${Date.now()}`,assignmentMode:"attendance-mark",selectedTestId:gradingState.selectedTestId,
-    testName:t.testName||t.name||state.testName||"名称未設定",subject:t.subject||state.subject||"",unit:t.unit||state.unit||"",
+    testName:t.testName||t.name||state.testName||"名称未設定",grade:t.grade||state.grade||"",subject:t.subject||state.subject||"",unit:t.unit||state.unit||"",
     rows:Number(t.rows)||10,cols:Number(t.cols)||3,flow:t.flow==="row"?"row":"column",questions:t.questions||[],modelAnswers:t.answers||[],
     classes:[...gradingState.classes],files:gradingState.files.map(f=>({name:f.name,type:f.type,size:f.size,lastModified:f.lastModified})),
     pdfPages:gradingState.pdfPages||[],ignoredPageIds:gradingState.ignoredPageIds||[],issues:gradingState.issues,answers:gradingState.answers,
@@ -5488,7 +5651,7 @@ async function resumeGradingSession(id){
     const page=gradingState.pdfPages.find(item=>item.id===person.pageId);
     if(page?.manualAssignment)page.lateValidationWarning=false;
   }));
-  gradingState.testSets=[{id:s.selectedTestId||"current",name:s.testName||"保存済みテスト",testName:s.testName||"保存済みテスト",subject:s.subject||"",unit:s.unit||"",rows:Number(s.rows)||10,cols:Number(s.cols)||3,flow:s.flow==="row"?"row":"column",questions:s.questions||[],answers:s.modelAnswers||[]}];
+  gradingState.testSets=[{id:s.selectedTestId||"current",name:s.testName||"保存済みテスト",testName:s.testName||"保存済みテスト",grade:s.grade||"",subject:s.subject||"",unit:s.unit||"",rows:Number(s.rows)||10,cols:Number(s.cols)||3,flow:s.flow==="row"?"row":"column",questions:s.questions||[],answers:s.modelAnswers||[]}];
   if(gradingState.pdfPages.length){
     try{await restorePdfPagesFromIndexedDB(id)}catch(error){console.warn("答案画像の復元に失敗しました",error)}
   }else{revokePdfPageUrls()}
@@ -5578,9 +5741,10 @@ function loadLatestSessionForResults(){
   if(gradingState.sessionId && gradingState.classes?.length && gradingState.answers){
     return {
       id:gradingState.sessionId,
-      testName:currentTest()?.name||state.testName||"名称未設定",
-      subject:state.subject||"",
-      unit:state.unit||"",
+      testName:currentTest()?.testName||state.testName||"名称未設定",
+      grade:currentTest()?.grade||state.grade||"",
+      subject:currentTest()?.subject||state.subject||"",
+      unit:currentTest()?.unit||state.unit||"",
       questions:currentTest()?.questions||[],
       modelAnswers:currentTest()?.answers||[],
       classes:[...gradingState.classes],
@@ -5658,7 +5822,7 @@ function renderResultsSummary(){
   }
 
   const previous=select.value;
-  select.innerHTML=classes.map(className=>`<option value="${escapeHtml(className)}">${escapeHtml(className)}</option>`).join("");
+  select.innerHTML=classes.map(className=>`<option value="${escapeHtml(className)}">${escapeHtml(classDisplayName(className))}</option>`).join("");
   select.value=classes.includes(previous)?previous:classes[0];
 
   renderSelectedResultClass();
@@ -5666,6 +5830,24 @@ function renderResultsSummary(){
 
 function applyResultsSort(){
   renderSelectedResultClass();
+}
+
+function resultRateClasses(session,className,scope){
+  if(scope!=="grade")return [className];
+  const targetGrade=String(gradingState.classProfiles?.[className]?.grade||session?.grade||"");
+  if(!targetGrade)return [className];
+  const matches=(session.classes||[]).filter(name=>{
+    const classGrade=String(gradingState.classProfiles?.[name]?.grade||session?.grade||"");
+    return classGrade===targetGrade;
+  });
+  return matches.length?matches:[className];
+}
+function resultQuestionRates(session,className,scope="class"){
+  const classes=resultRateClasses(session,className,scope);
+  return (session.questions||[]).map((_,q)=>{
+    const marks=classes.flatMap(name=>(session.answers?.[name]||[]).filter(person=>!person.absent).map(person=>session.grades?.[`${name}::${person.no}::${q}`]?.mark).filter(Boolean));
+    return marks.length?Math.round(marks.filter(mark=>mark==="ok").length/marks.length*100):0;
+  });
 }
 
 function renderSelectedResultClass(){
@@ -5681,9 +5863,11 @@ function renderSelectedResultClass(){
   }
 
   const className=select.value;
+  const rateScope=document.getElementById("resultsRateScope")?.value||"class";
   const people=session.answers?.[className]||[];
   const questions=session.questions||[];
   const modelAnswers=session.modelAnswers||[];
+  const questionRates=resultQuestionRates(session,className,rateScope);
 
   const rows=people.map(person=>{
     const result=calculateStudentResult(session,className,person);
@@ -5710,12 +5894,13 @@ function renderSelectedResultClass(){
   const sortedRows=[...rows].sort((a,b)=>sortMode==="score"?(Number(b.score||0)-Number(a.score||0)||Number(a.no)-Number(b.no)):Number(a.no)-Number(b.no));
 
   summary.innerHTML=`
-    <div class="results-class-title">${escapeHtml(className)}</div>
+    <div class="results-class-title">${escapeHtml(classDisplayName(className))}</div>
     <div class="results-class-meta">
       <span>人数：${rows.length}人</span>
       <span>採点完了人数：${completed}人</span>
       ${absentCount?`<span>欠席：${absentCount}人</span>`:""}
       <span>平均点：${formatScore(average)}点</span>
+      <span>問題別正答率：${rateScope==="grade"?"同学年":"表示クラス"}</span>
     </div>
   `;
 
@@ -5729,9 +5914,7 @@ function renderSelectedResultClass(){
               <th class="col-name">氏名</th>
               <th class="col-score"><span>合計点</span><small class="score-rate-label">正答率(%)</small></th>
               ${questions.map((question,q)=>{
-                const gradedRows=rows.filter(row=>row.marks[q]);
-                const correct=gradedRows.filter(row=>row.marks[q]==="ok").length;
-                const rate=gradedRows.length?Math.round(correct/gradedRows.length*100):0;
+                const rate=questionRates[q]||0;
                 return `
                 <th class="qcol problem-header" data-question-index="${q}" tabindex="0" role="button"
                     onclick="jumpFromResultsToQuestion(${q})"
@@ -5765,6 +5948,21 @@ function renderSelectedResultClass(){
       </div>
     </section>
   `;
+}
+
+function csvCell(value){return `"${String(value??"").replace(/"/g,'""')}"`}
+function exportResultsCsv(){
+  const session=currentResultsSession,className=document.getElementById("resultsClassSelect")?.value;if(!session||!className)return alert("書き出すクラスを選択してください。");
+  const questions=session.questions||[],people=session.answers?.[className]||[],scope=document.getElementById("resultsRateScope")?.value||"class",rates=resultQuestionRates(session,className,scope),maximum=returnMaximumScore(session);
+  const headers=["出席番号","氏名","合計点","正答率(%)",...questions.map((question,q)=>`${String(q+1).padStart(2,"0")} ${question||"未登録"}`)];
+  const rows=people.map(person=>{
+    const result=calculateStudentResult(session,className,person),marks=questions.map((_,q)=>session.grades?.[`${className}::${person.no}::${q}`]?.mark||""),graded=marks.filter(Boolean),correct=marks.filter(mark=>mark==="ok").length;
+    return [person.no,person.name,person.absent?"欠席":formatReturnScore(result.score),person.absent?"":graded.length?Math.round(correct/graded.length*100):0,...marks.map(mark=>mark==="ok"?"○":mark==="ng"?"×":mark==="partial"?"△":"")];
+  });
+  const rateLabel=scope==="grade"?"同学年の問題別正答率(%)":"表示クラスの問題別正答率(%)";
+  const csv=[headers,...rows,[],[rateLabel,"",`満点 ${formatReturnScore(maximum)}`,"",...rates]].map(row=>row.map(csvCell).join(",")).join("\r\n");
+  const blob=new Blob(["\uFEFF",csv],{type:"text/csv;charset=utf-8"}),url=URL.createObjectURL(blob),link=document.createElement("a");
+  link.href=url;link.download=`${gradingResultBaseName(session,className)}.csv`;document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
 
 const returnOutputState={session:null,className:"",selectedNos:new Set(),previewNo:null,previewPage:1,imageUrls:{},ownedUrls:[],loadToken:0};
@@ -5882,6 +6080,7 @@ function returnOutputOptions(){
     showQuestionRate:Boolean(document.getElementById("returnShowQuestionRate")?.checked),
     showAverage:Boolean(document.getElementById("returnShowAverage")?.checked),
     showRank:Boolean(document.getElementById("returnShowRank")?.checked),
+    rateScope:document.getElementById("returnRateScope")?.value||"class",
     includePartial:Boolean(document.getElementById("returnIncludePartial")?.checked),
     practiceCount:Number.isFinite(practiceValue)&&practiceValue>0?practiceValue:5
   };
@@ -5891,13 +6090,7 @@ function normalizeReturnPracticeCount(input){
   if(input)input.value=String(Number.isFinite(value)&&value>0?value:1);
   updateReturnOutputOptions();
 }
-function returnQuestionRates(session,className){
-  const people=(session.answers?.[className]||[]).filter(person=>!person.absent);
-  return (session.questions||[]).map((_,q)=>{
-    const marks=people.map(person=>session.grades?.[`${className}::${person.no}::${q}`]?.mark).filter(Boolean);
-    return marks.length?Math.round(marks.filter(mark=>mark==="ok").length/marks.length*100):0;
-  });
-}
+function returnQuestionRates(session,className,scope="class"){return resultQuestionRates(session,className,scope)}
 function returnMaximumScore(session){
   return (session.questions||[]).reduce((sum,_,q)=>sum+Number(session.questionScores?.[q]?.ok??session.fullScore??1),0);
 }
@@ -5920,7 +6113,7 @@ function returnHandwrittenMark(mark,q){
   return assets[mark]?`<span class="return-question-mark ${mark}" role="img" aria-label="${labels[mark]}" style="transform:rotate(${tilts[q%tilts.length]}deg)"><img src="${assets[mark]}" alt="" aria-hidden="true"></span>`:"";
 }
 function returnAnswerPageHtml(session,className,person,options){
-  const rates=returnQuestionRates(session,className),result=calculateStudentResult(session,className,person),maximum=returnMaximumScore(session),stats=returnClassStats(session,className,person);
+  const rates=returnQuestionRates(session,className,options.rateScope),result=calculateStudentResult(session,className,person),maximum=returnMaximumScore(session),stats=returnClassStats(session,className,person);
   const imageUrl=returnOutputState.imageUrls[person.pageId]||"";
   const annotations=(session.questions||[]).map((_,q)=>{
     const grade=session.grades?.[`${className}::${person.no}::${q}`],rect=returnQuestionRect(session,q),mark=grade?.mark||"";
@@ -5932,7 +6125,7 @@ function returnAnswerPageHtml(session,className,person,options){
   return `<section class="return-sheet return-answer-sheet" aria-label="${escapeHtml(person.name)}の採点済み答案">${imageUrl?`<img class="return-answer-image" src="${escapeHtml(imageUrl)}" alt="${escapeHtml(person.name)}の答案">`:'<div class="return-answer-placeholder">答案画像を表示できません</div>'}${annotations}<div class="return-score-overlay">${formatReturnScore(result.score)} / ${formatReturnScore(maximum)}点</div>${extras.length?`<div class="return-extra-overlay">${extras.map(value=>`<span>${escapeHtml(value)}</span>`).join("")}</div>`:""}</section>`;
 }
 function returnPracticeQuestions(session,className,person,options){
-  const rates=returnQuestionRates(session,className);
+  const rates=returnQuestionRates(session,className,options.rateScope);
   const items=(session.questions||[]).map((question,q)=>({q,question,answer:session.modelAnswers?.[q]||"",rate:rates[q],mark:session.grades?.[`${className}::${person.no}::${q}`]?.mark||""})).filter(item=>item.mark==="ng"||(options.includePartial&&item.mark==="partial")).sort((a,b)=>b.rate-a.rate||a.q-b.q);
   const limit=Math.max(1,Math.floor(Number(options.practiceCount)||5));
   return items.slice(0,limit);
@@ -5985,6 +6178,7 @@ async function printReturnPdfs(){
   let style=document.getElementById("dynamicPrintStyle");if(!style){style=document.createElement("style");style.id="dynamicPrintStyle";document.head.appendChild(style)}
   style.textContent="@page { size:A4 portrait; margin:0; }";
   document.body.classList.add("return-printing");
+  setPrintDocumentTitle(gradingResultBaseName(session,className));
   requestAnimationFrame(()=>setTimeout(()=>window.print(),60));
 }
 
@@ -5993,6 +6187,7 @@ function captureResultsPosition(questionIndex=null){
   gradingState.resultsReturnState={
     className:document.getElementById("resultsClassSelect")?.value||"",
     sort:document.getElementById("resultsSortSelect")?.value||"number",
+    rateScope:document.getElementById("resultsRateScope")?.value||"class",
     scrollTop:wrap?.scrollTop||0,
     scrollLeft:wrap?.scrollLeft||0,
     questionIndex
@@ -6003,10 +6198,12 @@ function restoreResultsPosition(){
   if(!saved)return;
   const classSelect=document.getElementById("resultsClassSelect");
   const sortSelect=document.getElementById("resultsSortSelect");
+  const rateScopeSelect=document.getElementById("resultsRateScope");
   if(classSelect && [...classSelect.options].some(o=>o.value===saved.className)){
     classSelect.value=saved.className;
   }
   if(sortSelect)sortSelect.value=saved.sort||"number";
+  if(rateScopeSelect)rateScopeSelect.value=saved.rateScope||"class";
   renderSelectedResultClass();
   requestAnimationFrame(()=>{
     const wrap=document.querySelector("#resultsScreen .results-table-wrap");
