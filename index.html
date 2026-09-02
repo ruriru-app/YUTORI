@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <meta name="theme-color" content="#FCCC8E">
 <meta name="apple-mobile-web-app-title" content="YUTORI">
-<title>YUTORI v0.3.21</title>
+<title>YUTORI v0.3.22</title>
 <link rel="icon" type="image/svg+xml" href="assets/yutori-symbol.svg">
 <link rel="apple-touch-icon" href="assets/yutori-symbol.svg">
 <link rel="manifest" href="manifest.webmanifest">
@@ -2840,6 +2840,18 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
 /* v0.3.21：提供SVGの採点記号と、点数欄を広げた新しい記名欄 */
 .paper-header img{object-fit:contain;object-position:left top}
 
+/* v0.3.22：個別課題の3段表示と、返却答案の採点表示を調整 */
+.return-practice-work{grid-template-columns:22% minmax(0,1fr);gap:1.4%}
+.return-practice-details{gap:.18cqw;padding:0 4% 0 1%;justify-content:center}
+.return-practice-detail-first{grid-template-columns:3.7cqw minmax(0,1fr);gap:.42cqw;align-items:baseline;font-size:1.08cqw;line-height:1.18}
+.return-practice-detail-question{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.return-practice-detail-second{display:contents}
+.return-practice-detail-answer{font-family:"Comic Sans MS","Comic Sans","Segoe Print","Yu Gothic",sans-serif;font-size:1.62cqw;line-height:1.12}
+.return-practice-detail-answer-label{font-family:"Yu Gothic","Meiryo",sans-serif;font-size:.68em;font-weight:900;color:#777}
+.return-practice-detail-rate{font-size:1cqw;line-height:1.1}
+.return-question-mark{top:10%;left:10%;right:auto;width:80%;height:80%;transform-origin:center}
+.return-correct-answer{font-family:"Comic Sans MS","Comic Sans","Segoe Print","Yu Gothic",sans-serif}
+
 @media(max-width:820px){
   .sidebar-drag-handle{display:none}
   .grading-toolbar-workflow{max-width:none;flex-basis:100%;order:5;grid-column:1/-1}
@@ -2987,10 +2999,10 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
 <body>
 <div class="app-shell">
 <header class="app-header no-print">
-  <div class="brand" aria-label="YUTORI v0.3.21">
+  <div class="brand" aria-label="YUTORI v0.3.22">
     <div class="brand-copy">
       <img class="brand-logo-image" src="assets/yutori-logo.svg" alt="YUTORI つくる・つける・つなげる">
-      <span class="brand-version">v0.3.21</span>
+      <span class="brand-version">v0.3.22</span>
     </div>
   </div>
   <nav aria-label="主要メニュー">
@@ -5928,7 +5940,7 @@ function returnPracticeQuestions(session,className,person,options){
 function returnPracticeSheetHtml(session,className,person,items,pageIndex=0,pageCount=1){
   const title=session.testName||[session.subject,session.unit].filter(Boolean).join(" ")||"テスト";
   const rowHeight=Math.max(6.8,Math.min(9.3,(112-Math.max(0,items.length-1)*.7)/Math.max(1,items.length)));
-  const itemHtml=items.map(item=>`<article class="return-practice-item"><div class="return-practice-work"><div class="return-practice-details"><div class="return-practice-detail-first"><span class="return-practice-number">${String(item.q+1).padStart(2,"0")}</span><span class="return-practice-detail-question">${escapeHtml(item.question||"未登録")}</span></div><div class="return-practice-detail-second"><span class="return-practice-detail-answer">模範：${escapeHtml(item.answer||"未登録")}</span><span class="return-practice-detail-rate">正答率 ${item.rate}%</span></div></div><div class="return-four-lines" aria-label="英語4線"><i></i><i></i><i></i><i></i></div></div></article>`).join("");
+  const itemHtml=items.map(item=>`<article class="return-practice-item"><div class="return-practice-work"><div class="return-practice-details"><div class="return-practice-detail-first"><span class="return-practice-number">${String(item.q+1).padStart(2,"0")}</span><span class="return-practice-detail-question">${escapeHtml(item.question||"未登録")}</span></div><div class="return-practice-detail-second"><span class="return-practice-detail-answer"><span class="return-practice-detail-answer-label">模範：</span>${escapeHtml(item.answer||"未登録")}</span><span class="return-practice-detail-rate">正答率 ${item.rate}%</span></div></div><div class="return-four-lines" aria-label="英語4線"><i></i><i></i><i></i><i></i></div></div></article>`).join("");
   return `<section class="return-sheet return-practice-sheet" aria-label="${escapeHtml(person.name)}の個別練習課題"><header class="return-practice-head"><div><div class="return-practice-title">個別練習プリント${pageCount>1?` ${pageIndex+1}`:""}</div><div class="return-practice-meta">${escapeHtml(title)}　正答率が高い問題から復習します</div></div><div class="return-practice-name">${escapeHtml(classDisplayName(className))}<br>${String(person.no).padStart(2,"0")} ${escapeHtml(person.name)}</div></header>${items.length?`<div class="return-practice-list" style="--practice-row-height:${rowHeight.toFixed(2)}cqw">${itemHtml}</div>`:'<div class="return-practice-empty">全問正解です。よくできました！</div>'}</section>`;
 }
 function returnPracticePagesHtml(session,className,person,options){
