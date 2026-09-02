@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <meta name="theme-color" content="#FCCC8E">
 <meta name="apple-mobile-web-app-title" content="YUTORI">
-<title>YUTORI v0.3.17</title>
+<title>YUTORI v0.3.18</title>
 <link rel="icon" type="image/svg+xml" href="assets/yutori-symbol.svg">
 <link rel="apple-touch-icon" href="assets/yutori-symbol.svg">
 <link rel="manifest" href="manifest.webmanifest">
@@ -2799,6 +2799,20 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
 .return-practice-empty{display:grid;place-items:center;color:#7A5520;font-size:2.3cqw;font-weight:900;text-align:center}
 .return-print-root{display:none}
 
+/* v0.3.18：返却用PDFの位置・練習4線を調整 */
+.return-student-row{display:flex!important;grid-template-columns:none!important;flex-wrap:nowrap!important}
+.return-student-row>span{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.return-student-row small{flex:0 0 auto;white-space:nowrap}
+.return-question-rate{bottom:1.05cqw}
+.return-score-overlay{top:3.38%;left:57.6%;width:8.1%;height:4.33%;font-size:1.72cqw}
+.return-extra-overlay{top:3.38%;left:66.8%;right:4.2%;height:4.33%}
+.return-practice-list{display:flex;flex-direction:column;gap:1.4cqw;padding-top:2.2%}
+.return-practice-item{flex:0 0 auto;display:grid;grid-template-rows:auto 9.3cqw;gap:.55cqw;padding:0 0 1.1cqw;border:0;border-bottom:.12cqw solid #E6DDD6;border-radius:0;background:transparent}
+.return-practice-work{height:9.3cqw;min-height:0}
+.return-four-lines i{border-top:.14cqw dashed #69BFE5}
+.return-four-lines i:nth-child(1),.return-four-lines i:nth-child(2),.return-four-lines i:nth-child(4){border-top-style:dashed;border-top-color:#69BFE5}
+.return-four-lines i:nth-child(3){border-top-style:solid;border-top-color:#E35B5B}
+
 @media(max-width:820px){
   .sidebar-drag-handle{display:none}
   .grading-toolbar-workflow{max-width:none;flex-basis:100%;order:5;grid-column:1/-1}
@@ -2946,10 +2960,10 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
 <body>
 <div class="app-shell">
 <header class="app-header no-print">
-  <div class="brand" aria-label="YUTORI v0.3.17">
+  <div class="brand" aria-label="YUTORI v0.3.18">
     <div class="brand-copy">
       <img class="brand-logo-image" src="assets/yutori-logo.svg" alt="YUTORI つくる・つける・つなげる">
-      <span class="brand-version">v0.3.17</span>
+      <span class="brand-version">v0.3.18</span>
     </div>
   </div>
   <nav aria-label="主要メニュー">
@@ -5878,7 +5892,7 @@ function returnPracticeQuestions(session,className,person,options){
 function returnPracticeSheetHtml(session,className,person,items,pageIndex=0,pageCount=1){
   const title=session.testName||[session.subject,session.unit].filter(Boolean).join(" ")||"テスト";
   const itemHtml=items.map(item=>`<article class="return-practice-item"><div class="return-practice-question"><span class="return-practice-number">${String(item.q+1).padStart(2,"0")}</span><span>${escapeHtml(item.question||"未登録")}</span><span class="return-practice-rate">正答率 ${item.rate}%</span></div><div class="return-practice-work"><div class="return-practice-model">${escapeHtml(item.answer||"未登録")}</div><div class="return-four-lines" aria-label="英語4線"><i></i><i></i><i></i><i></i></div></div></article>`).join("");
-  return `<section class="return-sheet return-practice-sheet" aria-label="${escapeHtml(person.name)}の個別練習課題"><header class="return-practice-head"><div><div class="return-practice-title">個別練習プリント${pageCount>1?` ${pageIndex+1}`:""}</div><div class="return-practice-meta">${escapeHtml(title)}　正答率が高い問題から復習します</div></div><div class="return-practice-name">${escapeHtml(classDisplayName(className))}<br>${String(person.no).padStart(2,"0")} ${escapeHtml(person.name)}</div></header>${items.length?`<div class="return-practice-list" style="grid-template-rows:repeat(${items.length},minmax(0,1fr))">${itemHtml}</div>`:'<div class="return-practice-empty">全問正解です。よくできました！</div>'}</section>`;
+  return `<section class="return-sheet return-practice-sheet" aria-label="${escapeHtml(person.name)}の個別練習課題"><header class="return-practice-head"><div><div class="return-practice-title">個別練習プリント${pageCount>1?` ${pageIndex+1}`:""}</div><div class="return-practice-meta">${escapeHtml(title)}　正答率が高い問題から復習します</div></div><div class="return-practice-name">${escapeHtml(classDisplayName(className))}<br>${String(person.no).padStart(2,"0")} ${escapeHtml(person.name)}</div></header>${items.length?`<div class="return-practice-list">${itemHtml}</div>`:'<div class="return-practice-empty">全問正解です。よくできました！</div>'}</section>`;
 }
 function returnPracticePagesHtml(session,className,person,options){
   const items=returnPracticeQuestions(session,className,person,options),chunks=[];
