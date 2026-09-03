@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="YUTORI">
-<title>YUTORI v0.3.30</title>
+<title>YUTORI v0.3.31</title>
 <link rel="icon" type="image/svg+xml" href="assets/yutori-symbol.svg">
 <link rel="apple-touch-icon" href="assets/yutori-192.png">
 <link rel="manifest" href="manifest.webmanifest">
@@ -3060,6 +3060,70 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
   .header-tool{width:34px;height:34px}
 }
 
+/* v0.3.31：採点タイル、結果出力ライブラリ、クラス色 */
+.grading-entry-grid{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+.entry-card,.resume-list,.resume-item,.resume-heading,.resume-missing-simple{min-width:0;max-width:100%}
+.resume-missing-simple{display:grid;grid-template-columns:max-content minmax(0,1fr);align-items:start}
+.resume-missing-names{min-width:0;overflow:visible;text-overflow:clip;white-space:normal;overflow-wrap:anywhere;word-break:break-word}
+.answer-card-head{align-items:start}
+.answer-card.pdf-answer>.answer-card-head .answer-person{
+  min-height:38px;
+  display:-webkit-box;
+  -webkit-box-orient:vertical;
+  -webkit-line-clamp:2;
+  overflow:hidden!important;
+  text-overflow:clip!important;
+  white-space:normal!important;
+  overflow-wrap:anywhere;
+  line-height:1.35!important;
+}
+
+.output-library-board{display:grid;grid-template-columns:minmax(280px,.8fr) minmax(0,1.5fr);gap:14px;min-height:0}
+.output-library-panel{min-width:0;display:flex;flex-direction:column;gap:10px;padding:14px;border:1px solid var(--line);border-radius:14px;background:#fff}
+.output-library-panel-head{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:38px}
+.output-library-panel-head h3{margin:0;color:var(--brown);font-size:15px}
+.output-library-sort{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:10px;font-weight:900;white-space:nowrap}
+.output-library-sort select{height:34px;min-width:154px;font-size:11px}
+.output-session-catalog{display:grid;gap:7px;align-content:start}
+.output-catalog-row{min-width:0;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:9px;align-items:center;padding:10px;border:1px solid var(--line);border-radius:11px;background:#FFFEFC}
+.output-catalog-copy{min-width:0;display:grid;gap:3px}
+.output-catalog-copy strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--brown);font-size:12px}
+.output-catalog-copy span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted);font-size:9px;font-weight:800}
+.output-catalog-actions{display:flex;align-items:center;gap:5px}
+.output-catalog-actions button{height:32px;min-height:32px;padding:5px 8px;font-size:9px}
+.output-catalog-actions .danger{background:#FFF2F1;color:#A34C43;border:1px solid #F0C9C5}
+.output-session-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;align-content:start}
+.output-session-card{height:226px;min-width:0;display:grid;grid-template-rows:42px 34px minmax(0,1fr) 36px;gap:8px;padding:15px}
+.output-session-card h3{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;line-height:1.35}
+.output-session-card p{min-height:34px;overflow:hidden}
+.output-session-meta{align-content:start;min-height:0;overflow:hidden}
+.output-session-actions{height:36px;display:grid;grid-template-columns:auto auto minmax(112px,1fr);gap:6px;align-items:stretch}
+.output-session-actions button{height:36px;min-height:36px;max-height:36px;padding:5px 8px;font-size:9px;white-space:nowrap}
+.output-session-actions .danger{background:#FFF2F1;color:#A34C43;border:1px solid #F0C9C5}
+.output-session-actions .primary{justify-self:stretch;min-width:0}
+.output-library-empty{min-height:150px;display:grid;place-items:center;padding:22px;border:1px dashed #DCCFC5;border-radius:12px;background:#FCFAF8;color:var(--muted);font-size:11px;text-align:center;line-height:1.7}
+
+.class-settings-card{position:relative;align-items:center;border-left:8px solid var(--class-color,#8ccbc2);padding-left:12px}
+.class-settings-school{margin-bottom:2px;overflow:hidden;color:var(--muted);font-size:11px;font-weight:700;text-overflow:ellipsis;white-space:nowrap}
+.class-settings-card h3{margin-bottom:2px}
+.class-settings-card p{white-space:nowrap}
+
+@media(max-width:980px){
+  .output-library-board{grid-template-columns:1fr}
+}
+@media(max-width:600px){
+  .grading-entry-grid{grid-template-columns:1fr}
+  .resume-missing-simple{grid-template-columns:1fr}
+  .output-library-panel-head{align-items:stretch;flex-direction:column}
+  .output-library-sort{justify-content:space-between}
+  .output-library-sort select{min-width:0;flex:1}
+  .output-session-list{grid-template-columns:1fr}
+  .output-session-actions{grid-template-columns:1fr 1fr}
+  .output-session-actions .primary{grid-column:1/-1}
+  .output-session-card{height:270px;grid-template-rows:42px 34px minmax(0,1fr) 78px}
+  .output-session-actions{height:78px;grid-template-rows:36px 36px}
+}
+
 @media print{
   html,body{
     background:#fff!important;
@@ -3122,10 +3186,10 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
 <body>
 <div class="app-shell">
 <header class="app-header no-print">
-  <div class="brand" aria-label="YUTORI v0.3.30">
+  <div class="brand" aria-label="YUTORI v0.3.31">
     <div class="brand-copy">
       <img class="brand-logo-image" src="assets/yutori-logo.svg" alt="YUTORI つくる・つける・つなげる">
-      <span class="brand-version">v0.3.30</span>
+      <span class="brand-version">v0.3.31</span>
     </div>
   </div>
   <nav aria-label="主要メニュー">
@@ -3641,7 +3705,7 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
         <h2 class="step-title">学年設定</h2>
         <p>担当学年など、学年別に整理するための名称を自由に登録できます。</p>
       </div>
-      <div class="settings-add-form"><input id="gradeSettingInput" placeholder="例：5年生、中学1年" maxlength="30" onkeydown="if(event.key==='Enter'){event.preventDefault();addGradeSetting()}"><button class="primary" type="button" onclick="addGradeSetting()">＋追加</button></div>
+      <div class="settings-add-form"><input id="gradeSettingInput" placeholder="例：5年、中学1年" maxlength="30" onkeydown="if(event.key==='Enter'){event.preventDefault();addGradeSetting()}"><button class="primary" type="button" onclick="addGradeSetting()">＋追加</button></div>
     </div>
     <div id="gradeSettingsList" class="settings-choice-list"></div>
   </div>
@@ -3731,9 +3795,25 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
         <p>採点済みのデータを選ぶと、答案と個別練習プリントのプレビューを開きます。</p>
       </div>
     </div>
-    <div class="start-library-section">
-      <div class="start-library-section-title"><h3>採点済みデータ</h3></div>
-      <div id="outputSessionCards" class="output-session-list"></div>
+    <div class="output-library-board">
+      <section class="output-library-panel" aria-labelledby="outputCatalogTitle">
+        <div class="output-library-panel-head">
+          <h3 id="outputCatalogTitle">採点済みデータの一覧</h3>
+          <label class="output-library-sort">並び順
+            <select id="outputSessionSort" onchange="renderOutputSessionCards()">
+              <option value="updated-desc">最終保存日時・新しい順</option>
+              <option value="updated-asc">最終保存日時・古い順</option>
+              <option value="grade">学年順</option>
+              <option value="class">クラス順</option>
+            </select>
+          </label>
+        </div>
+        <div id="outputSessionCatalog" class="output-session-catalog"></div>
+      </section>
+      <section class="output-library-panel" aria-labelledby="outputSelectedTitle">
+        <div class="output-library-panel-head"><h3 id="outputSelectedTitle">採点済みデータ</h3></div>
+        <div id="outputSessionCards" class="output-session-list"></div>
+      </section>
     </div>
   </div>
   <div id="outputCreatorView" class="return-output-shell" style="display:none">
@@ -4261,9 +4341,10 @@ function handleSidebarRailKey(event){
 }
 let paletteDragState=null;
 function paletteDragBounds(palette){
-  const main=document.querySelector(".workspace-main"),rect=main?.getBoundingClientRect();
+  const header=document.querySelector(".app-header"),headerRect=header?.getBoundingClientRect();
   const width=palette.offsetWidth||300,height=palette.offsetHeight||76;
-  return {minLeft:(rect?.left||0)+8,maxLeft:Math.max((rect?.left||0)+8,(rect?.right||window.innerWidth)-width-8),minTop:(rect?.top||0)+22,maxTop:Math.max((rect?.top||0)+22,(rect?.bottom||window.innerHeight)-height-8)};
+  const minTop=Math.max(8,Math.round(headerRect?.bottom||0)+8);
+  return {minLeft:8,maxLeft:Math.max(8,window.innerWidth-width-8),minTop,maxTop:Math.max(minTop,window.innerHeight-height-8)};
 }
 function placeDraggedPalette(palette,left,top,save=false){
   const bounds=paletteDragBounds(palette),x=Math.min(bounds.maxLeft,Math.max(bounds.minLeft,left)),y=Math.min(bounds.maxTop,Math.max(bounds.minTop,top));
@@ -4301,11 +4382,11 @@ function positionFloatingPalette(){
   const palette=document.querySelector("#mainGradeView .palette-fixed"),view=document.getElementById("mainGradeView"),main=document.querySelector(".workspace-main");
   if(!palette||!view||!main||getComputedStyle(view).display==="none")return;
   if(palette.dataset.dragged==="true"||localStorage.getItem(PALETTE_DRAG_KEY)){if(applySavedPaletteDrag())return}
-  const viewRect=view.getBoundingClientRect(),mainRect=main.getBoundingClientRect();
-  palette.style.setProperty("--floating-palette-top",`${Math.max(12,Math.round(viewRect.top+7))}px`);
-  palette.style.setProperty("--floating-palette-right",`${Math.max(12,Math.round(window.innerWidth-mainRect.right+17))}px`);
-  palette.style.setProperty("--floating-palette-left",`${Math.max(12,Math.round(mainRect.left+17))}px`);
-  palette.style.setProperty("--floating-palette-bottom",`${Math.max(12,Math.round(window.innerHeight-mainRect.bottom+17))}px`);
+  const headerRect=document.querySelector(".app-header")?.getBoundingClientRect();
+  palette.style.setProperty("--floating-palette-top",`${Math.max(12,Math.round(headerRect?.bottom||0)+12)}px`);
+  palette.style.setProperty("--floating-palette-right","12px");
+  palette.style.setProperty("--floating-palette-left","12px");
+  palette.style.setProperty("--floating-palette-bottom","12px");
 }
 window.addEventListener("resize",()=>requestAnimationFrame(positionFloatingPalette));
 function checked(name){return document.querySelector(`input[name="${name}"]:checked`).value}
@@ -5679,6 +5760,9 @@ function parseRosterText(raw){
     return {no:Number(String(parts[0]||"").trim()),name:String(parts[1]||"").trim()};
   }).filter(person=>Number.isFinite(person.no)&&person.no>0&&person.name).sort((a,b)=>a.no-b.no);
 }
+function yutoriClassColorValue(color){
+  return {grade3:"#8ccbc2",grade4:"#ffb463",grade5:"#8bb7e8",grade6:"#f48ba8",apple:"#A8D08D",purple:"#B59AD9",brown:"#9A8F86",gray:"#c8c3be"}[color]||"#8ccbc2";
+}
 function renderClassSettings(){
   const host=document.getElementById("classSettingsList");
   if(!host)return;
@@ -5692,9 +5776,8 @@ function renderClassSettings(){
     const profile=gradingState.classProfiles[className]||{};
     const studentCount=Number(profile.studentCount)||roster.length;
     const encoded=encodeURIComponent(className);
-    return `<article class="class-settings-card">
-      <div class="class-settings-mark">${escapeHtml(profile.grade?gradeLabel(profile.grade):className.slice(0,3))}</div>
-      <div class="class-settings-card-copy"><h3>${escapeHtml(classDisplayName(className))}</h3><p>${escapeHtml(profile.schoolName||"学校名未設定")}・人数 ${studentCount}名・名簿 ${roster.length}名</p></div>
+    return `<article class="class-settings-card" style="--class-color:${yutoriClassColorValue(profile.color)}">
+      <div class="class-settings-card-copy"><div class="class-settings-school">${escapeHtml(profile.schoolName||"学校名未設定")}</div><h3>${escapeHtml(classDisplayName(className))}</h3><p>人数 ${studentCount}名・名簿 ${roster.length}名</p></div>
       <button class="secondary class-settings-edit" type="button" onclick="openClassModal(decodeURIComponent('${encoded}'))">編集</button>
     </article>`;
   }).join("");
@@ -5705,6 +5788,7 @@ function openClassModal(className=""){
   const schoolInput=document.getElementById("classSchoolInput");
   const nameInput=document.getElementById("classNameInput");
   const gradeInput=document.getElementById("classGradeInput");
+  const colorInput=document.getElementById("classColorInput");
   const studentCountInput=document.getElementById("classStudentCountInput");
   const rosterInput=document.getElementById("classRosterInput");
   const isEditing=!!className;
@@ -5714,9 +5798,10 @@ function openClassModal(className=""){
   document.getElementById("deleteClassButton").style.display=isEditing?"inline-flex":"none";
   schoolInput.value=profile.schoolName||"";
   nameInput.value=className;
-  nameInput.readOnly=isEditing;
+  nameInput.readOnly=false;
   populateGradeControls(state.grade,profile.grade||"");
   gradeInput.value=profile.grade||"";
+  colorInput.value=profile.color||"grade3";
   rosterInput.value=isEditing?(gradingState.rosters[className]||[]).map(person=>`${person.no}\t${person.name}`).join("\n"):"";
   studentCountInput.value=String(Number(profile.studentCount)||(gradingState.rosters[className]||[]).length||0);
   updateClassRosterCount();
@@ -5762,20 +5847,74 @@ function deleteEditingClass(){
   refreshGradeUi();
   renderClassSettings();
 }
+function renameGradeRecordKeys(records,oldClassName,newClassName){
+  const source=records&&typeof records==="object"?records:{};
+  const renamed={};
+  const prefix=`${oldClassName}::`;
+  Object.entries(source).forEach(([recordKey,value])=>{renamed[recordKey.startsWith(prefix)?`${newClassName}::${recordKey.slice(prefix.length)}`:recordKey]=value});
+  return renamed;
+}
+function renameGradeHistoryKeys(history,oldClassName,newClassName){
+  const prefix=`${oldClassName}::`;
+  return (Array.isArray(history)?history:[]).map(action=>({...action,changes:(action.changes||[]).map(change=>({...change,key:String(change.key||"").startsWith(prefix)?`${newClassName}::${String(change.key).slice(prefix.length)}`:change.key}))}));
+}
+function renameClassInSession(session,oldClassName,newClassName){
+  const renamed={...session};
+  renamed.classes=[...new Set((session.classes||[]).map(value=>value===oldClassName?newClassName:value))];
+  renamed.answers={...(session.answers||{})};
+  if(Object.prototype.hasOwnProperty.call(renamed.answers,oldClassName)){
+    renamed.answers[newClassName]=renamed.answers[oldClassName];
+    delete renamed.answers[oldClassName];
+  }
+  renamed.grades=renameGradeRecordKeys(session.grades,oldClassName,newClassName);
+  renamed.gradeHistory=renameGradeHistoryKeys(session.gradeHistory,oldClassName,newClassName);
+  renamed.pdfPages=(session.pdfPages||[]).map(page=>page.assignmentClass===oldClassName?{...page,assignmentClass:newClassName}:page);
+  renamed.issues=(session.issues||[]).map(issue=>issue.className===oldClassName?{...issue,className:newClassName}:issue);
+  return renamed;
+}
+function migrateClassName(oldClassName,newClassName){
+  if(!oldClassName||oldClassName===newClassName)return;
+  gradingState.classes=[...new Set((gradingState.classes||[]).map(value=>value===oldClassName?newClassName:value))];
+  if(Object.prototype.hasOwnProperty.call(gradingState.answers,oldClassName)){
+    gradingState.answers[newClassName]=gradingState.answers[oldClassName];
+    delete gradingState.answers[oldClassName];
+  }
+  gradingState.grades=renameGradeRecordKeys(gradingState.grades,oldClassName,newClassName);
+  gradingState.gradeHistory=renameGradeHistoryKeys(gradingState.gradeHistory,oldClassName,newClassName);
+  gradingState.pdfPages=(gradingState.pdfPages||[]).map(page=>page.assignmentClass===oldClassName?{...page,assignmentClass:newClassName}:page);
+  gradingState.issues=(gradingState.issues||[]).map(issue=>issue.className===oldClassName?{...issue,className:newClassName}:issue);
+  if(gradingState.answerPreview?.className===oldClassName)gradingState.answerPreview.className=newClassName;
+  if(gradingState.resultsReturnState?.className===oldClassName)gradingState.resultsReturnState.className=newClassName;
+  let sessions=[];
+  try{sessions=JSON.parse(localStorage.getItem(sessionsKey())||"[]")}catch(error){sessions=[]}
+  localStorage.setItem(sessionsKey(),JSON.stringify(sessions.map(session=>renameClassInSession(session,oldClassName,newClassName))));
+  localStorage.setItem("yutori_grades_v021",JSON.stringify(gradingState.grades));
+}
 function saveClassFromModal(){
   const schoolName=document.getElementById("classSchoolInput").value.trim();
   const className=document.getElementById("classNameInput").value.trim();
   const grade=document.getElementById("classGradeInput").value;
+  const color=document.getElementById("classColorInput").value||"grade3";
   const studentCountValue=Math.max(0,Number(document.getElementById("classStudentCountInput").value)||0);
   if(!schoolName){alert("学校名を入力してください。");document.getElementById("classSchoolInput").focus();return}
   if(!className){alert("クラス名を入力してください。");document.getElementById("classNameInput").focus();return}
   if(!grade){alert("学年を選択してください。");document.getElementById("classGradeInput").focus();return}
-  if(!editingClassName&&Object.prototype.hasOwnProperty.call(gradingState.rosters,className)){
+  if(className!==editingClassName&&Object.prototype.hasOwnProperty.call(gradingState.rosters,className)){
     alert("同じ名前のクラスがすでに登録されています。");return;
+  }
+  const originalClassName=editingClassName;
+  if(originalClassName&&className!==originalClassName){
+    let sessions=[];
+    try{sessions=JSON.parse(localStorage.getItem(sessionsKey())||"[]")}catch(error){sessions=[]}
+    const usedCount=sessions.filter(session=>(session.classes||[]).includes(originalClassName)).length;
+    if(usedCount&&!confirm(`クラス名を「${originalClassName}」から「${className}」へ変更します。\nこのクラスを使用している採点データ ${usedCount}件も、新しいクラス名へ引き継ぎます。\n\n変更してよいですか？`))return;
+    migrateClassName(originalClassName,className);
+    delete gradingState.rosters[originalClassName];
+    delete gradingState.classProfiles[originalClassName];
   }
   const roster=parseRosterText(document.getElementById("classRosterInput").value);
   gradingState.rosters[className]=roster;
-  gradingState.classProfiles[className]={schoolName,className,grade,studentCount:studentCountValue||roster.length};
+  gradingState.classProfiles[className]={schoolName,className,grade,color,studentCount:studentCountValue||roster.length};
   saveRosters();
   saveClassProfiles();
   refreshGradeUi();
@@ -5932,6 +6071,8 @@ async function confirmDeleteSession(){
 
   closeDeleteSessionModal();
   renderResumeList();
+  outputLibraryState.selectedIds.delete(id);
+  renderOutputSessionCards();
 }
 
 async function deleteSessionAssetsFromIndexedDB(sessionId){
@@ -6289,29 +6430,59 @@ function exportResultsCsv(){
   link.href=url;link.download=`${gradingResultBaseName(session,className)}.csv`;document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
 
+const outputLibraryState={selectedIds:new Set()};
 const returnOutputState={session:null,className:"",selectedNos:new Set(),previewNo:null,previewPage:1,imageUrls:{},ownedUrls:[],loadToken:0};
 function returnOutputSessions(){
   try{return JSON.parse(localStorage.getItem(sessionsKey())||"[]")}catch(error){return[]}
 }
-function renderOutputSessionCards(){
-  const host=document.getElementById("outputSessionCards");if(!host)return;
-  const sessions=returnOutputSessions().filter(session=>Object.keys(session.grades||{}).length).sort((a,b)=>(Number(b.lastSavedAt)||0)-(Number(a.lastSavedAt)||0));
-  if(!sessions.length){host.innerHTML='<div class="saved-test-empty"><strong>採点済みデータはまだありません</strong>「採点」から答案を読み込み、採点を始めてください。</div>';return}
-  host.innerHTML=sessions.map(session=>{
-    const safeId=String(session.id||"").replace(/[^a-zA-Z0-9_-]/g,"");
-    const title=testTileTitle(session,"名称未設定");
-    const classes=(session.classes||[]).map(className=>classDisplayName(className)).join("・")||"クラス未設定";
-    const completed=completedQuestionCount(session),total=(session.questions||[]).length;
-    return `<article class="output-session-card"><h3>${escapeHtml(title)}</h3><p>${escapeHtml([gradeLabel(session.grade),session.subject,session.unit].filter(Boolean).join(" ／ "))}</p><div class="output-session-meta"><span>${escapeHtml(classes)}</span><span>採点済み ${completed}/${total}問</span><span>最終保存 ${escapeHtml(formatSavedAt(session.lastSavedAt))}</span></div><button class="primary" type="button" onclick="openReturnOutputSession('${safeId}')">返却資料を作る</button></article>`;
-  }).join("");
+function outputGradedSessions(){
+  return returnOutputSessions().filter(session=>session?.id&&Object.keys(session.grades||{}).length);
 }
+function outputSessionSortValue(session,mode){
+  if(mode==="grade")return gradeLabel(session.grade);
+  if(mode==="class")return (session.classes||[]).map(className=>classDisplayName(className)).join("・");
+  return Number(session.lastSavedAt)||0;
+}
+function sortedOutputSessions(sessions){
+  const mode=document.getElementById("outputSessionSort")?.value||"updated-desc";
+  const collator=new Intl.Collator("ja",{numeric:true,sensitivity:"base"});
+  return [...sessions].sort((a,b)=>{
+    if(mode==="updated-asc")return outputSessionSortValue(a,mode)-outputSessionSortValue(b,mode);
+    if(mode==="updated-desc")return outputSessionSortValue(b,mode)-outputSessionSortValue(a,mode);
+    return collator.compare(String(outputSessionSortValue(a,mode)),String(outputSessionSortValue(b,mode)))||(Number(b.lastSavedAt)||0)-(Number(a.lastSavedAt)||0);
+  });
+}
+function outputInlineValue(value){return encodeURIComponent(String(value||"")).replace(/'/g,"%27")}
+function outputSessionCard(session){
+  const encodedId=outputInlineValue(session.id),title=testTileTitle(session,"名称未設定"),encodedTitle=outputInlineValue(title);
+  const classes=(session.classes||[]).map(className=>classDisplayName(className)).join("・")||"クラス未設定";
+  const completed=completedQuestionCount(session),total=(session.questions||[]).length;
+  const detail=[gradeLabel(session.grade),session.subject,session.unit].filter(Boolean).join(" ／ ");
+  return `<article class="output-session-card"><h3>${escapeHtml(title)}</h3><p>${detail?escapeHtml(detail):"&nbsp;"}</p><div class="output-session-meta"><span>${escapeHtml(classes)}</span><span>採点済み ${completed}/${total}問</span><span>最終保存 ${escapeHtml(formatSavedAt(session.lastSavedAt))}</span></div><div class="output-session-actions"><button class="secondary" type="button" onclick="moveOutputSessionToList(decodeURIComponent('${encodedId}'))">一覧へ移動</button><button class="danger" type="button" onclick="openDeleteSessionModal(decodeURIComponent('${encodedId}'),decodeURIComponent('${encodedTitle}'))">削除</button><button class="primary" type="button" onclick="openReturnOutputSession(decodeURIComponent('${encodedId}'))">返却資料を作る</button></div></article>`;
+}
+function renderOutputSessionCards(){
+  const host=document.getElementById("outputSessionCards"),catalog=document.getElementById("outputSessionCatalog");if(!host||!catalog)return;
+  const sessions=outputGradedSessions(),validIds=new Set(sessions.map(session=>String(session.id)));
+  outputLibraryState.selectedIds=new Set([...outputLibraryState.selectedIds].filter(id=>validIds.has(id)));
+  const selected=sessions.filter(session=>outputLibraryState.selectedIds.has(String(session.id)));
+  const available=sortedOutputSessions(sessions.filter(session=>!outputLibraryState.selectedIds.has(String(session.id))));
+  catalog.innerHTML=available.length?available.map(session=>{
+    const encodedId=outputInlineValue(session.id),title=testTileTitle(session,"名称未設定"),encodedTitle=outputInlineValue(title);
+    const classes=(session.classes||[]).map(className=>classDisplayName(className)).join("・")||"クラス未設定";
+    const meta=[gradeLabel(session.grade),classes,`最終保存 ${formatSavedAt(session.lastSavedAt)}`].filter(Boolean).join(" ／ ");
+    return `<article class="output-catalog-row"><div class="output-catalog-copy"><strong title="${escapeHtml(title)}">${escapeHtml(title)}</strong><span title="${escapeHtml(meta)}">${escapeHtml(meta)}</span></div><div class="output-catalog-actions"><button class="secondary" type="button" onclick="selectOutputSession(decodeURIComponent('${encodedId}'))">選ぶ</button><button class="danger" type="button" onclick="openDeleteSessionModal(decodeURIComponent('${encodedId}'),decodeURIComponent('${encodedTitle}'))">削除</button></div></article>`;
+  }).join(""):'<div class="output-library-empty">一覧に表示する採点済みデータはありません。</div>';
+  host.innerHTML=selected.length?sortedOutputSessions(selected).map(outputSessionCard).join(""):'<div class="output-library-empty">選択されたデータはありません。<br>左の一覧から「選ぶ」を押してください。</div>';
+}
+function selectOutputSession(sessionId){outputLibraryState.selectedIds.add(String(sessionId));renderOutputSessionCards()}
+function moveOutputSessionToList(sessionId){outputLibraryState.selectedIds.delete(String(sessionId));renderOutputSessionCards()}
 function setOutputEntryMode(isEntry){
   document.getElementById("workspaceShell")?.classList.toggle("output-entry-mode",isEntry);
   document.querySelector(".app-sidebar")?.classList.toggle("output-entry-mode",isEntry);
 }
 function showOutputEntry(){
   const entry=document.getElementById("outputEntryView"),creator=document.getElementById("outputCreatorView");if(entry)entry.style.display="";if(creator)creator.style.display="none";setOutputEntryMode(true);
-  document.getElementById("workspaceTitle").textContent="採点済みデータから選ぶ";document.getElementById("workspaceHint").textContent="返却資料を作る採点データを選択してください";document.getElementById("sidebarTitle").textContent="結果出力";document.getElementById("sidebarSubtitle").textContent="採点済みデータを選択";document.getElementById("sidebarCurrentLabel").textContent="現在の画面：結果出力";document.getElementById("sidebarCurrentText").textContent="右側の採点済みタイルから、返却資料を作るデータを選択します。";
+  document.getElementById("workspaceTitle").textContent="採点済みデータから選ぶ";document.getElementById("workspaceHint").textContent="返却資料を作る採点データを選択してください";document.getElementById("sidebarTitle").textContent="結果出力";document.getElementById("sidebarSubtitle").textContent="採点済みデータを選択";document.getElementById("sidebarCurrentLabel").textContent="現在の画面：結果出力";document.getElementById("sidebarCurrentText").textContent="左側の一覧からデータを選ぶと、右側へ返却用のタイルが表示されます。";
   renderOutputSessionCards();
 }
 async function openReturnOutputSession(sessionId){
@@ -6348,7 +6519,7 @@ async function loadReturnOutputImages(session){
   return true;
 }
 async function prepareReturnOutput(preferredSessionId=""){
-  const sessions=returnOutputSessions();
+  const sessions=outputGradedSessions();
   const sessionSelect=document.getElementById("returnSessionSelect"),classSelect=document.getElementById("returnClassSelect");
   if(!sessions.length){
     returnOutputState.session=null;returnOutputState.className="";returnOutputState.selectedNos=new Set();
@@ -6659,6 +6830,18 @@ showScreen("testListScreen");
         </label>
         <label class="class-modal-field class-modal-row"><span>学年</span>
           <select id="classGradeInput"></select>
+        </label>
+        <label class="class-modal-field class-modal-row"><span>タイルの色</span>
+          <select id="classColorInput">
+            <option value="grade3">緑</option>
+            <option value="grade4">オレンジ</option>
+            <option value="grade5">青</option>
+            <option value="grade6">ピンク</option>
+            <option value="apple">アップルグリーン</option>
+            <option value="purple">パープル</option>
+            <option value="brown">ブラウン</option>
+            <option value="gray">グレー</option>
+          </select>
         </label>
         <label class="class-modal-field class-modal-row"><span>人数</span>
           <input id="classStudentCountInput" type="number" min="0" max="200" step="1" value="0">
