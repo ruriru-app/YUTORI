@@ -4,10 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <meta name="theme-color" content="#FCCC8E">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="YUTORI">
-<title>YUTORI v0.3.28</title>
+<title>YUTORI v0.3.29</title>
 <link rel="icon" type="image/svg+xml" href="assets/yutori-symbol.svg">
-<link rel="apple-touch-icon" href="assets/yutori-symbol.svg">
+<link rel="apple-touch-icon" href="assets/yutori-192.png">
 <link rel="manifest" href="manifest.webmanifest">
 <style>
 :root {
@@ -1683,6 +1685,28 @@ body{
 .brand-word .c1{color:#63C3B7}.brand-word .c2{color:#F0AFAE}.brand-word .c3{color:#E6B75F}
 .brand-word .c4{color:#8BC8BE}.brand-word .c5{color:#9CCB87}.brand-word .c6{color:#9EBBE2}
 .brand-version{flex:0 0 auto;margin:0 0 3px;color:#8A7D76;font-size:11px;font-weight:800;letter-spacing:0}
+.app-update-button{
+  flex:0 0 auto;
+  min-width:66px;
+  height:38px;
+  padding:0 10px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:5px;
+  border:1px solid #E8DED7;
+  border-radius:12px;
+  background:#FFF8F1;
+  color:#8A6749;
+  box-shadow:0 2px 7px rgba(122,110,101,.07);
+  font-size:12px;
+  font-weight:900;
+  white-space:nowrap;
+}
+.app-update-button:hover{background:#FFF1E4;transform:translateY(-1px)}
+.app-update-button:disabled{cursor:wait;opacity:.7;transform:none}
+.app-update-button.update-ready{border-color:#E9B86C;background:#FFF0D4;color:#7B5525}
+.update-icon{font-size:18px;line-height:1}
 
 .app-header nav{
   justify-self:center;
@@ -2998,6 +3022,8 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
   .app-header{grid-template-columns:minmax(220px,1fr) auto auto}
   .brand-logo-image{width:clamp(180px,21vw,225px)}
   .brand-version{display:none}
+  .app-update-button{min-width:38px;width:38px;padding:0}
+  .app-update-button #appUpdateLabel{display:none}
   .brand-word{font-size:27px}
   .brand-kicker{display:none}
   .app-header nav button{padding:8px 10px;font-size:13px}
@@ -3054,6 +3080,8 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
 @media(max-width:420px){
   .app-header{padding:6px}
   .brand-logo-image{width:145px}
+  .brand{gap:6px}
+  .app-update-button{width:34px;min-width:34px;height:34px}
   .header-tools{gap:5px}
   .header-tool{width:34px;height:34px}
 }
@@ -3120,10 +3148,13 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
 <body>
 <div class="app-shell">
 <header class="app-header no-print">
-  <div class="brand" aria-label="YUTORI v0.3.28">
+  <div class="brand" aria-label="YUTORI v0.3.29">
+    <button id="appUpdateButton" class="app-update-button" type="button" onclick="requestAppUpdate()" aria-label="YUTORIを最新版へ更新" title="最新版を確認して更新">
+      <span class="update-icon" aria-hidden="true">↻</span><span id="appUpdateLabel">更新</span>
+    </button>
     <div class="brand-copy">
       <img class="brand-logo-image" src="assets/yutori-logo.svg" alt="YUTORI つくる・つける・つなげる">
-      <span class="brand-version">v0.3.28</span>
+      <span class="brand-version">v0.3.29</span>
     </div>
   </div>
   <nav aria-label="主要メニュー">
@@ -4912,54 +4943,172 @@ pdfInput.addEventListener("change",e=>{
   const processButton=document.getElementById("processPdfButton");if(processButton)processButton.textContent="PDFを読み込む";
   document.getElementById("openReviewButton")?.classList.remove("show");
 });
-function bubbleDarkness(context,width,height,xRatio,yRatio){
-  const radius=Math.max(4,Math.round(width*.0044));
-  const centerX=Math.round(width*xRatio),centerY=Math.round(height*yRatio);
-  const data=context.getImageData(centerX-radius,centerY-radius,radius*2+1,radius*2+1).data;
-  let total=0,count=0;
-  for(let y=-radius;y<=radius;y++){
-    for(let x=-radius;x<=radius;x++){
-      if(x*x+y*y>radius*radius)continue;
-      const index=((y+radius)*(radius*2+1)+(x+radius))*4;
-      const luminance=.2126*data[index]+.7152*data[index+1]+.0722*data[index+2];
-      total+=(255-luminance)/255;
-      count++;
-    }
-  }
-  return count?total/count:0;
+const ATTENDANCE_MARK_TEMPLATE={
+  width:4000,
+  height:371,
+  outer:{left:5.53962,top:5.5449,right:3994.18,bottom:365.281},
+  oval:{width:74.15,height:111.526},
+  group:[
+    {value:1,x:182.742,y:96.489},{value:2,x:277.562,y:96.489},
+    {value:3,x:371.539,y:96.489},{value:4,x:467.004,y:96.489},
+    {value:5,x:182.742,y:274.511},{value:6,x:278.245,y:274.511},
+    {value:7,x:371.525,y:274.511},{value:8,x:468.844,y:274.511}
+  ],
+  tens:[
+    {value:0,x:817,y:99.361},{value:1,x:911.769,y:99.361},
+    {value:2,x:1006.591,y:99.361},{value:3,x:1100.565,y:99.361},
+    {value:4,x:1196.03,y:99.361}
+  ],
+  ones:[
+    {value:0,x:817,y:271.639},{value:1,x:911.769,y:271.639},
+    {value:2,x:1006.591,y:271.639},{value:3,x:1100.565,y:271.639},
+    {value:4,x:1196.03,y:271.639},{value:5,x:1292.1,y:270.884},
+    {value:6,x:1387.605,y:270.884},{value:7,x:1480.885,y:270.884},
+    {value:8,x:1578.205,y:270.884},{value:9,x:1673.795,y:270.84}
+  ]
+};
+const MARK_MIN_COVERAGE=.68;
+const MARK_MIN_MARGIN=.12;
+const MARK_MIN_MEDIAN_DARKNESS=65;
+function markLuminance(data,index){return data[index]*.299+data[index+1]*.587+data[index+2]*.114}
+function clusterMarkIndexes(indexes){
+  const clusters=[];
+  indexes.forEach(value=>{
+    const last=clusters[clusters.length-1];
+    if(!last||value>last[last.length-1]+1)clusters.push([value]);
+    else last.push(value);
+  });
+  return clusters;
 }
-function classifyBubbleScores(scores){
-  const ranked=scores.map((score,value)=>({score,value})).sort((a,b)=>b.score-a.score);
-  const top=ranked[0]||{score:0,value:null},second=ranked[1]||{score:0,value:null};
-  if(top.score<.59)return {status:"blank",value:null,confidence:top.score};
-  if(second.score>=.58&&top.score-second.score<.06)return {status:"multiple",value:null,confidence:top.score-second.score};
-  return {status:"marked",value:top.value,confidence:top.score-second.score};
+function findMarkHeaderBounds(imageData){
+  const {data,width,height}=imageData;
+  const searchEnd=Math.min(height-1,Math.round(height*.12));
+  const rowCounts=new Uint32Array(searchEnd+1);
+  for(let y=0;y<=searchEnd;y++){
+    let count=0,offset=y*width*4;
+    for(let x=0;x<width;x++,offset+=4)if(markLuminance(data,offset)<100)count++;
+    rowCounts[y]=count;
+  }
+  const rowCandidates=[],rowThreshold=width*.28;
+  for(let y=0;y<=searchEnd;y++)if(rowCounts[y]>=rowThreshold)rowCandidates.push(y);
+  const rowClusters=clusterMarkIndexes(rowCandidates).map(values=>{
+    let peak=values[0];
+    values.forEach(y=>{if(rowCounts[y]>rowCounts[peak])peak=y});
+    return{center:peak,peak:rowCounts[peak]};
+  });
+  let rowPair=null,rowPairScore=-1;
+  for(let a=0;a<rowClusters.length;a++)for(let b=a+1;b<rowClusters.length;b++){
+    const distance=rowClusters[b].center-rowClusters[a].center;
+    if(distance<height*.03||distance>height*.06)continue;
+    const score=rowClusters[a].peak+rowClusters[b].peak;
+    if(score>rowPairScore){rowPairScore=score;rowPair=[rowClusters[a],rowClusters[b]]}
+  }
+  if(!rowPair)throw new Error("記名欄の上下罫線を検出できませんでした");
+  const yTop=rowPair[0].center,yBottom=rowPair[1].center,span=yBottom-yTop;
+  const colCounts=new Uint16Array(width);
+  for(let x=0;x<width;x++){
+    let count=0;
+    for(let y=yTop;y<=yBottom;y++)if(markLuminance(data,(y*width+x)*4)<100)count++;
+    colCounts[x]=count;
+  }
+  const colCandidates=[];
+  for(let x=0;x<width;x++)if(colCounts[x]>=span*.55)colCandidates.push(x);
+  const colClusters=clusterMarkIndexes(colCandidates).map(values=>{
+    let peak=values[0];
+    values.forEach(x=>{if(colCounts[x]>colCounts[peak])peak=x});
+    return peak;
+  });
+  if(colClusters.length<2)throw new Error("記名欄の左右罫線を検出できませんでした");
+  const xLeft=colClusters[0],xRight=colClusters[colClusters.length-1];
+  const scale=(yBottom-yTop)/(ATTENDANCE_MARK_TEMPLATE.outer.bottom-ATTENDANCE_MARK_TEMPLATE.outer.top);
+  const originX=xLeft-scale*ATTENDANCE_MARK_TEMPLATE.outer.left;
+  const originY=yTop-scale*ATTENDANCE_MARK_TEMPLATE.outer.top;
+  const measuredUnits=(xRight-xLeft)/scale;
+  if(scale<=0||measuredUnits<3500||measuredUnits>4200)throw new Error("記名欄の大きさが想定範囲外です");
+  const layout=Math.abs(measuredUnits-3988.64)<Math.abs(measuredUnits-3678.17)?"wide":"legacy";
+  return{xLeft,xRight,yTop,yBottom,scale,originX,originY,layout,measuredUnits};
+}
+function estimateMarkHeaderBackground(imageData,bounds){
+  const {data,width}=imageData,values=[];
+  for(let y=bounds.yTop;y<=bounds.yBottom;y+=4){
+    for(let x=bounds.xLeft;x<=bounds.xRight;x+=4)values.push(markLuminance(data,(y*width+x)*4));
+  }
+  values.sort((a,b)=>a-b);
+  return values[Math.floor(values.length*.9)]||255;
+}
+function scoreAttendanceBubble(imageData,bounds,point,background){
+  const {data,width,height}=imageData;
+  const cx=bounds.originX+bounds.scale*point.x,cy=bounds.originY+bounds.scale*point.y;
+  const rx=Math.max(2,bounds.scale*ATTENDANCE_MARK_TEMPLATE.oval.width*.31);
+  const ry=Math.max(3,bounds.scale*ATTENDANCE_MARK_TEMPLATE.oval.height*.31);
+  const left=Math.max(0,Math.floor(cx-rx)),right=Math.min(width-1,Math.ceil(cx+rx));
+  const top=Math.max(0,Math.floor(cy-ry)),bottom=Math.min(height-1,Math.ceil(cy+ry));
+  const values=[];
+  const cutoff=Math.max(180,Math.min(235,background-20));
+  let covered=0,total=0;
+  for(let y=top;y<=bottom;y++)for(let x=left;x<=right;x++){
+    if(((x-cx)/rx)**2+((y-cy)/ry)**2>1)continue;
+    const value=markLuminance(data,(y*width+x)*4);
+    values.push(value);total++;
+    if(value<cutoff)covered++;
+  }
+  values.sort((a,b)=>a-b);
+  const median=values[Math.floor(values.length/2)]??background;
+  return{value:point.value,coverage:total?covered/total:0,medianDarkness:background-median};
+}
+function classifyAttendanceMark(imageData,bounds,points,background){
+  const scores=points.map(point=>scoreAttendanceBubble(imageData,bounds,point,background)).sort((a,b)=>b.coverage-a.coverage);
+  const top=scores[0],second=scores[1],margin=top.coverage-second.coverage;
+  const strong=scores.filter(score=>score.coverage>=MARK_MIN_COVERAGE);
+  let reason="clear";
+  if(top.coverage<MARK_MIN_COVERAGE||top.medianDarkness<MARK_MIN_MEDIAN_DARKNESS)reason="blank";
+  else if(strong.length>1)reason="double";
+  else if(margin<MARK_MIN_MARGIN)reason="close";
+  return{confident:reason==="clear",reason,value:top.value,coverage:top.coverage,margin,medianDarkness:top.medianDarkness};
+}
+function attendanceMarkIssue(part,result){
+  const label={group:"組",tens:"十の位",ones:"一の位"}[part];
+  if(result.reason==="double")return`${label}が二重マークです`;
+  if(result.reason==="close")return`${label}の判定差が小さいです`;
+  return part==="group"?"組を特定できません":`${label}が未記入です`;
 }
 function readAttendanceMarks(canvas,context){
-  const groupScores=Array.from({length:8},(_,index)=>{
-    const col=index%4,row=Math.floor(index/4);
-    return bubbleDarkness(context,canvas.width,canvas.height,.0775+col*.016,.052+row*.02);
-  });
-  const tensScores=Array.from({length:5},(_,value)=>bubbleDarkness(context,canvas.width,canvas.height,.18+value*.016,.052));
-  const onesScores=Array.from({length:10},(_,value)=>bubbleDarkness(context,canvas.width,canvas.height,.18+value*.016,.072));
-  const group=classifyBubbleScores(groupScores),tens=classifyBubbleScores(tensScores),ones=classifyBubbleScores(onesScores);
-  let detectedAttendanceNo=null;
-  const markProblems=[];
-  if(tens.status==="multiple")markProblems.push("十の位が二重マークです");
-  if(ones.status==="blank")markProblems.push("一の位が未記入です");
-  else if(ones.status==="multiple")markProblems.push("一の位が二重マークです");
-  if(!markProblems.length){
-    detectedAttendanceNo=(tens.status==="marked"?tens.value:0)*10+ones.value;
-    if(detectedAttendanceNo<1)markProblems.push("出席番号0は使用できません");
+  try{
+    const imageData=context.getImageData(0,0,canvas.width,canvas.height);
+    const bounds=findMarkHeaderBounds(imageData);
+    const background=estimateMarkHeaderBackground(imageData,bounds);
+    const group=classifyAttendanceMark(imageData,bounds,ATTENDANCE_MARK_TEMPLATE.group,background);
+    const tens=classifyAttendanceMark(imageData,bounds,ATTENDANCE_MARK_TEMPLATE.tens,background);
+    const ones=classifyAttendanceMark(imageData,bounds,ATTENDANCE_MARK_TEMPLATE.ones,background);
+    const tensBlank=tens.reason==="blank"&&ones.confident&&ones.value>=1&&ones.value<=9;
+    const numberProblems=[];
+    if(!tens.confident&&!tensBlank)numberProblems.push(attendanceMarkIssue("tens",tens));
+    if(!ones.confident)numberProblems.push(attendanceMarkIssue("ones",ones));
+    let detectedAttendanceNo=null;
+    if(!numberProblems.length){
+      detectedAttendanceNo=(tensBlank?0:tens.value)*10+ones.value;
+      if(detectedAttendanceNo<1){numberProblems.push("出席番号0は使用できません");detectedAttendanceNo=null}
+    }
+    const markProblems=[];
+    if(!group.confident)markProblems.push(attendanceMarkIssue("group",group));
+    markProblems.push(...numberProblems);
+    return{
+      detectedGroup:group.confident?group.value:null,
+      detectedAttendanceNo,
+      markStatus:markProblems.length?"review":"recognized",
+      markIssue:markProblems.join("・"),
+      markConfidence:Number(Math.min(group.confident?group.margin:0,tensBlank?1:tens.confident?tens.margin:0,ones.confident?ones.margin:0).toFixed(3)),
+      markLayout:bounds.layout,
+      markMetrics:{
+        group:{value:group.value,coverage:Number(group.coverage.toFixed(3)),margin:Number(group.margin.toFixed(3))},
+        tens:{value:tens.value,coverage:Number(tens.coverage.toFixed(3)),margin:Number(tens.margin.toFixed(3)),blank:tensBlank},
+        ones:{value:ones.value,coverage:Number(ones.coverage.toFixed(3)),margin:Number(ones.margin.toFixed(3))}
+      }
+    };
+  }catch(error){
+    console.warn("記名欄の読み取りに失敗しました",error);
+    return{detectedGroup:null,detectedAttendanceNo:null,markStatus:"review",markIssue:error?.message||"記名欄を検出できませんでした",markConfidence:0,markLayout:"unknown"};
   }
-  const markIssue=markProblems.join("・");
-  return {
-    detectedGroup:group.status==="marked"?group.value+1:null,
-    detectedAttendanceNo:markIssue?null:detectedAttendanceNo,
-    markStatus:markIssue?"review":"recognized",
-    markIssue,
-    markConfidence:Number(Math.min(group.confidence||1,tens.status==="blank"?1:tens.confidence||0,ones.confidence||0).toFixed(3))
-  };
 }
 async function renderPdfFile(file,fileIndex,sessionId,options={}){
   const pdfjs=await loadPdfJs();
@@ -5075,7 +5224,9 @@ function pdfPageRecognition(page){
     "class-unmatched":"組を特定できません",
     "group-mismatch":"組マークが対象クラスと不一致"
   }[page.assignmentStatus]||"";
-  return {text:`自動認識：${page.detectedAttendanceNo}番${group}${status?`（${status}）`:""}`,warning:Boolean(status)};
+  const markWarning=page.markStatus==="review"?page.markIssue||"マークを確認してください":"";
+  const warnings=[status,markWarning].filter(Boolean).filter((value,index,array)=>array.indexOf(value)===index);
+  return {text:`自動認識：${page.detectedAttendanceNo}番${group}${warnings.length?`（${warnings.join("・")}）`:""}`,warning:Boolean(warnings.length)};
 }
 
 async function processPdf(){
@@ -6467,6 +6618,86 @@ function returnToGradingFromResults(){
   mainGradeView.style.display="";
   prepareGradingView();
 }
+
+const APP_VERSION="0.3.29";
+let pwaRegistration=null;
+let pwaReloading=false;
+function setUpdateButtonState(mode,label){
+  const button=document.getElementById("appUpdateButton"),text=document.getElementById("appUpdateLabel");
+  if(!button||!text)return;
+  button.classList.toggle("update-ready",mode==="ready");
+  button.disabled=mode==="checking"||mode==="applying";
+  text.textContent=label;
+  button.title=mode==="ready"?"新しいバージョンを反映":"最新版を確認して更新";
+}
+function observeServiceWorker(registration){
+  pwaRegistration=registration;
+  if(registration.waiting&&navigator.serviceWorker.controller)setUpdateButtonState("ready","更新あり");
+  registration.addEventListener("updatefound",()=>{
+    const worker=registration.installing;
+    if(!worker)return;
+    worker.addEventListener("statechange",()=>{
+      if(worker.state==="installed"&&navigator.serviceWorker.controller)setUpdateButtonState("ready","更新あり");
+    });
+  });
+}
+async function registerYutoriServiceWorker(){
+  if(!("serviceWorker" in navigator)||location.protocol==="file:")return;
+  try{observeServiceWorker(await navigator.serviceWorker.register("./sw.js"))}
+  catch(error){console.warn("PWA更新機能を開始できませんでした",error)}
+}
+function waitForWaitingWorker(registration){
+  if(registration.waiting)return Promise.resolve(registration.waiting);
+  const worker=registration.installing;
+  if(!worker)return Promise.resolve(null);
+  return new Promise(resolve=>{
+    let settled=false;
+    const finish=value=>{
+      if(settled)return;
+      settled=true;
+      clearTimeout(timer);
+      worker.removeEventListener("statechange",onStateChange);
+      resolve(value);
+    };
+    const onStateChange=()=>{
+      if(worker.state==="installed")finish(registration.waiting||worker);
+      else if(worker.state==="redundant")finish(null);
+    };
+    const timer=setTimeout(()=>finish(registration.waiting),15000);
+    onStateChange();
+  });
+}
+async function requestAppUpdate(){
+  if(!("serviceWorker" in navigator)||location.protocol==="file:"){
+    location.reload();
+    return;
+  }
+  setUpdateButtonState("checking","確認中…");
+  try{
+    const registration=pwaRegistration||await navigator.serviceWorker.getRegistration("./")||await navigator.serviceWorker.register("./sw.js");
+    observeServiceWorker(registration);
+    await registration.update();
+    const waitingWorker=await waitForWaitingWorker(registration);
+    if(waitingWorker){
+      setUpdateButtonState("applying","反映中…");
+      waitingWorker.postMessage({type:"SKIP_WAITING"});
+      return;
+    }
+    setUpdateButtonState("idle","最新版");
+    setTimeout(()=>setUpdateButtonState("idle","更新"),1600);
+  }catch(error){
+    console.error("更新確認に失敗しました",error);
+    setUpdateButtonState("idle","再試行");
+  }
+}
+if("serviceWorker" in navigator){
+  navigator.serviceWorker.addEventListener("controllerchange",()=>{
+    if(pwaReloading)return;
+    pwaReloading=true;
+    location.reload();
+  });
+}
+window.addEventListener("load",registerYutoriServiceWorker);
 
 configureEditorWorkspace();
 ensureRosters();
