@@ -1,4 +1,4 @@
-const CACHE_NAME="yutori-v0.3.31";
+const CACHE_NAME="yutori-v0.3.32";
 const APP_SHELL=[
   "./",
   "./index.html",
