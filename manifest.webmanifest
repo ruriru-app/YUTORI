@@ -4,7 +4,7 @@
   "description": "テスト作成・採点支援アプリ",
   "start_url": "./",
   "scope": "./",
-  "display": "standalone",
+  "display": "minimal-ui",
   "background_color": "#F7FAF8",
   "theme_color": "#FCCC8E",
   "icons": [

@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="YUTORI">
-<title>YUTORI v0.3.29</title>
+<title>YUTORI v0.3.30</title>
 <link rel="icon" type="image/svg+xml" href="assets/yutori-symbol.svg">
 <link rel="apple-touch-icon" href="assets/yutori-192.png">
 <link rel="manifest" href="manifest.webmanifest">
@@ -1685,28 +1685,6 @@ body{
 .brand-word .c1{color:#63C3B7}.brand-word .c2{color:#F0AFAE}.brand-word .c3{color:#E6B75F}
 .brand-word .c4{color:#8BC8BE}.brand-word .c5{color:#9CCB87}.brand-word .c6{color:#9EBBE2}
 .brand-version{flex:0 0 auto;margin:0 0 3px;color:#8A7D76;font-size:11px;font-weight:800;letter-spacing:0}
-.app-update-button{
-  flex:0 0 auto;
-  min-width:66px;
-  height:38px;
-  padding:0 10px;
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  gap:5px;
-  border:1px solid #E8DED7;
-  border-radius:12px;
-  background:#FFF8F1;
-  color:#8A6749;
-  box-shadow:0 2px 7px rgba(122,110,101,.07);
-  font-size:12px;
-  font-weight:900;
-  white-space:nowrap;
-}
-.app-update-button:hover{background:#FFF1E4;transform:translateY(-1px)}
-.app-update-button:disabled{cursor:wait;opacity:.7;transform:none}
-.app-update-button.update-ready{border-color:#E9B86C;background:#FFF0D4;color:#7B5525}
-.update-icon{font-size:18px;line-height:1}
 
 .app-header nav{
   justify-self:center;
@@ -3022,8 +3000,6 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
   .app-header{grid-template-columns:minmax(220px,1fr) auto auto}
   .brand-logo-image{width:clamp(180px,21vw,225px)}
   .brand-version{display:none}
-  .app-update-button{min-width:38px;width:38px;padding:0}
-  .app-update-button #appUpdateLabel{display:none}
   .brand-word{font-size:27px}
   .brand-kicker{display:none}
   .app-header nav button{padding:8px 10px;font-size:13px}
@@ -3080,8 +3056,6 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
 @media(max-width:420px){
   .app-header{padding:6px}
   .brand-logo-image{width:145px}
-  .brand{gap:6px}
-  .app-update-button{width:34px;min-width:34px;height:34px}
   .header-tools{gap:5px}
   .header-tool{width:34px;height:34px}
 }
@@ -3148,13 +3122,10 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
 <body>
 <div class="app-shell">
 <header class="app-header no-print">
-  <div class="brand" aria-label="YUTORI v0.3.29">
-    <button id="appUpdateButton" class="app-update-button" type="button" onclick="requestAppUpdate()" aria-label="YUTORIを最新版へ更新" title="最新版を確認して更新">
-      <span class="update-icon" aria-hidden="true">↻</span><span id="appUpdateLabel">更新</span>
-    </button>
+  <div class="brand" aria-label="YUTORI v0.3.30">
     <div class="brand-copy">
       <img class="brand-logo-image" src="assets/yutori-logo.svg" alt="YUTORI つくる・つける・つなげる">
-      <span class="brand-version">v0.3.29</span>
+      <span class="brand-version">v0.3.30</span>
     </div>
   </div>
   <nav aria-label="主要メニュー">
@@ -6619,83 +6590,10 @@ function returnToGradingFromResults(){
   prepareGradingView();
 }
 
-const APP_VERSION="0.3.29";
-let pwaRegistration=null;
-let pwaReloading=false;
-function setUpdateButtonState(mode,label){
-  const button=document.getElementById("appUpdateButton"),text=document.getElementById("appUpdateLabel");
-  if(!button||!text)return;
-  button.classList.toggle("update-ready",mode==="ready");
-  button.disabled=mode==="checking"||mode==="applying";
-  text.textContent=label;
-  button.title=mode==="ready"?"新しいバージョンを反映":"最新版を確認して更新";
-}
-function observeServiceWorker(registration){
-  pwaRegistration=registration;
-  if(registration.waiting&&navigator.serviceWorker.controller)setUpdateButtonState("ready","更新あり");
-  registration.addEventListener("updatefound",()=>{
-    const worker=registration.installing;
-    if(!worker)return;
-    worker.addEventListener("statechange",()=>{
-      if(worker.state==="installed"&&navigator.serviceWorker.controller)setUpdateButtonState("ready","更新あり");
-    });
-  });
-}
 async function registerYutoriServiceWorker(){
   if(!("serviceWorker" in navigator)||location.protocol==="file:")return;
-  try{observeServiceWorker(await navigator.serviceWorker.register("./sw.js"))}
+  try{await navigator.serviceWorker.register("./sw.js")}
   catch(error){console.warn("PWA更新機能を開始できませんでした",error)}
-}
-function waitForWaitingWorker(registration){
-  if(registration.waiting)return Promise.resolve(registration.waiting);
-  const worker=registration.installing;
-  if(!worker)return Promise.resolve(null);
-  return new Promise(resolve=>{
-    let settled=false;
-    const finish=value=>{
-      if(settled)return;
-      settled=true;
-      clearTimeout(timer);
-      worker.removeEventListener("statechange",onStateChange);
-      resolve(value);
-    };
-    const onStateChange=()=>{
-      if(worker.state==="installed")finish(registration.waiting||worker);
-      else if(worker.state==="redundant")finish(null);
-    };
-    const timer=setTimeout(()=>finish(registration.waiting),15000);
-    onStateChange();
-  });
-}
-async function requestAppUpdate(){
-  if(!("serviceWorker" in navigator)||location.protocol==="file:"){
-    location.reload();
-    return;
-  }
-  setUpdateButtonState("checking","確認中…");
-  try{
-    const registration=pwaRegistration||await navigator.serviceWorker.getRegistration("./")||await navigator.serviceWorker.register("./sw.js");
-    observeServiceWorker(registration);
-    await registration.update();
-    const waitingWorker=await waitForWaitingWorker(registration);
-    if(waitingWorker){
-      setUpdateButtonState("applying","反映中…");
-      waitingWorker.postMessage({type:"SKIP_WAITING"});
-      return;
-    }
-    setUpdateButtonState("idle","最新版");
-    setTimeout(()=>setUpdateButtonState("idle","更新"),1600);
-  }catch(error){
-    console.error("更新確認に失敗しました",error);
-    setUpdateButtonState("idle","再試行");
-  }
-}
-if("serviceWorker" in navigator){
-  navigator.serviceWorker.addEventListener("controllerchange",()=>{
-    if(pwaReloading)return;
-    pwaReloading=true;
-    location.reload();
-  });
 }
 window.addEventListener("load",registerYutoriServiceWorker);
 
