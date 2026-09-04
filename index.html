@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="YUTORI">
-<title>YUTORI v0.3.32</title>
+<title>YUTORI v0.3.33</title>
 <link rel="icon" type="image/svg+xml" href="assets/yutori-symbol.svg">
 <link rel="apple-touch-icon" href="assets/yutori-192.png">
 <link rel="manifest" href="manifest.webmanifest">
@@ -180,34 +180,20 @@ input,select{height:36px;padding:0 10px}
 .answer-guide.none{border:0;background:none}
 .answer-guide.fourline{
   position:relative;
-  background:
-    repeating-linear-gradient(
-      to right,
-      #777 0,
-      #777 0.7mm,
-      transparent 0.7mm,
-      transparent 1.4mm
-    ) top 1% left / 100% 0.25pt no-repeat,
-    repeating-linear-gradient(
-      to right,
-      #777 0,
-      #777 0.7mm,
-      transparent 0.7mm,
-      transparent 1.4mm
-    ) top 24% left / 100% 0.25pt no-repeat,
-    linear-gradient(
-      to right,
-      #555,
-      #555
-    ) top 75% left / 100% 0.5pt no-repeat,
-    repeating-linear-gradient(
-      to right,
-      #777 0,
-      #777 0.7mm,
-      transparent 0.7mm,
-      transparent 1.4mm
-    ) top 98% left / 100% 0.25pt no-repeat;
+  background:none;
 }
+.answer-guide.fourline i{
+  position:absolute;
+  left:0;
+  right:0;
+  display:block;
+  height:0;
+  border-top:.25mm dashed #555;
+}
+.answer-guide.fourline i:nth-child(1){top:3%}
+.answer-guide.fourline i:nth-child(2){top:25%}
+.answer-guide.fourline i:nth-child(3){top:75%;border-top:.3mm solid #333}
+.answer-guide.fourline i:nth-child(4){top:97%}
 .paper-warning{position:absolute;left:10mm;right:10mm;bottom:4mm;color:var(--danger);font-size:9pt;font-weight:900;text-align:center}
 .placeholder{background:#fff;border:1px solid var(--line);border-radius:18px;padding:40px;text-align:center;color:var(--muted)}
 
@@ -3187,10 +3173,10 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
 <body>
 <div class="app-shell">
 <header class="app-header no-print">
-  <div class="brand" aria-label="YUTORI v0.3.32">
+  <div class="brand" aria-label="YUTORI v0.3.33">
     <div class="brand-copy">
       <img class="brand-logo-image" src="assets/yutori-logo.svg" alt="YUTORI つくる・つける・つなげる">
-      <span class="brand-version">v0.3.32</span>
+      <span class="brand-version">v0.3.33</span>
     </div>
   </div>
   <nav aria-label="主要メニュー">
@@ -4645,7 +4631,7 @@ function renderPaper(){
         <div class="problem-no">${String(i+1).padStart(2,"0")}</div>
         <div class="problem-text">${escapeHtml(q)||"&nbsp;"}</div>
       </div>
-      <div class="answer-guide ${state.answerLine}"></div>
+      <div class="answer-guide ${state.answerLine}"><i aria-hidden="true"></i><i aria-hidden="true"></i><i aria-hidden="true"></i><i aria-hidden="true"></i></div>
     </div>`;
   }).join("");
   const warning=state.questions.length>cap?`<div class="paper-warning">※ ${state.questions.length-cap}問が用紙内に収まりません。</div>`:"";
