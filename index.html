@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="YUTORI">
-<title>YUTORI v0.3.34</title>
+<title>YUTORI v0.3.35</title>
 <link rel="icon" type="image/svg+xml" href="assets/yutori-symbol.svg">
 <link rel="apple-touch-icon" href="assets/yutori-192.png">
 <link rel="manifest" href="manifest.webmanifest">
@@ -67,6 +67,9 @@ input,select{height:36px;padding:0 10px}
 .compact label{display:flex;align-items:center;gap:5px;color:var(--text);white-space:nowrap}
 .compact select{min-width:70px}
 .compact input[type=radio]{width:auto;height:auto;margin:0}
+.compact .fourline-height-control{margin-left:12px}
+.compact .fourline-height-control select{min-width:218px}
+.fourline-height-control.disabled{opacity:.48}
 .group{font-weight:900;color:var(--brown)}
 .capacity{font-size:13px;color:var(--muted);font-weight:400;margin-top:5px}
 .capacity.inline{margin-top:0;white-space:nowrap}
@@ -133,6 +136,8 @@ input,select{height:36px;padding:0 10px}
 .sheet-grid.flow-row{grid-auto-flow:row}
 .problem-cell{
   position:relative;
+  display:flex;
+  flex-direction:column;
   min-width:0;
   border-right:.8px solid #999;
   border-bottom:.8px solid #999;
@@ -143,6 +148,7 @@ input,select{height:36px;padding:0 10px}
 .problem-cell.last-row{border-bottom:0}
 .problem-top{
   display:grid;
+  flex:0 0 auto;
   grid-template-columns:8mm minmax(0,1fr);
   gap:1.5mm;
   align-items:start;
@@ -162,6 +168,8 @@ input,select{height:36px;padding:0 10px}
 }
 .answer-guide{
   height:10.5mm;
+  flex:0 1 10.5mm;
+  min-height:0;
   margin-top:1.2mm;
   position:relative;
 }
@@ -182,6 +190,9 @@ input,select{height:36px;padding:0 10px}
   position:relative;
   background:none;
 }
+.answer-guide.fourline.fourline-large{height:18mm;flex-basis:18mm}
+.answer-guide.fourline.fourline-medium{height:14mm;flex-basis:14mm}
+.answer-guide.fourline.fourline-compact{height:10.5mm;flex-basis:10.5mm}
 .answer-guide.fourline i{
   position:absolute;
   left:0;
@@ -3173,10 +3184,10 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
 <body>
 <div class="app-shell">
 <header class="app-header no-print">
-  <div class="brand" aria-label="YUTORI v0.3.34">
+  <div class="brand" aria-label="YUTORI v0.3.35">
     <div class="brand-copy">
       <img class="brand-logo-image" src="assets/yutori-logo.svg" alt="YUTORI つくる・つける・つなげる">
-      <span class="brand-version">v0.3.34</span>
+      <span class="brand-version">v0.3.35</span>
     </div>
   </div>
   <nav aria-label="主要メニュー">
@@ -3428,6 +3439,14 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
             <label><input type="radio" name="answerLine" value="fourline" checked>英語4線</label>
             <label><input type="radio" name="answerLine" value="third">第3線</label>
             <label><input type="radio" name="answerLine" value="none">線なし</label>
+            <label id="fourLineHeightControl" class="fourline-height-control"><span class="group">四線の高さ</span>
+              <select id="fourLineHeight" aria-label="四線の高さ">
+                <option value="auto" selected>自動（模範解答の文字数）</option>
+                <option value="large">大（1～3文字向け）</option>
+                <option value="medium">中（4～8文字向け）</option>
+                <option value="compact">小（9文字以上向け）</option>
+              </select>
+            </label>
           </div>
         </div>
       </div>
@@ -3836,7 +3855,7 @@ const state = {
   grade:"", subject:"", unit:"", testName:"",
   titleVisibility:{grade:true,subject:true,unit:true,testName:true},
   paperSize:"a4", orientation:"portrait",
-  rows:10, cols:3, flow:"column", answerLine:"fourline",
+  rows:10, cols:3, flow:"column", answerLine:"fourline", fourLineHeight:"auto",
   questions:[], answers:[]
 };
 
@@ -3872,6 +3891,7 @@ function copyTestState(source=state){
     cols:Number(source.cols)||3,
     flow:source.flow==="row"?"row":"column",
     answerLine:["fourline","third","none"].includes(source.answerLine)?source.answerLine:"fourline",
+    fourLineHeight:["auto","large","medium","compact"].includes(source.fourLineHeight)?source.fourLineHeight:"auto",
     questions:Array.isArray(source.questions)?source.questions.map(value=>String(value??"")):[],
     answers:Array.isArray(source.answers)?source.answers.map(value=>String(value??"")):[]
   };
@@ -4141,6 +4161,7 @@ function bindLivePreviewControls(){
   document.getElementById("paperSize")?.addEventListener("change",applyLimits);
   document.querySelectorAll('input[name="orientation"]').forEach(el=>el.addEventListener("change",applyLimits));
   ["rows","cols"].forEach(id=>document.getElementById(id)?.addEventListener("change",updateCounts));
+  document.getElementById("fourLineHeight")?.addEventListener("change",updateCounts);
   document.querySelectorAll('input[name="flow"],input[name="answerLine"]').forEach(el=>el.addEventListener("change",updateCounts));
   window.addEventListener("resize",()=>requestAnimationFrame(fitEditorPaper));
 }
@@ -4393,6 +4414,22 @@ function syncState(){
   state.cols=Number(document.getElementById("cols").value||1);
   state.flow=checked("flow");
   state.answerLine=checked("answerLine");
+  state.fourLineHeight=document.getElementById("fourLineHeight")?.value||"auto";
+}
+function updateFourLineHeightControl(){
+  const control=document.getElementById("fourLineHeightControl"),select=document.getElementById("fourLineHeight");
+  const enabled=document.querySelector('input[name="answerLine"]:checked')?.value==="fourline";
+  control?.classList.toggle("disabled",!enabled);
+  if(select)select.disabled=!enabled;
+}
+function fourLineAnswerLength(answer){return Array.from(String(answer||"").replace(/\s+/g,"")).length}
+function fourLineHeightForAnswer(answer){
+  const configured=["large","medium","compact"].includes(state.fourLineHeight)?state.fourLineHeight:"auto";
+  if(configured!=="auto")return configured;
+  const length=fourLineAnswerLength(answer);
+  if(length>0&&length<=3)return "large";
+  if(length<=8)return "medium";
+  return "compact";
 }
 function fillSelect(el,max,preferred){
   const selected=Math.max(1,Math.min(max,Number(preferred)||1));
@@ -4415,6 +4452,7 @@ function applyLimits(){
 }
 function updateCounts(){
   syncState();
+  updateFourLineHeightControl();
   const cap=state.rows*state.cols;
   const count=state.questions.length;
   const capEl=document.getElementById("capacityText");
@@ -4445,7 +4483,7 @@ function renderQuestionRows(){
     const qi=document.createElement("input");qi.value=q;qi.placeholder="問題";
     qi.oninput=e=>{state.questions[i]=e.target.value;updateCounts()};
     const ai=document.createElement("input");ai.value=state.answers[i]||"";ai.placeholder="模範解答";
-    ai.oninput=e=>{state.answers[i]=e.target.value;scheduleDraftSave()};
+    ai.oninput=e=>{state.answers[i]=e.target.value;updateCounts()};
     qcell.appendChild(qi);acell.appendChild(ai);
     row.append(no,qcell,acell);box.appendChild(row);
   });
@@ -4572,6 +4610,7 @@ function applyTestToEditor(source,id=""){
   document.querySelector(`input[name="orientation"][value="${state.orientation}"]`).checked=true;
   document.querySelector(`input[name="flow"][value="${state.flow}"]`).checked=true;
   document.querySelector(`input[name="answerLine"][value="${state.answerLine}"]`).checked=true;
+  document.getElementById("fourLineHeight").value=state.fourLineHeight||"auto";
   document.getElementById("rows").innerHTML="";
   document.getElementById("cols").innerHTML="";
   applyLimits();
@@ -4596,7 +4635,7 @@ function duplicateSavedTest(id){
 function createNewTest(){
   const hasContent=Boolean(state.subject||state.unit||state.testName||state.questions.some(Boolean)||state.answers.some(Boolean));
   if(hasContent&&!confirm("現在作成中の内容から新しいテストへ切り替えますか？ 必要な場合は先に「保存」を押してください。"))return;
-  applyTestToEditor({grade:"",subject:"",unit:"",testName:"",paperSize:"a4",orientation:"portrait",rows:10,cols:3,flow:"column",answerLine:"fourline",questions:[],answers:[]});
+  applyTestToEditor({grade:"",subject:"",unit:"",testName:"",paperSize:"a4",orientation:"portrait",rows:10,cols:3,flow:"column",answerLine:"fourline",fourLineHeight:"auto",questions:[],answers:[]});
   document.getElementById("subject").focus();
 }
 function deleteSavedTest(id){
@@ -4626,12 +4665,13 @@ function renderPaper(){
     const row=state.flow==="row"?Math.floor(i/state.cols):(i%state.rows);
     const lastCol=col===state.cols-1?" last-col":"";
     const lastRow=row===state.rows-1?" last-row":"";
+    const fourLineClass=state.answerLine==="fourline"?` fourline-${fourLineHeightForAnswer(state.answers[i])}`:"";
     return `<div class="problem-cell${lastCol}${lastRow}">
       <div class="problem-top">
         <div class="problem-no">${String(i+1).padStart(2,"0")}</div>
         <div class="problem-text">${escapeHtml(q)||"&nbsp;"}</div>
       </div>
-      <div class="answer-guide ${state.answerLine}"><i aria-hidden="true"></i><i aria-hidden="true"></i><i aria-hidden="true"></i><i aria-hidden="true"></i></div>
+      <div class="answer-guide ${state.answerLine}${fourLineClass}"><i aria-hidden="true"></i><i aria-hidden="true"></i><i aria-hidden="true"></i><i aria-hidden="true"></i></div>
     </div>`;
   }).join("");
   const warning=state.questions.length>cap?`<div class="paper-warning">※ ${state.questions.length-cap}問が用紙内に収まりません。</div>`:"";
@@ -6781,6 +6821,7 @@ if(initialSaved){
     document.querySelector(`input[name="orientation"][value="${state.orientation||"portrait"}"]`).checked=true;
     document.querySelector(`input[name="flow"][value="${state.flow||"column"}"]`).checked=true;
     document.querySelector(`input[name="answerLine"][value="${state.answerLine||"fourline"}"]`).checked=true;
+    document.getElementById("fourLineHeight").value=state.fourLineHeight||"auto";
   }catch(e){console.warn(e)}
 }
 populateGradeControls(state.grade);
