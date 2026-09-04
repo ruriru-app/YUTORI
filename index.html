@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="YUTORI">
-<title>YUTORI v0.3.35</title>
+<title>YUTORI v0.3.36</title>
 <link rel="icon" type="image/svg+xml" href="assets/yutori-symbol.svg">
 <link rel="apple-touch-icon" href="assets/yutori-192.png">
 <link rel="manifest" href="manifest.webmanifest">
@@ -3184,10 +3184,10 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
 <body>
 <div class="app-shell">
 <header class="app-header no-print">
-  <div class="brand" aria-label="YUTORI v0.3.35">
+  <div class="brand" aria-label="YUTORI v0.3.36">
     <div class="brand-copy">
       <img class="brand-logo-image" src="assets/yutori-logo.svg" alt="YUTORI つくる・つける・つなげる">
-      <span class="brand-version">v0.3.35</span>
+      <span class="brand-version">v0.3.36</span>
     </div>
   </div>
   <nav aria-label="主要メニュー">
@@ -4423,8 +4423,8 @@ function updateFourLineHeightControl(){
   if(select)select.disabled=!enabled;
 }
 function fourLineAnswerLength(answer){return Array.from(String(answer||"").replace(/\s+/g,"")).length}
-function fourLineHeightForAnswer(answer){
-  const configured=["large","medium","compact"].includes(state.fourLineHeight)?state.fourLineHeight:"auto";
+function fourLineHeightForAnswer(answer,source=state){
+  const configured=["large","medium","compact"].includes(source?.fourLineHeight)?source.fourLineHeight:"auto";
   if(configured!=="auto")return configured;
   const length=fourLineAnswerLength(answer);
   if(length>0&&length<=3)return "large";
@@ -4823,14 +4823,18 @@ function refreshGradeUi(){
     subject:item.subject||"",
     unit:item.unit||"",
     titleVisibility:normalizeTitleVisibility(item.titleVisibility),
+    paperSize:["a4","b5","a5"].includes(item.paperSize)?item.paperSize:"a4",
+    orientation:item.orientation==="landscape"?"landscape":"portrait",
     rows:Number(item.rows)||10,
     cols:Number(item.cols)||3,
     flow:item.flow==="row"?"row":"column",
+    answerLine:["fourline","third","none"].includes(item.answerLine)?item.answerLine:"fourline",
+    fourLineHeight:["auto","large","medium","compact"].includes(item.fourLineHeight)?item.fourLineHeight:"auto",
     questions:[...(item.questions||[])],
     answers:[...(item.answers||[])]
   }));
   if(!gradingState.testSets.length){
-    gradingState.testSets=[{id:"current",name:testTileTitle(state,"現在作成中のテスト"),displayTitle:testDisplayTitle(state),testName:String(state.testName||""),grade:state.grade||"",subject:state.subject||"",unit:state.unit||"",titleVisibility:normalizeTitleVisibility(state.titleVisibility),rows:Number(state.rows)||10,cols:Number(state.cols)||3,flow:state.flow==="row"?"row":"column",questions:[...state.questions],answers:[...state.answers]}];
+    gradingState.testSets=[{id:"current",name:testTileTitle(state,"現在作成中のテスト"),displayTitle:testDisplayTitle(state),testName:String(state.testName||""),grade:state.grade||"",subject:state.subject||"",unit:state.unit||"",titleVisibility:normalizeTitleVisibility(state.titleVisibility),paperSize:state.paperSize||"a4",orientation:state.orientation==="landscape"?"landscape":"portrait",rows:Number(state.rows)||10,cols:Number(state.cols)||3,flow:state.flow==="row"?"row":"column",answerLine:state.answerLine||"fourline",fourLineHeight:state.fourLineHeight||"auto",questions:[...state.questions],answers:[...state.answers]}];
   }
   gradingState.selectedTestId=gradingState.testSets.some(item=>item.id===previousTestId)?previousTestId:gradingState.testSets[0].id;
   const testSelect=document.getElementById("gradingTestSet");
@@ -5647,18 +5651,157 @@ function loadPageImage(pageId){
   });
   return gradingState.pageImageCache[pageId];
 }
+const PAPER_DIMENSIONS_MM={a4:[210,297],b5:[182,257],a5:[148,210]};
+const ANSWER_SHEET_GRID_MM={side:10,top:40,bottom:10};
+const answerGridBoundsCache=new WeakMap();
+const answerGuideBoundsCache=new WeakMap();
+function paperDimensionsMm(test={},image=null){
+  const size=["a4","b5","a5"].includes(test.paperSize)?test.paperSize:"a4";
+  const base=PAPER_DIMENSIONS_MM[size];
+  const imageOrientation=image&&Number(image.naturalWidth)>Number(image.naturalHeight)?"landscape":"portrait";
+  const configuredOrientation=test.orientation==="landscape"?"landscape":test.orientation==="portrait"?"portrait":imageOrientation;
+  const orientation=image&&imageOrientation!==configuredOrientation?imageOrientation:configuredOrientation;
+  return orientation==="landscape"?{width:base[1],height:base[0],orientation}:{width:base[0],height:base[1],orientation};
+}
+function expectedAnswerGridBounds(image,test={}){
+  const paper=paperDimensionsMm(test,image),width=Number(image.naturalWidth)||1,height=Number(image.naturalHeight)||1;
+  return {
+    left:width*ANSWER_SHEET_GRID_MM.side/paper.width,
+    top:height*ANSWER_SHEET_GRID_MM.top/paper.height,
+    right:width*(paper.width-ANSWER_SHEET_GRID_MM.side)/paper.width,
+    bottom:height*(paper.height-ANSWER_SHEET_GRID_MM.bottom)/paper.height,
+    paper
+  };
+}
+function answerGridCacheKey(test={}){
+  return [test.paperSize||"",test.orientation||"",Number(test.rows)||10,Number(test.cols)||3].join("|");
+}
+function refineAnswerGridBounds(image,test,expected){
+  if(typeof document==="undefined"||!image?.naturalWidth||!image?.naturalHeight)return expected;
+  let cache=answerGridBoundsCache.get(image);
+  if(!cache){cache=new Map();answerGridBoundsCache.set(image,cache)}
+  const cacheKey=answerGridCacheKey(test);
+  if(cache.has(cacheKey))return cache.get(cacheKey);
+  try{
+    const scale=Math.min(1,1100/Math.max(image.naturalWidth,image.naturalHeight));
+    const width=Math.max(1,Math.round(image.naturalWidth*scale)),height=Math.max(1,Math.round(image.naturalHeight*scale));
+    const canvas=document.createElement("canvas");canvas.width=width;canvas.height=height;
+    const context=canvas.getContext("2d",{alpha:false,willReadFrequently:true});
+    context.drawImage(image,0,0,width,height);
+    const pixels=context.getImageData(0,0,width,height).data;
+    const ex={left:expected.left*scale,top:expected.top*scale,right:expected.right*scale,bottom:expected.bottom*scale};
+    const luminance=(x,y)=>{const index=(Math.max(0,Math.min(height-1,y))*width+Math.max(0,Math.min(width-1,x)))*4;return pixels[index]*.299+pixels[index+1]*.587+pixels[index+2]*.114};
+    const verticalScore=x=>{
+      let dark=0,total=0;const step=Math.max(1,Math.floor((ex.bottom-ex.top)/500));
+      for(let y=Math.round(ex.top);y<=Math.round(ex.bottom);y+=step){
+        let darkest=255;for(let offset=-1;offset<=1;offset++)darkest=Math.min(darkest,luminance(Math.round(x)+offset,y));
+        if(darkest<185)dark++;total++;
+      }
+      return total?dark/total:0;
+    };
+    const horizontalScore=y=>{
+      let dark=0,total=0;const step=Math.max(1,Math.floor((ex.right-ex.left)/650));
+      for(let x=Math.round(ex.left);x<=Math.round(ex.right);x+=step){
+        let darkest=255;for(let offset=-1;offset<=1;offset++)darkest=Math.min(darkest,luminance(x,Math.round(y)+offset));
+        if(darkest<185)dark++;total++;
+      }
+      return total?dark/total:0;
+    };
+    const findEdge=(expectedValue,radius,score,minimum)=>{
+      let bestValue=expectedValue,bestScore=-1;
+      const start=Math.round(expectedValue-radius),end=Math.round(expectedValue+radius);
+      for(let value=start;value<=end;value++){
+        const proximity=Math.abs(value-expectedValue)/Math.max(1,radius);
+        const candidate=score(value)-proximity*.025;
+        if(candidate>bestScore){bestScore=candidate;bestValue=value}
+      }
+      return bestScore>=minimum?bestValue:expectedValue;
+    };
+    const radiusX=Math.max(6,width*.018),radiusY=Math.max(6,height*.024);
+    const left=findEdge(ex.left,radiusX,verticalScore,.34),right=findEdge(ex.right,radiusX,verticalScore,.34);
+    const top=findEdge(ex.top,radiusY,horizontalScore,.3),bottom=findEdge(ex.bottom,radiusY,horizontalScore,.3);
+    const refined=right-left>width*.5&&bottom-top>height*.45?{
+      left:left/scale,top:top/scale,right:right/scale,bottom:bottom/scale,paper:expected.paper
+    }:expected;
+    cache.set(cacheKey,refined);
+    return refined;
+  }catch(error){
+    cache.set(cacheKey,expected);
+    return expected;
+  }
+}
+function detectedFourLineCrop(image,test,q,cell){
+  if(test.answerLine!=="fourline"||typeof document==="undefined")return null;
+  let cache=answerGuideBoundsCache.get(image);
+  if(!cache){cache=new Map();answerGuideBoundsCache.set(image,cache)}
+  const lineMode=fourLineHeightForAnswer(test.answers?.[q]||"",test);
+  const cacheKey=`${answerGridCacheKey(test)}|${test.answerLine}|${lineMode}|${q}`;
+  if(cache.has(cacheKey))return cache.get(cacheKey);
+  try{
+    const width=320,height=Math.max(70,Math.min(260,Math.round(width*cell.height/cell.width)));
+    const canvas=document.createElement("canvas");canvas.width=width;canvas.height=height;
+    const context=canvas.getContext("2d",{alpha:false,willReadFrequently:true});
+    context.fillStyle="#fff";context.fillRect(0,0,width,height);
+    context.drawImage(image,cell.x,cell.y,cell.width,cell.height,0,0,width,height);
+    const pixels=context.getImageData(0,0,width,height).data,startX=Math.round(width*.06),endX=Math.round(width*.94);
+    const scores=[];
+    for(let y=Math.round(height*.12);y<=Math.round(height*.96);y++){
+      let colored=0,total=0;
+      for(let x=startX;x<=endX;x++){
+        const index=(y*width+x)*4,r=pixels[index],g=pixels[index+1],b=pixels[index+2];
+        const blue=b-r>38&&g-r>24&&b>135&&g>110;
+        const red=r-g>42&&r-b>42&&r>135;
+        if(blue||red)colored++;total++;
+      }
+      scores.push({y,score:total?colored/total:0});
+    }
+    const groups=[];let group=null;
+    scores.forEach(item=>{
+      if(item.score>=.1){
+        if(!group)group={from:item.y,to:item.y,weight:0,sum:0,peak:0};
+        group.to=item.y;group.weight+=item.score;group.sum+=item.y*item.score;group.peak=Math.max(group.peak,item.score);
+      }else if(group){groups.push(group);group=null}
+    });
+    if(group)groups.push(group);
+    const lines=groups.filter(item=>item.peak>=.13).map(item=>({y:item.sum/Math.max(item.weight,.001),strength:item.peak}));
+    let result=null;
+    if(lines.length>=4){
+      const selected=lines.length===4?lines:[...lines].sort((a,b)=>b.strength-a.strength).slice(0,4).sort((a,b)=>a.y-b.y);
+      const first=selected[0].y,last=selected[3].y,span=last-first;
+      if(span>=height*.12&&span<=height*.8){
+        const guideHeight=span/.81,padding=Math.max(3,guideHeight*.12),scaleY=cell.height/height;
+        result={
+          top:Math.max(cell.y+1,cell.y+(first-padding)*scaleY),
+          bottom:Math.min(cell.y+cell.height-1,cell.y+(last+padding)*scaleY)
+        };
+      }
+    }
+    cache.set(cacheKey,result);
+    return result;
+  }catch(error){cache.set(cacheKey,null);return null}
+}
+function fallbackAnswerCropY(test,q,cell,paper){
+  const rows=Math.max(1,Number(test.rows)||10),cellHeightMm=(paper.height-ANSWER_SHEET_GRID_MM.top-ANSWER_SHEET_GRID_MM.bottom)/rows;
+  const lineType=["fourline","third","none"].includes(test.answerLine)?test.answerLine:"fourline";
+  const mode=fourLineHeightForAnswer(test.answers?.[q]||"",test);
+  const topMm=lineType==="fourline"?(mode==="large"?5.8:mode==="medium"?6.4:7):6.8;
+  const top=cell.y+cell.height*Math.min(.55,topMm/Math.max(1,cellHeightMm));
+  const bottom=cell.y+cell.height*Math.max(.7,1-Math.min(.08,1/Math.max(1,cellHeightMm)));
+  return {top,bottom};
+}
 function answerCropRect(image,test,q){
   const rows=Math.max(1,Number(test.rows)||10),cols=Math.max(1,Number(test.cols)||3);
   const column=test.flow==="row"?(q%cols):Math.floor(q/rows);
   const row=test.flow==="row"?Math.floor(q/cols):(q%rows);
-  const gridLeft=.045,gridTop=.134,gridRight=.955,gridBottom=.968;
-  const cellWidth=(gridRight-gridLeft)/cols,cellHeight=(gridBottom-gridTop)/rows;
-  return {
-    x:Math.max(0,(gridLeft+column*cellWidth+.008)*image.naturalWidth),
-    y:Math.max(0,(gridTop+row*cellHeight+cellHeight*.29)*image.naturalHeight),
-    width:Math.min(image.naturalWidth,(cellWidth-.016)*image.naturalWidth),
-    height:Math.min(image.naturalHeight,cellHeight*.68*image.naturalHeight)
-  };
+  const expected=expectedAnswerGridBounds(image,test),grid=refineAnswerGridBounds(image,test,expected);
+  const cellWidth=(grid.right-grid.left)/cols,cellHeight=(grid.bottom-grid.top)/rows;
+  const cell={x:grid.left+column*cellWidth,y:grid.top+row*cellHeight,width:cellWidth,height:cellHeight};
+  const pxPerMmX=(grid.right-grid.left)/Math.max(1,grid.paper.width-ANSWER_SHEET_GRID_MM.side*2);
+  const horizontalInset=Math.min(cellWidth*.08,pxPerMmX*1.5);
+  const detected=detectedFourLineCrop(image,test,q,cell),vertical=detected||fallbackAnswerCropY(test,q,cell,grid.paper);
+  const x=Math.max(0,cell.x+horizontalInset),y=Math.max(0,vertical.top);
+  const right=Math.min(image.naturalWidth,cell.x+cell.width-horizontalInset),bottom=Math.min(image.naturalHeight,vertical.bottom);
+  return {x,y,width:Math.max(1,right-x),height:Math.max(1,bottom-y)};
 }
 async function renderAnswerCrops(q,test){
   const token=++answerCropRenderToken;
@@ -5957,7 +6100,10 @@ function serializeSession(){
     id:gradingState.sessionId||`session-${Date.now()}`,assignmentMode:"attendance-mark",selectedTestId:gradingState.selectedTestId,
     testName:String(t.testName??state.testName??""),grade:t.grade||state.grade||"",subject:t.subject||state.subject||"",unit:t.unit||state.unit||"",
     titleVisibility:normalizeTitleVisibility(t.titleVisibility||state.titleVisibility),displayTitle:testDisplayTitle(t)||String(t.displayTitle||t.name||"").trim(),
-    rows:Number(t.rows)||10,cols:Number(t.cols)||3,flow:t.flow==="row"?"row":"column",questions:t.questions||[],modelAnswers:t.answers||[],
+    paperSize:["a4","b5","a5"].includes(t.paperSize)?t.paperSize:"a4",orientation:t.orientation==="landscape"?"landscape":"portrait",
+    rows:Number(t.rows)||10,cols:Number(t.cols)||3,flow:t.flow==="row"?"row":"column",
+    answerLine:["fourline","third","none"].includes(t.answerLine)?t.answerLine:"fourline",fourLineHeight:["auto","large","medium","compact"].includes(t.fourLineHeight)?t.fourLineHeight:"auto",
+    questions:t.questions||[],modelAnswers:t.answers||[],
     classes:[...gradingState.classes],files:gradingState.files.map(f=>({name:f.name,type:f.type,size:f.size,lastModified:f.lastModified})),
     pdfPages:gradingState.pdfPages||[],ignoredPageIds:gradingState.ignoredPageIds||[],issues:gradingState.issues,answers:gradingState.answers,
     grades:gradingState.grades,q:gradingState.q,selectedPen:gradingState.selectedPen,questionScores:gradingState.questionScores||[],
@@ -6133,6 +6279,11 @@ async function resumeGradingSession(id){
     alert("この採点データは、PDFをページ順で割り当てていた旧形式です。正しい出席番号で採点するため、「新しく採点を始める」から答案PDFをもう一度読み込んでください。");
     return;
   }
+  const savedTest=readSavedTests().find(item=>item.id===s.selectedTestId)||{};
+  const paperSize=["a4","b5","a5"].includes(s.paperSize)?s.paperSize:["a4","b5","a5"].includes(savedTest.paperSize)?savedTest.paperSize:"a4";
+  const orientation=s.orientation==="landscape"||s.orientation==="portrait"?s.orientation:savedTest.orientation==="landscape"?"landscape":"portrait";
+  const answerLine=["fourline","third","none"].includes(s.answerLine)?s.answerLine:["fourline","third","none"].includes(savedTest.answerLine)?savedTest.answerLine:"fourline";
+  const fourLineHeight=["auto","large","medium","compact"].includes(s.fourLineHeight)?s.fourLineHeight:["auto","large","medium","compact"].includes(savedTest.fourLineHeight)?savedTest.fourLineHeight:"auto";
   Object.assign(gradingState,{sessionId:s.id,selectedTestId:s.selectedTestId||"current",classes:s.classes||[],files:s.files||[],issues:s.issues||[],answers:s.answers||{},grades:s.grades||{},q:Number(s.q||0),selectedPen:s.selectedPen||"ok",gradeColumns:Number(s.gradeColumns||localStorage.getItem("yutori_grade_columns_v023")||5),status:s.status||"in-progress",workflowCompleted:s.workflowCompleted||{},currentWorkflowStep:s.currentWorkflowStep||1,questionScores:s.questionScores||[],lastSavedAt:s.lastSavedAt||0,pdfPages:s.pdfPages||[],ignoredPageIds:s.ignoredPageIds||[],answerPreview:null,dragPageId:"",gradeHistory:s.gradeHistory||[],gradingScope:s.gradingScope||"all",activeLateBatchId:s.activeLateBatchId||""});
   gradingState.classes.forEach(className=>(gradingState.answers[className]||[]).forEach(person=>{
     if(!person.lateAdded||!person.pageId)return;
@@ -6140,7 +6291,7 @@ async function resumeGradingSession(id){
     const page=gradingState.pdfPages.find(item=>item.id===person.pageId);
     if(page?.manualAssignment)page.lateValidationWarning=false;
   }));
-  gradingState.testSets=[{id:s.selectedTestId||"current",name:testTileTitle(s,"保存済みテスト"),displayTitle:testDisplayTitle(s)||String(s.displayTitle||"").trim(),testName:String(s.testName||""),grade:s.grade||"",subject:s.subject||"",unit:s.unit||"",titleVisibility:normalizeTitleVisibility(s.titleVisibility),rows:Number(s.rows)||10,cols:Number(s.cols)||3,flow:s.flow==="row"?"row":"column",questions:s.questions||[],answers:s.modelAnswers||[]}];
+  gradingState.testSets=[{id:s.selectedTestId||"current",name:testTileTitle(s,"保存済みテスト"),displayTitle:testDisplayTitle(s)||String(s.displayTitle||"").trim(),testName:String(s.testName||""),grade:s.grade||"",subject:s.subject||"",unit:s.unit||"",titleVisibility:normalizeTitleVisibility(s.titleVisibility),paperSize,orientation,rows:Number(s.rows)||10,cols:Number(s.cols)||3,flow:s.flow==="row"?"row":"column",answerLine,fourLineHeight,questions:s.questions||[],answers:s.modelAnswers||[]}];
   if(gradingState.pdfPages.length){
     try{await restorePdfPagesFromIndexedDB(id)}catch(error){console.warn("答案画像の復元に失敗しました",error)}
   }else{revokePdfPageUrls()}
@@ -6236,6 +6387,13 @@ function loadLatestSessionForResults(){
       unit:currentTest()?.unit||state.unit||"",
       titleVisibility:normalizeTitleVisibility(currentTest()?.titleVisibility||state.titleVisibility),
       displayTitle:testDisplayTitle(currentTest()||state),
+      paperSize:currentTest()?.paperSize||state.paperSize||"a4",
+      orientation:currentTest()?.orientation||state.orientation||"portrait",
+      rows:Number(currentTest()?.rows||state.rows)||10,
+      cols:Number(currentTest()?.cols||state.cols)||3,
+      flow:currentTest()?.flow==="row"?"row":"column",
+      answerLine:currentTest()?.answerLine||state.answerLine||"fourline",
+      fourLineHeight:currentTest()?.fourLineHeight||state.fourLineHeight||"auto",
       questions:currentTest()?.questions||[],
       modelAnswers:currentTest()?.answers||[],
       classes:[...gradingState.classes],
@@ -6651,7 +6809,8 @@ function formatReturnScore(value){const number=Number(value||0);return Number.is
 function returnQuestionRect(session,q){
   const rows=Math.max(1,Number(session.rows)||10),cols=Math.max(1,Number(session.cols)||3),flow=session.flow==="row"?"row":"column";
   const column=flow==="row"?(q%cols):Math.floor(q/rows),row=flow==="row"?Math.floor(q/cols):(q%rows);
-  const left=4.5,top=13.4,right=95.5,bottom=96.8,width=(right-left)/cols,height=(bottom-top)/rows;
+  const paper=paperDimensionsMm(session),left=ANSWER_SHEET_GRID_MM.side/paper.width*100,top=ANSWER_SHEET_GRID_MM.top/paper.height*100;
+  const right=(paper.width-ANSWER_SHEET_GRID_MM.side)/paper.width*100,bottom=(paper.height-ANSWER_SHEET_GRID_MM.bottom)/paper.height*100,width=(right-left)/cols,height=(bottom-top)/rows;
   return {left:left+column*width,top:top+row*height,width,height};
 }
 function returnHandwrittenMark(mark,q){
