@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="YUTORI">
-<title>YUTORI v0.3.37</title>
+<title>YUTORI v0.3.38</title>
 <link rel="icon" type="image/svg+xml" href="assets/yutori-symbol.svg">
 <link rel="apple-touch-icon" href="assets/yutori-192.png">
 <link rel="manifest" href="manifest.webmanifest">
@@ -2766,7 +2766,7 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
 .return-output-notice.error{border-color:#F0C9C5;background:#FFF5F5;color:var(--danger)}
 .return-preview-scroll{min-height:0;overflow:auto;display:flex;justify-content:center;align-items:flex-start;padding:14px;border-radius:12px;background:#E9E6E2;touch-action:pan-y}
 .return-preview-page{width:min(100%,794px)}
-.return-sheet{container-type:inline-size;position:relative;width:100%;aspect-ratio:210/297;overflow:hidden;background:#fff;color:#222;box-shadow:0 5px 18px rgba(55,45,40,.16);font-family:"Yu Gothic","Meiryo",sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.return-sheet{container-type:inline-size;position:relative;width:100%;aspect-ratio:var(--return-paper-ratio,210 / 297);overflow:hidden;background:#fff;color:#222;box-shadow:0 5px 18px rgba(55,45,40,.16);font-family:"Yu Gothic","Meiryo",sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .return-answer-image{position:absolute;inset:0;width:100%;height:100%;object-fit:fill;background:#fff}
 .return-answer-placeholder{position:absolute;inset:0;display:grid;place-items:center;background:#fff;color:#888;font-size:2cqw;font-weight:900}
 .return-question-annotation{position:absolute;color:#D92525;font-weight:900;pointer-events:none}
@@ -2835,6 +2835,17 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
 .return-practice-detail-answer{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#252525;font-family:"Segoe Print","Comic Sans MS","Yu Gothic",sans-serif;font-size:1.35cqw;font-weight:800}
 .return-practice-detail-rate{flex:0 0 auto;white-space:nowrap}
 .return-question-mark img{display:block;width:100%;height:100%;object-fit:contain}
+
+/* v0.3.38：横向きテストの返却資料 */
+.return-sheet.return-landscape.return-practice-sheet{padding:3.5% 5%}
+.return-sheet.return-landscape .return-practice-head{padding-bottom:1%}
+.return-sheet.return-landscape .return-practice-title{font-size:2.26cqw}
+.return-sheet.return-landscape .return-practice-meta{margin-top:.55%;font-size:1.03cqw}
+.return-sheet.return-landscape .return-practice-name{font-size:1.27cqw}
+.return-sheet.return-landscape .return-practice-list{gap:.7cqw;padding-top:1.2%}
+.return-sheet.return-landscape .return-practice-detail-first{font-size:.85cqw}
+.return-sheet.return-landscape .return-practice-detail-answer{font-size:1.29cqw}
+.return-sheet.return-landscape .return-practice-detail-rate{font-size:.76cqw}
 
 /* v0.3.21：提供SVGの採点記号と、点数欄を広げた新しい記名欄 */
 .paper-header img{object-fit:contain;object-position:left top}
@@ -3175,8 +3186,8 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
     print-color-adjust:exact!important;
   }
   body.return-printing .app-shell{display:none!important}
-  body.return-printing #returnPrintRoot{display:block!important;width:210mm!important;margin:0!important;padding:0!important}
-  body.return-printing #returnPrintRoot .return-sheet{display:grid!important;width:210mm!important;height:297mm!important;max-width:none!important;aspect-ratio:auto!important;margin:0!important;box-shadow:none!important;break-after:page!important;page-break-after:always!important;break-inside:avoid-page!important;page-break-inside:avoid!important}
+  body.return-printing #returnPrintRoot{display:block!important;width:var(--return-paper-width,210mm)!important;margin:0!important;padding:0!important}
+  body.return-printing #returnPrintRoot .return-sheet{display:grid!important;width:var(--return-paper-width,210mm)!important;height:var(--return-paper-height,297mm)!important;max-width:none!important;aspect-ratio:auto!important;margin:0!important;box-shadow:none!important;break-after:page!important;page-break-after:always!important;break-inside:avoid-page!important;page-break-inside:avoid!important}
   body.return-printing #returnPrintRoot .return-sheet:last-child{break-after:auto!important;page-break-after:auto!important}
 }
 </style>
@@ -3184,10 +3195,10 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
 <body>
 <div class="app-shell">
 <header class="app-header no-print">
-  <div class="brand" aria-label="YUTORI v0.3.37">
+  <div class="brand" aria-label="YUTORI v0.3.38">
     <div class="brand-copy">
       <img class="brand-logo-image" src="assets/yutori-logo.svg" alt="YUTORI つくる・つける・つなげる">
-      <span class="brand-version">v0.3.37</span>
+      <span class="brand-version">v0.3.38</span>
     </div>
   </div>
   <nav aria-label="主要メニュー">
@@ -5234,15 +5245,25 @@ async function renderPdfFile(file,fileIndex,sessionId,options={}){
   }
   return rendered;
 }
-function classGroupNumber(className){
-  const profile=gradingState.classProfiles[className]||{};
-  const text=[className,profile.className].filter(Boolean).join(" ");
+function normalizeFullWidthDigits(value){
+  return String(value??"").replace(/[０-９]/g,character=>String.fromCharCode(character.charCodeAt(0)-65248));
+}
+function normalizedClassGroupValue(value){
+  const group=Number(normalizeFullWidthDigits(value).trim());
+  return Number.isInteger(group)&&group>=1&&group<=8?group:null;
+}
+function classGroupNumberFromText(value){
+  const text=normalizeFullWidthDigits(value);
   const groupMatch=text.match(/([1-8])\s*組/);
   if(groupMatch)return Number(groupMatch[1]);
   const hyphenMatch=text.match(/(?:-|－|ー)([1-8])(?:\D|$)/);
   if(hyphenMatch)return Number(hyphenMatch[1]);
   const tailMatch=text.match(/([1-8])\s*$/);
   return tailMatch?Number(tailMatch[1]):null;
+}
+function classGroupNumber(className){
+  const profile=gradingState.classProfiles[className]||{};
+  return normalizedClassGroupValue(profile.group)||classGroupNumberFromText([className,profile.className].filter(Boolean).join(" "));
 }
 function resolvePageClass(page){
   if(gradingState.classes.length===1){
@@ -5971,7 +5992,7 @@ let editingClassName="";
 function parseRosterText(raw){
   return String(raw||"").replace(/\r/g,"").split("\n").filter(line=>line.trim()).map(line=>{
     const parts=line.includes("\t")?line.split("\t"):line.split(",");
-    return {no:Number(String(parts[0]||"").trim()),name:String(parts[1]||"").trim()};
+    return {no:Number(normalizeFullWidthDigits(parts[0]).trim()),name:String(parts[1]||"").trim()};
   }).filter(person=>Number.isFinite(person.no)&&person.no>0&&person.name).sort((a,b)=>a.no-b.no);
 }
 function yutoriClassColorValue(color){
@@ -5990,11 +6011,17 @@ function renderClassSettings(){
     const profile=gradingState.classProfiles[className]||{};
     const studentCount=Number(profile.studentCount)||roster.length;
     const encoded=encodeURIComponent(className);
+    const group=classGroupNumber(className);
     return `<article class="class-settings-card" style="--class-color:${yutoriClassColorValue(profile.color)}">
-      <div class="class-settings-card-copy"><div class="class-settings-school">${escapeHtml(profile.schoolName||"学校名未設定")}</div><h3>${escapeHtml(classDisplayName(className))}</h3><p>人数 ${studentCount}名・名簿 ${roster.length}名</p></div>
+      <div class="class-settings-card-copy"><div class="class-settings-school">${escapeHtml(profile.schoolName||"学校名未設定")}</div><h3>${escapeHtml(classDisplayName(className))}</h3><p>組 ${group?`${group}組`:"未設定"}・人数 ${studentCount}名・名簿 ${roster.length}名</p></div>
       <button class="secondary class-settings-edit" type="button" onclick="openClassModal(decodeURIComponent('${encoded}'))">編集</button>
     </article>`;
   }).join("");
+}
+function suggestClassGroupFromName(){
+  const input=document.getElementById("classGroupInput");if(!input||input.value)return;
+  const inferred=classGroupNumberFromText(document.getElementById("classNameInput")?.value||"");
+  if(inferred)input.value=String(inferred);
 }
 function openClassModal(className=""){
   editingClassName=className;
@@ -6002,6 +6029,7 @@ function openClassModal(className=""){
   const schoolInput=document.getElementById("classSchoolInput");
   const nameInput=document.getElementById("classNameInput");
   const gradeInput=document.getElementById("classGradeInput");
+  const groupInput=document.getElementById("classGroupInput");
   const colorInput=document.getElementById("classColorInput");
   const studentCountInput=document.getElementById("classStudentCountInput");
   const rosterInput=document.getElementById("classRosterInput");
@@ -6015,6 +6043,7 @@ function openClassModal(className=""){
   nameInput.readOnly=false;
   populateGradeControls(state.grade,profile.grade||"");
   gradeInput.value=profile.grade||"";
+  groupInput.value=String(normalizedClassGroupValue(profile.group)||classGroupNumberFromText(className)||"");
   colorInput.value=profile.color||"grade3";
   rosterInput.value=isEditing?(gradingState.rosters[className]||[]).map(person=>`${person.no}\t${person.name}`).join("\n"):"";
   studentCountInput.value=String(Number(profile.studentCount)||(gradingState.rosters[className]||[]).length||0);
@@ -6108,11 +6137,13 @@ function saveClassFromModal(){
   const schoolName=document.getElementById("classSchoolInput").value.trim();
   const className=document.getElementById("classNameInput").value.trim();
   const grade=document.getElementById("classGradeInput").value;
+  const group=normalizedClassGroupValue(document.getElementById("classGroupInput").value);
   const color=document.getElementById("classColorInput").value||"grade3";
   const studentCountValue=Math.max(0,Number(document.getElementById("classStudentCountInput").value)||0);
   if(!schoolName){alert("学校名を入力してください。");document.getElementById("classSchoolInput").focus();return}
   if(!className){alert("クラス名を入力してください。");document.getElementById("classNameInput").focus();return}
   if(!grade){alert("学年を選択してください。");document.getElementById("classGradeInput").focus();return}
+  if(!group){alert("答案のマークと照合する組を選択してください。");document.getElementById("classGroupInput").focus();return}
   if(className!==editingClassName&&Object.prototype.hasOwnProperty.call(gradingState.rosters,className)){
     alert("同じ名前のクラスがすでに登録されています。");return;
   }
@@ -6128,7 +6159,7 @@ function saveClassFromModal(){
   }
   const roster=parseRosterText(document.getElementById("classRosterInput").value);
   gradingState.rosters[className]=roster;
-  gradingState.classProfiles[className]={schoolName,className,grade,color,studentCount:studentCountValue||roster.length};
+  gradingState.classProfiles[className]={schoolName,className,grade,group,color,studentCount:studentCountValue||roster.length};
   saveRosters();
   saveClassProfiles();
   refreshGradeUi();
@@ -6863,8 +6894,23 @@ function returnHandwrittenMark(mark,q){
   const labels={ok:"○",ng:"×",partial:"△"},tilts=[-4,2,-2,3];
   return assets[mark]?`<span class="return-question-mark ${mark}" role="img" aria-label="${labels[mark]}" style="transform:rotate(${tilts[q%tilts.length]}deg)"><img src="${assets[mark]}" alt="" aria-hidden="true"></span>`:"";
 }
+function returnPaperSpec(session={}){
+  const paper=paperDimensionsMm(session);
+  return{...paper,className:paper.orientation==="landscape"?"return-landscape":"return-portrait",ratio:`${paper.width} / ${paper.height}`};
+}
+function returnHeaderOverlayStyles(session={}){
+  const paper=returnPaperSpec(session),headerScale=Math.min(139,paper.width-20)/139;
+  const percent=(millimeters,total)=>millimeters/total*100;
+  const top=10+(10.0386-10)*headerScale,height=12.8601*headerScale;
+  const scoreLeft=10+(120.96-10)*headerScale,scoreWidth=17.01*headerScale;
+  const extraLeft=10+(140.28-10)*headerScale,extraRight=8.82*headerScale;
+  return{
+    score:`top:${percent(top,paper.height).toFixed(4)}%;left:${percent(scoreLeft,paper.width).toFixed(4)}%;width:${percent(scoreWidth,paper.width).toFixed(4)}%;height:${percent(height,paper.height).toFixed(4)}%;font-size:${percent(3.612*headerScale,paper.width).toFixed(4)}cqw`,
+    extra:`top:${percent(top,paper.height).toFixed(4)}%;left:${percent(extraLeft,paper.width).toFixed(4)}%;right:${percent(extraRight,paper.width).toFixed(4)}%;height:${percent(height,paper.height).toFixed(4)}%;font-size:${percent(2.625*headerScale,paper.width).toFixed(4)}cqw`
+  };
+}
 function returnAnswerPageHtml(session,className,person,options){
-  const rates=returnQuestionRates(session,className,options.rateScope),result=calculateStudentResult(session,className,person),maximum=returnMaximumScore(session),stats=returnClassStats(session,className,person);
+  const rates=returnQuestionRates(session,className,options.rateScope),result=calculateStudentResult(session,className,person),maximum=returnMaximumScore(session),stats=returnClassStats(session,className,person),paper=returnPaperSpec(session),overlay=returnHeaderOverlayStyles(session);
   const imageUrl=returnOutputState.imageUrls[person.pageId]||"";
   const annotations=(session.questions||[]).map((_,q)=>{
     const grade=session.grades?.[`${className}::${person.no}::${q}`],rect=returnQuestionRect(session,q),mark=grade?.mark||"";
@@ -6873,7 +6919,7 @@ function returnAnswerPageHtml(session,className,person,options){
     return `<div class="return-question-annotation" style="left:${rect.left.toFixed(4)}%;top:${rect.top.toFixed(4)}%;width:${rect.width.toFixed(4)}%;height:${rect.height.toFixed(4)}%">${returnHandwrittenMark(mark,q)}${correct?`<span class="return-correct-answer">正：${escapeHtml(correct)}</span>`:""}${options.showQuestionRate?`<span class="return-question-rate">正答率 ${rates[q]}%</span>`:""}</div>`;
   }).join("");
   const extras=[];if(options.showAverage)extras.push(`平均 ${formatReturnScore(stats.average)}点`);if(options.showRank&&stats.rank!=null)extras.push(`順位 ${stats.rank}/${stats.count}`);
-  return `<section class="return-sheet return-answer-sheet" aria-label="${escapeHtml(person.name)}の採点済み答案">${imageUrl?`<img class="return-answer-image" src="${escapeHtml(imageUrl)}" alt="${escapeHtml(person.name)}の答案">`:'<div class="return-answer-placeholder">答案画像を表示できません</div>'}${annotations}<div class="return-score-overlay">${formatReturnScore(result.score)} / ${formatReturnScore(maximum)}点</div>${extras.length?`<div class="return-extra-overlay">${extras.map(value=>`<span>${escapeHtml(value)}</span>`).join("")}</div>`:""}</section>`;
+  return `<section class="return-sheet ${paper.className} return-answer-sheet" style="--return-paper-ratio:${paper.ratio}" aria-label="${escapeHtml(person.name)}の採点済み答案">${imageUrl?`<img class="return-answer-image" src="${escapeHtml(imageUrl)}" alt="${escapeHtml(person.name)}の答案">`:'<div class="return-answer-placeholder">答案画像を表示できません</div>'}${annotations}<div class="return-score-overlay" style="${overlay.score}">${formatReturnScore(result.score)} / ${formatReturnScore(maximum)}点</div>${extras.length?`<div class="return-extra-overlay" style="${overlay.extra}">${extras.map(value=>`<span>${escapeHtml(value)}</span>`).join("")}</div>`:""}</section>`;
 }
 function returnPracticeQuestions(session,className,person,options){
   const rates=returnQuestionRates(session,className,options.rateScope);
@@ -6883,13 +6929,14 @@ function returnPracticeQuestions(session,className,person,options){
 }
 function returnPracticeSheetHtml(session,className,person,items,pageIndex=0,pageCount=1){
   const title=session.testName||[session.subject,session.unit].filter(Boolean).join(" ")||"テスト";
-  const rowHeight=Math.max(6.8,Math.min(9.3,(112-Math.max(0,items.length-1)*.7)/Math.max(1,items.length)));
+  const paper=returnPaperSpec(session),landscape=paper.orientation==="landscape";
+  const rowHeight=landscape?Math.max(5.2,Math.min(7.2,(50.5-Math.max(0,items.length-1)*.7)/Math.max(1,items.length))):Math.max(6.8,Math.min(9.3,(112-Math.max(0,items.length-1)*.7)/Math.max(1,items.length)));
   const itemHtml=items.map(item=>`<article class="return-practice-item"><div class="return-practice-work"><div class="return-practice-details"><div class="return-practice-detail-first"><span class="return-practice-number">${String(item.q+1).padStart(2,"0")}</span><span class="return-practice-detail-question">${escapeHtml(item.question||"未登録")}</span></div><div class="return-practice-detail-second"><span class="return-practice-detail-answer"><span class="return-practice-detail-answer-label">模範：</span>${escapeHtml(item.answer||"未登録")}</span><span class="return-practice-detail-rate">正答率 ${item.rate}%</span></div></div><div class="return-four-lines" aria-label="英語4線"><i></i><i></i><i></i><i></i></div></div></article>`).join("");
-  return `<section class="return-sheet return-practice-sheet" aria-label="${escapeHtml(person.name)}の個別練習課題"><header class="return-practice-head"><div><div class="return-practice-title">個別練習プリント${pageCount>1?` ${pageIndex+1}`:""}</div><div class="return-practice-meta">${escapeHtml(title)}　正答率が高い問題から復習します</div></div><div class="return-practice-name">${escapeHtml(classDisplayName(className))}<br>${String(person.no).padStart(2,"0")} ${escapeHtml(person.name)}</div></header>${items.length?`<div class="return-practice-list" style="--practice-row-height:${rowHeight.toFixed(2)}cqw">${itemHtml}</div>`:'<div class="return-practice-empty">全問正解です。よくできました！</div>'}</section>`;
+  return `<section class="return-sheet ${paper.className} return-practice-sheet" style="--return-paper-ratio:${paper.ratio}" aria-label="${escapeHtml(person.name)}の個別練習課題"><header class="return-practice-head"><div><div class="return-practice-title">個別練習プリント${pageCount>1?` ${pageIndex+1}`:""}</div><div class="return-practice-meta">${escapeHtml(title)}　正答率が高い問題から復習します</div></div><div class="return-practice-name">${escapeHtml(classDisplayName(className))}<br>${String(person.no).padStart(2,"0")} ${escapeHtml(person.name)}</div></header>${items.length?`<div class="return-practice-list" style="--practice-row-height:${rowHeight.toFixed(2)}cqw">${itemHtml}</div>`:'<div class="return-practice-empty">全問正解です。よくできました！</div>'}</section>`;
 }
 function returnPracticePagesHtml(session,className,person,options){
   const items=returnPracticeQuestions(session,className,person,options),chunks=[];
-  const pageCapacity=15;
+  const pageCapacity=returnPaperSpec(session).orientation==="landscape"?7:15;
   for(let index=0;index<items.length;index+=pageCapacity)chunks.push(items.slice(index,index+pageCapacity));
   if(!chunks.length)chunks.push([]);
   return chunks.map((chunk,index)=>returnPracticeSheetHtml(session,className,person,chunk,index,chunks.length));
@@ -6927,8 +6974,11 @@ async function printReturnPdfs(){
   root.setAttribute("aria-hidden","false");
   await waitForReturnImages(root);
   if(document.fonts?.ready)await Promise.race([document.fonts.ready,new Promise(resolve=>setTimeout(resolve,3000))]);
+  const paper=returnPaperSpec(session);
+  root.style.setProperty("--return-paper-width",`${paper.width}mm`);
+  root.style.setProperty("--return-paper-height",`${paper.height}mm`);
   let style=document.getElementById("dynamicPrintStyle");if(!style){style=document.createElement("style");style.id="dynamicPrintStyle";document.head.appendChild(style)}
-  style.textContent="@page { size:A4 portrait; margin:0; }";
+  style.textContent=`@page { size:${paper.width}mm ${paper.height}mm; margin:0; }`;
   document.body.classList.add("return-printing");
   setPrintDocumentTitle(gradingResultBaseName(session,className));
   requestAnimationFrame(()=>setTimeout(()=>window.print(),60));
@@ -7057,10 +7107,23 @@ showScreen("testListScreen");
           <input id="classSchoolInput" autocomplete="organization" placeholder="例：○○小学校" maxlength="60">
         </label>
         <label class="class-modal-field class-modal-row"><span>クラス名</span>
-          <input id="classNameInput" autocomplete="off" placeholder="例：5-1" maxlength="30">
+          <input id="classNameInput" autocomplete="off" placeholder="例：5-1" maxlength="30" oninput="suggestClassGroupFromName()">
         </label>
         <label class="class-modal-field class-modal-row"><span>学年</span>
           <select id="classGradeInput"></select>
+        </label>
+        <label class="class-modal-field class-modal-row"><span>組（マーク照合用）</span>
+          <span><select id="classGroupInput">
+            <option value="">選択してください</option>
+            <option value="1">1組</option>
+            <option value="2">2組</option>
+            <option value="3">3組</option>
+            <option value="4">4組</option>
+            <option value="5">5組</option>
+            <option value="6">6組</option>
+            <option value="7">7組</option>
+            <option value="8">8組</option>
+          </select><small class="class-modal-help">クラス名が「１組」「1組」のどちらでも、同じ組として扱います。</small></span>
         </label>
         <label class="class-modal-field class-modal-row"><span>タイルの色</span>
           <select id="classColorInput">
