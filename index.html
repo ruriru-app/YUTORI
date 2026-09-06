@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="YUTORI">
-<title>YUTORI v0.3.41</title>
+<title>YUTORI v0.3.42</title>
 <link rel="icon" type="image/svg+xml" href="assets/yutori-symbol.svg">
 <link rel="apple-touch-icon" href="assets/yutori-192.png">
 <link rel="manifest" href="manifest.webmanifest">
@@ -2586,6 +2586,9 @@ body.sidebar-dragging{cursor:ew-resize;user-select:none;-webkit-user-select:none
 .class-picker .sidebar-class-checks{display:grid!important;grid-template-columns:1fr!important;gap:2px!important}
 .class-picker .sidebar-class-checks .class-chip{display:flex!important;align-items:center!important;gap:8px!important;width:100%;min-height:30px;padding:4px 7px!important;white-space:nowrap;overflow:hidden}
 .class-picker .sidebar-class-checks .class-chip input[type="checkbox"]{appearance:auto!important;-webkit-appearance:checkbox!important;flex:0 0 16px!important;width:16px!important;min-width:16px!important;max-width:16px!important;height:16px!important;min-height:16px!important;max-height:16px!important;margin:0!important;padding:0!important}
+.class-chip-copy{min-width:0;display:grid;gap:1px;white-space:normal;line-height:1.2}
+.class-chip-copy small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted);font-size:8px;font-weight:800}
+.class-chip-copy span{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
 .sidebar-drag-handle{width:18px!important}
 .sidebar-drag-handle::before{content:"";position:absolute;top:50%;right:2px;width:8px;height:84px;transform:translateY(-50%);border:1px solid #D69B54;border-radius:999px;background:#FCCC8E;box-shadow:0 2px 7px rgba(122,85,32,.2);transition:width .15s ease,background .15s ease}
@@ -3197,10 +3200,10 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
 <body>
 <div class="app-shell">
 <header class="app-header no-print">
-  <div class="brand" aria-label="YUTORI v0.3.41">
+  <div class="brand" aria-label="YUTORI v0.3.42">
     <div class="brand-copy">
       <img class="brand-logo-image" src="assets/yutori-logo.svg" alt="YUTORI つくる・つける・つなげる">
-      <span class="brand-version">v0.3.41</span>
+      <span class="brand-version">v0.3.42</span>
     </div>
   </div>
   <nav aria-label="主要メニュー">
@@ -3276,10 +3279,10 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
             <option value="score">合計点順</option>
           </select>
         </label>
-        <label>問題別正答率
+        <label>集計範囲
           <select id="resultsRateScope" onchange="renderSelectedResultClass()">
-            <option value="class">表示クラスの正答率</option>
-            <option value="grade">同学年の正答率</option>
+            <option value="class">表示クラス（正答率・平均点）</option>
+            <option value="grade">同学年（正答率・平均点）</option>
           </select>
         </label>
       </div>
@@ -3309,14 +3312,14 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
       </div>
       <div class="special-sidebar-section output-control-section">
         <h3>1ページ目</h3>
-        <label>表示する正答率
+        <label>集計範囲
           <select id="returnRateScope" onchange="updateReturnOutputOptions()">
-            <option value="class">対象クラスの正答率</option>
-            <option value="grade">同学年の正答率</option>
+            <option value="class">対象クラス（正答率・平均点）</option>
+            <option value="grade">同学年（正答率・平均点）</option>
           </select>
         </label>
         <label class="output-check-row"><input id="returnShowQuestionRate" type="checkbox" checked onchange="updateReturnOutputOptions()">問題ごとの正答率</label>
-        <label class="output-check-row"><input id="returnShowAverage" type="checkbox" checked onchange="updateReturnOutputOptions()">クラス平均点</label>
+        <label class="output-check-row"><input id="returnShowAverage" type="checkbox" checked onchange="updateReturnOutputOptions()">平均点</label>
         <label class="output-check-row"><input id="returnShowRank" type="checkbox" onchange="updateReturnOutputOptions()">順位</label>
       </div>
       <div class="special-sidebar-section output-control-section">
@@ -4746,7 +4749,7 @@ let printTitleBeforeDialog="";
 function safeFileNamePart(value){return String(value||"").trim().replace(/[\\/:*?"<>|\u0000-\u001f]/g,"_").replace(/[. ]+$/g,"")}
 function joinFileNameParts(parts,fallback="YUTORI"){const name=parts.map(safeFileNamePart).filter(Boolean).join("_");return name||fallback}
 function testPdfBaseName(){return joinFileNameParts([gradeLabel(state.grade),state.subject,state.unit,state.testName],"YUTORI_テスト")}
-function gradingResultBaseName(session,className){return joinFileNameParts([className,session?.unit,session?.testName,"採点結果"],"YUTORI_採点結果")}
+function gradingResultBaseName(session,className){return joinFileNameParts([classFullDisplayName(className),session?.unit,session?.testName,"採点結果"],"YUTORI_採点結果")}
 function setPrintDocumentTitle(name){if(!printTitleBeforeDialog)printTitleBeforeDialog=document.title;document.title=name}
 function restoreDocumentTitle(){if(printTitleBeforeDialog){document.title=printTitleBeforeDialog;printTitleBeforeDialog=""}}
 function printDocument(){
@@ -4823,7 +4826,11 @@ function saveRosters(){localStorage.setItem("yutori_rosters",JSON.stringify(grad
 function saveClassProfiles(){localStorage.setItem(CLASS_PROFILES_KEY,JSON.stringify(gradingState.classProfiles))}
 function classDisplayName(className){
   const profile=gradingState.classProfiles[className]||{};
-  return [profile.grade?gradeLabel(profile.grade):"",className].filter(Boolean).join(" ");
+  return [profile.grade?gradeLabel(profile.grade):"",profile.className||className].filter(Boolean).join(" ");
+}
+function classFullDisplayName(className){
+  const schoolName=String(gradingState.classProfiles[className]?.schoolName||"").trim();
+  return [schoolName,classDisplayName(className)].filter(Boolean).join("　");
 }
 function refreshGradeUi(){
   const previousTestId=gradingState.selectedTestId||currentSavedTestId||"";
@@ -4856,7 +4863,10 @@ function refreshGradeUi(){
   testSelect.onchange=()=>{gradingState.selectedTestId=testSelect.value};
   const classNames=Object.keys(gradingState.rosters);
   const selectedClasses=new Set(gradingState.classes);
-  document.getElementById("classChecks").innerHTML=classNames.length?classNames.map((c,i)=>`<label class="class-chip"><input type="checkbox" value="${escapeHtml(c)}" ${(selectedClasses.size?selectedClasses.has(c):i<2)?"checked":""} onchange="updateSelectedClassSummary()">${escapeHtml(classDisplayName(c))}</label>`).join(""):'<span class="help">設定からクラスを登録してください。</span>';
+  document.getElementById("classChecks").innerHTML=classNames.length?classNames.map((c,i)=>{
+    const schoolName=String(gradingState.classProfiles[c]?.schoolName||"").trim(),displayName=classDisplayName(c);
+    return `<label class="class-chip" title="${escapeHtml(classFullDisplayName(c))}"><input type="checkbox" value="${escapeHtml(c)}" ${(selectedClasses.size?selectedClasses.has(c):i<2)?"checked":""} onchange="updateSelectedClassSummary()"><span class="class-chip-copy">${schoolName?`<small>${escapeHtml(schoolName)}</small>`:""}<span>${escapeHtml(displayName)}</span></span></label>`;
+  }).join(""):'<span class="help">設定からクラスを登録してください。</span>';
   updateSelectedClassSummary();
   renderClassSettings();
 }
@@ -4864,7 +4874,7 @@ function selectedClassNames(){return [...document.querySelectorAll("#classChecks
 function updateSelectedClassSummary(){
   const names=selectedClassNames(),summary=document.getElementById("selectedClassSummary"),count=document.getElementById("classPickerCount");
   if(count)count.textContent=names.length?`${names.length}クラス選択中`:"未選択";
-  if(summary)summary.innerHTML=names.length?names.map(name=>`<span>${escapeHtml(classDisplayName(name))}</span>`).join(""):'<span>未選択</span>';
+  if(summary)summary.innerHTML=names.length?names.map(name=>`<span>${escapeHtml(classFullDisplayName(name))}</span>`).join(""):'<span>未選択</span>';
 }
 function handleClassPickerToggle(picker){if(!picker.open)updateSelectedClassSummary()}
 function workflowStepLabel(step){return {1:"① 答案の読込",2:"② 確認と修正",3:"③ 採点",4:"④ 結果の確認"}[step]}
@@ -5421,7 +5431,7 @@ function renderIssues(){
     const lateClass=person.lateAdded?"late-added":"";
     const statusLabel=person.absent?"欠席":person.lateAdded?"個別追加・割当済":page?"割当済":"要確認";
     return `<div class="pdf-student-card ${problem?"problem":""} ${lateClass}" data-class="${escapeHtml(className)}" data-no="${person.no}" ondragover="allowPdfDrop(event)" ondragleave="leavePdfDrop(event)" ondrop="dropPdfOnStudent(event,decodeURIComponent('${encodedClass}'),${person.no})" onclick="handleReviewStudentCardClick(event,decodeURIComponent('${encodedClass}'),${person.no})">
-      <div class="pdf-student-head"><div>${String(person.no).padStart(2,"0")} ${escapeHtml(person.name)}<small>${escapeHtml(classDisplayName(className))}</small></div><span>${statusLabel}</span></div>
+      <div class="pdf-student-head"><div>${String(person.no).padStart(2,"0")} ${escapeHtml(person.name)}<small>${escapeHtml(classFullDisplayName(className))}</small></div><span>${statusLabel}</span></div>
       ${nameCrop}
       ${page?`<div class="pdf-mark-read ${recognition.warning?"warning":""}">${escapeHtml(recognition.text)}</div>`:'<div class="pdf-mark-read warning">答案が割り当てられていません</div>'}
       <div class="pdf-student-actions"><span class="pdf-student-choice-actions"><label class="pdf-absent-toggle" onclick="event.stopPropagation()"><input type="checkbox" ${person.absent?"checked":""} onchange="setStudentAbsent(decodeURIComponent('${encodedClass}'),${person.no},this.checked)">欠席</label></span><span>${page?`<button class="secondary" type="button" onclick="event.stopPropagation();openAnswerPreview(decodeURIComponent('${encodedClass}'),${person.no})">全体</button> <button class="secondary" type="button" onclick="event.stopPropagation();clearStudentPage(decodeURIComponent('${encodedClass}'),${person.no})">外す</button>`:""}</span></div>
@@ -5677,7 +5687,7 @@ function renderGradeGrid(){
   modelAnswer.textContent=test.answers[q]||"未登録";
   applyQuestionScoreInputs();
   const sections=gradingState.classes.map(c=>({className:c,people:visibleGradingPeople(c)})).filter(group=>group.people.length);
-  gradeAnswers.innerHTML=sections.length?sections.map(group=>`<section><div class="class-title"><span>${escapeHtml(group.className)}</span><span>${isClassDone(group.className,q)?"採点済":"採点中"}</span></div><div class="answer-grid" style="grid-template-columns:repeat(${cols},minmax(0,1fr))">${group.people.map(p=>card(group.className,p,q)).join("")}</div></section>`).join(""):'<div class="pdf-review-ok">今回追加した答案はありません。採点対象を「全員の答案」へ切り替えてください。</div>';
+  gradeAnswers.innerHTML=sections.length?sections.map(group=>`<section><div class="class-title"><span>${escapeHtml(classFullDisplayName(group.className))}</span><span>${isClassDone(group.className,q)?"採点済":"採点中"}</span></div><div class="answer-grid" style="grid-template-columns:repeat(${cols},minmax(0,1fr))">${group.people.map(p=>card(group.className,p,q)).join("")}</div></section>`).join(""):'<div class="pdf-review-ok">今回追加した答案はありません。採点対象を「全員の答案」へ切り替えてください。</div>';
   renderAnswerCrops(q,test);
 }
 function renderIndividualGradeGrid(test,cols){
@@ -5685,7 +5695,7 @@ function renderIndividualGradeGrid(test,cols){
   const totalPeople=groups.reduce((sum,group)=>sum+group.people.length,0);
   const sections=groups.flatMap(group=>group.people.map(person=>{
     const completed=(test.questions||[]).filter((_,q)=>gradingState.grades[key(group.className,person.no,q)]).length;
-    return `<section class="individual-student-section"><div class="class-title"><span>${escapeHtml(classDisplayName(group.className))}　${String(person.no).padStart(2,"0")} ${escapeHtml(person.name)}</span><span>${completed} / ${(test.questions||[]).length}問</span></div><div class="individual-question-grid" style="grid-template-columns:repeat(${cols},minmax(0,1fr))">${(test.questions||[]).map((_,q)=>individualQuestionCard(group.className,person,q,test)).join("")}</div></section>`;
+    return `<section class="individual-student-section"><div class="class-title"><span>${escapeHtml(classFullDisplayName(group.className))}　${String(person.no).padStart(2,"0")} ${escapeHtml(person.name)}</span><span>${completed} / ${(test.questions||[]).length}問</span></div><div class="individual-question-grid" style="grid-template-columns:repeat(${cols},minmax(0,1fr))">${(test.questions||[]).map((_,q)=>individualQuestionCard(group.className,person,q,test)).join("")}</div></section>`;
   })).join("");
   gradeAnswers.innerHTML=sections?`<div class="individual-grading-note">追加した${totalPeople}名を個人別に表示しています。採点パレットで○・×・△を選び、各問題タイルをタップしてください。</div>${sections}`:'<div class="pdf-review-ok">今回追加した答案がありません。「確認と修正」で個別答案を名前へ割り当ててください。</div>';
   renderAnswerCrops(gradingState.q,test);
@@ -5905,7 +5915,7 @@ function updateAnswerPreview(){
   const person=findAssignedPerson(preview.className,preview.no);if(!person)return;
   const page=gradingState.pdfPages.find(item=>item.id===person.pageId);
   answerPreviewTitle.textContent=`問題 ${String(gradingState.q+1).padStart(2,"0")}・${person.name}`;
-  answerPreviewMeta.textContent=`${classDisplayName(preview.className)}・出席番号${person.no}・${page?`${page.fileName} ${page.pageNumber}ページ`:"答案なし"}`;
+  answerPreviewMeta.textContent=`${classFullDisplayName(preview.className)}・出席番号${person.no}・${page?`${page.fileName} ${page.pageNumber}ページ`:"答案なし"}`;
   answerPreviewImage.src=gradingState.pageImageUrls[person.pageId]||"";
   const mark=gradingState.grades[key(preview.className,person.no,gradingState.q)]?.mark||"";
   answerPreviewGrade.textContent=mark==="ok"?"○ 正解":mark==="ng"?"× 不正解":mark==="partial"?"△ 部分点":"未採点";
@@ -6041,7 +6051,7 @@ function openClassModal(className=""){
   document.getElementById("classModalSaveButton").textContent="クラスを保存";
   document.getElementById("deleteClassButton").style.display=isEditing?"inline-flex":"none";
   schoolInput.value=profile.schoolName||"";
-  nameInput.value=className;
+  nameInput.value=profile.className||className;
   nameInput.readOnly=false;
   populateGradeControls(state.grade,profile.grade||"");
   gradeInput.value=profile.grade||"";
@@ -6082,7 +6092,7 @@ function deleteEditingClass(){
   try{sessions=JSON.parse(localStorage.getItem(sessionsKey())||"[]")}catch(e){sessions=[]}
   const usedCount=sessions.filter(session=>Array.isArray(session.classes)&&session.classes.includes(className)).length;
   const warning=usedCount?`\n\nこのクラスを使用した採点履歴が${usedCount}件あります。採点履歴は削除せず残します。`:"";
-  if(!confirm(`「${classDisplayName(className)}」を削除しますか？\nクラス情報と名簿は元に戻せません。${warning}`))return;
+  if(!confirm(`「${classFullDisplayName(className)}」を削除しますか？\nクラス情報と名簿は元に戻せません。${warning}`))return;
   delete gradingState.rosters[className];
   delete gradingState.classProfiles[className];
   gradingState.classes=gradingState.classes.filter(value=>value!==className);
@@ -6135,6 +6145,13 @@ function migrateClassName(oldClassName,newClassName){
   localStorage.setItem(sessionsKey(),JSON.stringify(sessions.map(session=>renameClassInSession(session,oldClassName,newClassName))));
   localStorage.setItem("yutori_grades_v021",JSON.stringify(gradingState.grades));
 }
+function normalizedClassIdentity(value){return String(value||"").normalize("NFKC").replace(/\s+/g,"").toLocaleLowerCase("ja")}
+function newClassStorageKey(schoolName,className){
+  if(!Object.prototype.hasOwnProperty.call(gradingState.rosters,className))return className;
+  const base=`${schoolName}｜${className}`;let candidate=base,suffix=2;
+  while(Object.prototype.hasOwnProperty.call(gradingState.rosters,candidate))candidate=`${base} (${suffix++})`;
+  return candidate;
+}
 function saveClassFromModal(){
   const schoolName=document.getElementById("classSchoolInput").value.trim();
   const className=document.getElementById("classNameInput").value.trim();
@@ -6146,22 +6163,12 @@ function saveClassFromModal(){
   if(!className){alert("クラス名を入力してください。");document.getElementById("classNameInput").focus();return}
   if(!grade){alert("学年を選択してください。");document.getElementById("classGradeInput").focus();return}
   if(!group){alert("答案のマークと照合する組を選択してください。");document.getElementById("classGroupInput").focus();return}
-  if(className!==editingClassName&&Object.prototype.hasOwnProperty.call(gradingState.rosters,className)){
-    alert("同じ名前のクラスがすでに登録されています。");return;
-  }
-  const originalClassName=editingClassName;
-  if(originalClassName&&className!==originalClassName){
-    let sessions=[];
-    try{sessions=JSON.parse(localStorage.getItem(sessionsKey())||"[]")}catch(error){sessions=[]}
-    const usedCount=sessions.filter(session=>(session.classes||[]).includes(originalClassName)).length;
-    if(usedCount&&!confirm(`クラス名を「${originalClassName}」から「${className}」へ変更します。\nこのクラスを使用している採点データ ${usedCount}件も、新しいクラス名へ引き継ぎます。\n\n変更してよいですか？`))return;
-    migrateClassName(originalClassName,className);
-    delete gradingState.rosters[originalClassName];
-    delete gradingState.classProfiles[originalClassName];
-  }
+  const duplicate=Object.keys(gradingState.rosters).find(key=>key!==editingClassName&&normalizedClassIdentity(gradingState.classProfiles[key]?.schoolName)===normalizedClassIdentity(schoolName)&&normalizedClassIdentity(gradingState.classProfiles[key]?.className||key)===normalizedClassIdentity(className));
+  if(duplicate){alert("同じ学校・同じクラス名の登録がすでにあります。");return}
+  const classKey=editingClassName||newClassStorageKey(schoolName,className);
   const roster=parseRosterText(document.getElementById("classRosterInput").value);
-  gradingState.rosters[className]=roster;
-  gradingState.classProfiles[className]={schoolName,className,grade,group,color,studentCount:studentCountValue||roster.length};
+  gradingState.rosters[classKey]=roster;
+  gradingState.classProfiles[classKey]={schoolName,className,grade,group,color,studentCount:studentCountValue||roster.length};
   saveRosters();
   saveClassProfiles();
   refreshGradeUi();
@@ -6204,9 +6211,9 @@ function renderResumeList(){
   if(!sessions.length){box.innerHTML='<div class="empty-resume">保存された採点データはありません。</div>';return}
   box.innerHTML=sessions.map(session=>{
     const completed=completedQuestionCount(session),total=(session.questions||[]).length,title=testTileTitle(session,"名称未設定");
-    const classes=(session.classes||[]).map(className=>classDisplayName(className)).join("・")||"クラス未設定";
+    const classes=(session.classes||[]).map(className=>classFullDisplayName(className)).join("・")||"クラス未設定";
     const missing=sessionMissingStudents(session);
-    const missingNames=missing.map(person=>`${classDisplayName(person.className)} ${String(person.no).padStart(2,"0")} ${person.name}`).join("、");
+    const missingNames=missing.map(person=>`${classFullDisplayName(person.className)} ${String(person.no).padStart(2,"0")} ${person.name}`).join("、");
     const missingHtml=`<div class="resume-missing-simple"><strong>未受験・答案なし ${missing.length}名</strong>${missingNames?`<span class="resume-missing-names" title="${escapeHtml(missingNames)}">${escapeHtml(missingNames)}</span>`:""}</div>`;
     return `<div class="resume-item"><button class="resume-delete" type="button" title="削除" onclick="openDeleteSessionModal('${escapeHtml(session.id)}','${escapeHtml(title)}')">×</button><div class="resume-heading"><span class="resume-title">${escapeHtml(title)}</span><span class="resume-classes">${escapeHtml(classes)}</span></div><div class="resume-meta-row"><span>採点途中：${completed} / ${total}問</span><span>最終保存：${formatSavedAt(session.lastSavedAt)}</span></div>${missingHtml}<div class="resume-actions">${missing.length?`<button class="resume-late-button" type="button" onclick="openLatePdfModal('${escapeHtml(session.id)}')">個別のPDF読込</button>`:""}<button class="primary" onclick="resumeGradingSession('${escapeHtml(session.id)}')">採点を再開</button></div></div>`;
   }).join("");
@@ -6219,7 +6226,7 @@ function openLatePdfModal(sessionId){
   latePdfContext={sessionId,candidates};
   const title=[session.subject,session.unit,session.testName].filter(Boolean).join(" ")||"名称未設定";
   document.getElementById("latePdfSessionTitle").textContent=`「${title}」へ後日受験した答案を追加します。`;
-  document.getElementById("latePdfCandidates").innerHTML=candidates.map(person=>`<span class="late-pdf-candidate">${escapeHtml(classDisplayName(person.className))} ${String(person.no).padStart(2,"0")} ${escapeHtml(person.name)}</span>`).join("");
+  document.getElementById("latePdfCandidates").innerHTML=candidates.map(person=>`<span class="late-pdf-candidate">${escapeHtml(classFullDisplayName(person.className))} ${String(person.no).padStart(2,"0")} ${escapeHtml(person.name)}</span>`).join("");
   document.getElementById("latePdfInput").value="";
   document.querySelector('input[name="lateGradingMode"][value="late-only"]').checked=true;
   const status=document.getElementById("latePdfStatus");status.className="late-pdf-status";status.textContent="読み込み後、「要確認のPDF」を該当する生徒のタイルへ割り当てます。";
@@ -6550,7 +6557,7 @@ function renderResultsSummary(){
   }
 
   const previous=select.value;
-  select.innerHTML=classes.map(className=>`<option value="${escapeHtml(className)}">${escapeHtml(classDisplayName(className))}</option>`).join("");
+  select.innerHTML=classes.map(className=>`<option value="${escapeHtml(className)}">${escapeHtml(classFullDisplayName(className))}</option>`).join("");
   select.value=classes.includes(previous)?previous:classes[0];
 
   renderSelectedResultClass();
@@ -6576,6 +6583,10 @@ function resultQuestionRates(session,className,scope="class"){
     const marks=classes.flatMap(name=>(session.answers?.[name]||[]).filter(person=>!person.absent).map(person=>session.grades?.[`${name}::${person.no}::${q}`]?.mark).filter(Boolean));
     return marks.length?Math.round(marks.filter(mark=>mark==="ok").length/marks.length*100):0;
   });
+}
+function resultAverageScore(session,className,scope="class"){
+  const completed=resultRateClasses(session,className,scope).flatMap(name=>(session.answers?.[name]||[]).map(person=>calculateStudentResult(session,name,person)).filter(result=>result.complete));
+  return completed.length?completed.reduce((sum,result)=>sum+Number(result.score||0),0)/completed.length:0;
 }
 
 function renderSelectedResultClass(){
@@ -6616,18 +6627,17 @@ function renderSelectedResultClass(){
 
   const completed=rows.filter(row=>row.complete).length;
   const absentCount=rows.filter(row=>row.absent).length;
-  const completedRows=rows.filter(row=>row.complete);
-  const average=completedRows.length?completedRows.reduce((sum,row)=>sum+Number(row.score||0),0)/completedRows.length:0;
+  const average=resultAverageScore(session,className,rateScope);
   const sortMode=document.getElementById("resultsSortSelect")?.value||"number";
   const sortedRows=[...rows].sort((a,b)=>sortMode==="score"?(Number(b.score||0)-Number(a.score||0)||Number(a.no)-Number(b.no)):Number(a.no)-Number(b.no));
 
   summary.innerHTML=`
-    <div class="results-class-title">${escapeHtml(classDisplayName(className))}</div>
+    <div class="results-class-title">${escapeHtml(classFullDisplayName(className))}</div>
     <div class="results-class-meta">
       <span>人数：${rows.length}人</span>
       <span>採点完了人数：${completed}人</span>
       ${absentCount?`<span>欠席：${absentCount}人</span>`:""}
-      <span>平均点：${formatScore(average)}点</span>
+      <span>${rateScope==="grade"?"同学年":"表示クラス"}の平均点：${formatScore(average)}点</span>
       <span>問題別正答率：${rateScope==="grade"?"同学年":"表示クラス"}</span>
     </div>
   `;
@@ -6713,7 +6723,7 @@ function outputGradedSessions(){
 }
 function outputSessionSortValue(session,mode){
   if(mode==="grade")return gradeLabel(session.grade);
-  if(mode==="class")return (session.classes||[]).map(className=>classDisplayName(className)).join("・");
+  if(mode==="class")return (session.classes||[]).map(className=>classFullDisplayName(className)).join("・");
   return Number(session.lastSavedAt)||0;
 }
 function sortedOutputSessions(sessions){
@@ -6728,7 +6738,7 @@ function sortedOutputSessions(sessions){
 function outputInlineValue(value){return encodeURIComponent(String(value||"")).replace(/'/g,"%27")}
 function outputSessionCard(session){
   const encodedId=outputInlineValue(session.id),title=testTileTitle(session,"名称未設定"),encodedTitle=outputInlineValue(title);
-  const classes=(session.classes||[]).map(className=>classDisplayName(className)).join("・")||"クラス未設定";
+  const classes=(session.classes||[]).map(className=>classFullDisplayName(className)).join("・")||"クラス未設定";
   const completed=completedQuestionCount(session),total=(session.questions||[]).length;
   const detail=[gradeLabel(session.grade),session.subject,session.unit].filter(Boolean).join(" ／ ");
   return `<article class="output-session-card"><h3>${escapeHtml(title)}</h3><p>${detail?escapeHtml(detail):"&nbsp;"}</p><div class="output-session-meta"><span>${escapeHtml(classes)}</span><span>採点済み ${completed}/${total}問</span><span>最終保存 ${escapeHtml(formatSavedAt(session.lastSavedAt))}</span></div><div class="output-session-actions"><button class="secondary" type="button" onclick="moveOutputSessionToList(decodeURIComponent('${encodedId}'))">本棚へ収納</button><button class="danger" type="button" onclick="openDeleteSessionModal(decodeURIComponent('${encodedId}'),decodeURIComponent('${encodedTitle}'))">削除</button><button class="primary" type="button" onclick="openReturnOutputSession(decodeURIComponent('${encodedId}'))">返却資料を作る</button></div></article>`;
@@ -6742,7 +6752,7 @@ function renderOutputSessionCards(){
   const desk=sortedOutputSessions(sessions.filter(session=>!outputLibraryState.shelvedIds.has(String(session.id))));
   catalog.innerHTML=shelved.length?shelved.map(session=>{
     const encodedId=outputInlineValue(session.id),title=testTileTitle(session,"名称未設定"),encodedTitle=outputInlineValue(title);
-    const classes=(session.classes||[]).map(className=>classDisplayName(className)).join("・")||"クラス未設定";
+    const classes=(session.classes||[]).map(className=>classFullDisplayName(className)).join("・")||"クラス未設定";
     const meta=[gradeLabel(session.grade),classes,`最終保存 ${formatSavedAt(session.lastSavedAt)}`].filter(Boolean).join(" ／ ");
     return `<article class="output-catalog-row"><div class="output-catalog-copy"><strong title="${escapeHtml(title)}">${escapeHtml(title)}</strong><span title="${escapeHtml(meta)}">${escapeHtml(meta)}</span></div><div class="output-catalog-actions"><button class="secondary" type="button" onclick="selectOutputSession(decodeURIComponent('${encodedId}'))">机に戻す</button><button class="danger" type="button" onclick="openDeleteSessionModal(decodeURIComponent('${encodedId}'),decodeURIComponent('${encodedTitle}'))">削除</button></div></article>`;
   }).join(""):'<div class="output-library-empty">本棚に収納した採点済みデータはありません。</div>';
@@ -6807,7 +6817,7 @@ async function prepareReturnOutput(preferredSessionId=""){
   const previous=sessionSelect.value;
   sessionSelect.innerHTML=sessions.map(session=>{
     const title=testTileTitle(session,"名称未設定");
-    const classes=(session.classes||[]).map(className=>classDisplayName(className)).join("・")||"クラス未設定";
+    const classes=(session.classes||[]).map(className=>classFullDisplayName(className)).join("・")||"クラス未設定";
     return `<option value="${escapeHtml(session.id)}">${escapeHtml(title)}｜${escapeHtml(classes)}</option>`;
   }).join("");
   const target=sessions.some(session=>session.id===preferredSessionId)?preferredSessionId:sessions.some(session=>session.id===previous)?previous:(sessions.some(session=>session.id===gradingState.sessionId)?gradingState.sessionId:sessions[0].id);
@@ -6818,7 +6828,7 @@ async function changeReturnOutputSession(sessionId){
   const session=returnOutputSessions().find(item=>item.id===sessionId);if(!session)return;
   returnOutputState.session=session;returnOutputState.previewPage=1;
   const classSelect=document.getElementById("returnClassSelect"),previous=returnOutputState.className;
-  classSelect.innerHTML=(session.classes||[]).map(className=>`<option value="${escapeHtml(className)}">${escapeHtml(classDisplayName(className))}</option>`).join("");
+  classSelect.innerHTML=(session.classes||[]).map(className=>`<option value="${escapeHtml(className)}">${escapeHtml(classFullDisplayName(className))}</option>`).join("");
   returnOutputState.className=(session.classes||[]).includes(previous)?previous:(session.classes||[])[0]||"";
   classSelect.value=returnOutputState.className;
   document.getElementById("returnOutputTitle").textContent="答案画像を準備しています…";
@@ -6889,11 +6899,11 @@ function returnQuestionRates(session,className,scope="class"){return resultQuest
 function returnMaximumScore(session){
   return (session.questions||[]).reduce((sum,_,q)=>sum+Number(session.questionScores?.[q]?.ok??session.fullScore??1),0);
 }
-function returnClassStats(session,className,person){
-  const rows=(session.answers?.[className]||[]).map(value=>({person:value,result:calculateStudentResult(session,className,value)})).filter(row=>row.result.complete);
-  const average=rows.length?rows.reduce((sum,row)=>sum+Number(row.result.score||0),0)/rows.length:0;
-  const own=calculateStudentResult(session,className,person),rank=own.complete?1+rows.filter(row=>Number(row.result.score)>Number(own.score)).length:null;
-  return {average,rank,count:rows.length};
+function returnClassStats(session,className,person,scope="class"){
+  const classRows=(session.answers?.[className]||[]).map(value=>({person:value,result:calculateStudentResult(session,className,value)})).filter(row=>row.result.complete);
+  const average=resultAverageScore(session,className,scope);
+  const own=calculateStudentResult(session,className,person),rank=own.complete?1+classRows.filter(row=>Number(row.result.score)>Number(own.score)).length:null;
+  return {average,rank,count:classRows.length};
 }
 function formatReturnScore(value){const number=Number(value||0);return Number.isInteger(number)?String(number):String(Math.round(number*10)/10)}
 function returnQuestionRect(session,q){
@@ -6916,15 +6926,15 @@ function returnHeaderOverlayStyles(session={}){
   const paper=returnPaperSpec(session),headerScale=Math.min(139,paper.width-20)/139;
   const percent=(millimeters,total)=>millimeters/total*100;
   const top=10+(10.0386-10)*headerScale,height=12.8601*headerScale;
-  const scoreLeft=10+(120.96-10)*headerScale,scoreWidth=17.01*headerScale;
-  const extraLeft=10+(140.28-10)*headerScale,extraRight=8.82*headerScale;
+  const scoreLeft=10+(128-10)*headerScale,scoreWidth=20.5*headerScale;
+  const extraLeft=10+(151.5-10)*headerScale,extraRight=8.5*headerScale;
   return{
-    score:`top:${percent(top,paper.height).toFixed(4)}%;left:${percent(scoreLeft,paper.width).toFixed(4)}%;width:${percent(scoreWidth,paper.width).toFixed(4)}%;height:${percent(height,paper.height).toFixed(4)}%;font-size:${percent(3.612*headerScale,paper.width).toFixed(4)}cqw`,
+    score:`top:${percent(top,paper.height).toFixed(4)}%;left:${percent(scoreLeft,paper.width).toFixed(4)}%;width:${percent(scoreWidth,paper.width).toFixed(4)}%;height:${percent(height,paper.height).toFixed(4)}%;font-size:${percent(4.35*headerScale,paper.width).toFixed(4)}cqw`,
     extra:`top:${percent(top,paper.height).toFixed(4)}%;left:${percent(extraLeft,paper.width).toFixed(4)}%;right:${percent(extraRight,paper.width).toFixed(4)}%;height:${percent(height,paper.height).toFixed(4)}%;font-size:${percent(2.625*headerScale,paper.width).toFixed(4)}cqw`
   };
 }
 function returnAnswerPageHtml(session,className,person,options){
-  const rates=returnQuestionRates(session,className,options.rateScope),result=calculateStudentResult(session,className,person),maximum=returnMaximumScore(session),stats=returnClassStats(session,className,person),paper=returnPaperSpec(session),overlay=returnHeaderOverlayStyles(session);
+  const rates=returnQuestionRates(session,className,options.rateScope),result=calculateStudentResult(session,className,person),maximum=returnMaximumScore(session),stats=returnClassStats(session,className,person,options.rateScope),paper=returnPaperSpec(session),overlay=returnHeaderOverlayStyles(session);
   const imageUrl=returnOutputState.imageUrls[person.pageId]||"";
   const annotations=(session.questions||[]).map((_,q)=>{
     const grade=session.grades?.[`${className}::${person.no}::${q}`],rect=returnQuestionRect(session,q),mark=grade?.mark||"";
@@ -6932,7 +6942,7 @@ function returnAnswerPageHtml(session,className,person,options){
     if(!mark&&!options.showQuestionRate)return"";
     return `<div class="return-question-annotation" style="left:${rect.left.toFixed(4)}%;top:${rect.top.toFixed(4)}%;width:${rect.width.toFixed(4)}%;height:${rect.height.toFixed(4)}%">${returnHandwrittenMark(mark,q)}${correct?`<span class="return-correct-answer">正：${escapeHtml(correct)}</span>`:""}${options.showQuestionRate?`<span class="return-question-rate">正答率 ${rates[q]}%</span>`:""}</div>`;
   }).join("");
-  const extras=[];if(options.showAverage)extras.push(`平均 ${formatReturnScore(stats.average)}点`);if(options.showRank&&stats.rank!=null)extras.push(`順位 ${stats.rank}/${stats.count}`);
+  const extras=[];if(options.showAverage)extras.push(`${options.rateScope==="grade"?"学年平均":"クラス平均"} ${formatReturnScore(stats.average)}点`);if(options.showRank&&stats.rank!=null)extras.push(`順位 ${stats.rank}/${stats.count}`);
   return `<section class="return-sheet ${paper.className} return-answer-sheet" style="--return-paper-ratio:${paper.ratio}" aria-label="${escapeHtml(person.name)}の採点済み答案">${imageUrl?`<img class="return-answer-image" src="${escapeHtml(imageUrl)}" alt="${escapeHtml(person.name)}の答案">`:'<div class="return-answer-placeholder">答案画像を表示できません</div>'}${annotations}<div class="return-score-overlay" style="${overlay.score}">${formatReturnScore(result.score)} / ${formatReturnScore(maximum)}点</div>${extras.length?`<div class="return-extra-overlay" style="${overlay.extra}">${extras.map(value=>`<span>${escapeHtml(value)}</span>`).join("")}</div>`:""}</section>`;
 }
 function returnPracticeQuestions(session,className,person,options){
@@ -6946,7 +6956,7 @@ function returnPracticeSheetHtml(session,className,person,items,pageIndex=0,page
   const paper=returnPaperSpec(session),landscape=paper.orientation==="landscape";
   const rowHeight=landscape?Math.max(5.2,Math.min(7.2,(50.5-Math.max(0,items.length-1)*.7)/Math.max(1,items.length))):Math.max(6.8,Math.min(9.3,(112-Math.max(0,items.length-1)*.7)/Math.max(1,items.length)));
   const itemHtml=items.map(item=>`<article class="return-practice-item"><div class="return-practice-work"><div class="return-practice-details"><div class="return-practice-detail-first"><span class="return-practice-number">${String(item.q+1).padStart(2,"0")}</span><span class="return-practice-detail-question">${escapeHtml(item.question||"未登録")}</span></div><div class="return-practice-detail-second"><span class="return-practice-detail-answer"><span class="return-practice-detail-answer-label">模範：</span>${escapeHtml(item.answer||"未登録")}</span><span class="return-practice-detail-rate">正答率 ${item.rate}%</span></div></div><div class="return-four-lines" aria-label="英語4線"><i></i><i></i><i></i><i></i></div></div></article>`).join("");
-  return `<section class="return-sheet ${paper.className} return-practice-sheet" style="--return-paper-ratio:${paper.ratio}" aria-label="${escapeHtml(person.name)}の個別練習課題"><header class="return-practice-head"><div><div class="return-practice-title">個別練習プリント${pageCount>1?` ${pageIndex+1}`:""}</div><div class="return-practice-meta">${escapeHtml(title)}　正答率が高い問題から復習します</div></div><div class="return-practice-name">${escapeHtml(classDisplayName(className))}<br>${String(person.no).padStart(2,"0")} ${escapeHtml(person.name)}</div></header>${items.length?`<div class="return-practice-list" style="--practice-row-height:${rowHeight.toFixed(2)}cqw">${itemHtml}</div>`:'<div class="return-practice-empty">全問正解です。よくできました！</div>'}</section>`;
+  return `<section class="return-sheet ${paper.className} return-practice-sheet" style="--return-paper-ratio:${paper.ratio}" aria-label="${escapeHtml(person.name)}の個別練習課題"><header class="return-practice-head"><div><div class="return-practice-title">個別練習プリント${pageCount>1?` ${pageIndex+1}`:""}</div><div class="return-practice-meta">${escapeHtml(title)}　正答率が高い問題から復習します</div></div><div class="return-practice-name">${escapeHtml(classFullDisplayName(className))}<br>${String(person.no).padStart(2,"0")} ${escapeHtml(person.name)}</div></header>${items.length?`<div class="return-practice-list" style="--practice-row-height:${rowHeight.toFixed(2)}cqw">${itemHtml}</div>`:'<div class="return-practice-empty">全問正解です。よくできました！</div>'}</section>`;
 }
 function returnPracticePagesHtml(session,className,person,options){
   const items=returnPracticeQuestions(session,className,person,options),chunks=[];
@@ -6971,7 +6981,7 @@ function renderReturnOutputPreview(){
   returnOutputState.previewNo=Number(person.no);
   const pages=returnPagesForPerson(session,className,person,options);
   preview.innerHTML=returnOutputState.previewPage===1?pages[0]:pages[1];
-  const title=session.testName||"名称未設定";document.getElementById("returnOutputTitle").textContent=`${title}｜${classDisplayName(className)}｜${person.no} ${person.name}`;
+  const title=session.testName||"名称未設定";document.getElementById("returnOutputTitle").textContent=`${title}｜${classFullDisplayName(className)}｜${person.no} ${person.name}`;
   const totalPages=people.reduce((sum,value)=>sum+returnPagesForPerson(session,className,value,options).length,0);
   setReturnOutputNotice(`${people.length}名を選択中です。合計${totalPages}ページを、生徒ごとに採点済み答案・個別練習課題の順で出力します。`,false);
 }
