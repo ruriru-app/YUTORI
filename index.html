@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="YUTORI">
-<title>YUTORI v0.3.36</title>
+<title>YUTORI v0.3.37</title>
 <link rel="icon" type="image/svg+xml" href="assets/yutori-symbol.svg">
 <link rel="apple-touch-icon" href="assets/yutori-192.png">
 <link rel="manifest" href="manifest.webmanifest">
@@ -3184,10 +3184,10 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
 <body>
 <div class="app-shell">
 <header class="app-header no-print">
-  <div class="brand" aria-label="YUTORI v0.3.36">
+  <div class="brand" aria-label="YUTORI v0.3.37">
     <div class="brand-copy">
       <img class="brand-logo-image" src="assets/yutori-logo.svg" alt="YUTORI つくる・つける・つなげる">
-      <span class="brand-version">v0.3.36</span>
+      <span class="brand-version">v0.3.37</span>
     </div>
   </div>
   <nav aria-label="主要メニュー">
@@ -5049,9 +5049,12 @@ const ATTENDANCE_MARK_TEMPLATE={
     {value:8,x:1578.205,y:270.884},{value:9,x:1673.795,y:270.84}
   ]
 };
-const MARK_MIN_COVERAGE=.68;
-const MARK_MIN_MARGIN=.12;
-const MARK_MIN_MEDIAN_DARKNESS=65;
+const MARK_NAME_TEMPLATE={left:1741.56,top:5.5449,right:3202.02,bottom:365.281};
+const MARK_MIN_COVERAGE=.76;
+const MARK_MIN_MARGIN=.1;
+const MARK_MIN_MEDIAN_DARKNESS=50;
+const MARK_DOUBLE_COVERAGE=.8;
+const MARK_HEADER_LINE_LUMINANCE=190;
 function markLuminance(data,index){return data[index]*.299+data[index+1]*.587+data[index+2]*.114}
 function clusterMarkIndexes(indexes){
   const clusters=[];
@@ -5064,51 +5067,54 @@ function clusterMarkIndexes(indexes){
 }
 function findMarkHeaderBounds(imageData){
   const {data,width,height}=imageData;
-  const searchEnd=Math.min(height-1,Math.round(height*.12));
+  const searchEnd=Math.min(height-1,Math.round(height*.16));
   const rowCounts=new Uint32Array(searchEnd+1);
   for(let y=0;y<=searchEnd;y++){
     let count=0,offset=y*width*4;
-    for(let x=0;x<width;x++,offset+=4)if(markLuminance(data,offset)<100)count++;
+    for(let x=0;x<width;x++,offset+=4)if(markLuminance(data,offset)<MARK_HEADER_LINE_LUMINANCE)count++;
     rowCounts[y]=count;
   }
-  const rowCandidates=[],rowThreshold=width*.28;
+  const rowCandidates=[],rowThreshold=width*.22;
   for(let y=0;y<=searchEnd;y++)if(rowCounts[y]>=rowThreshold)rowCandidates.push(y);
   const rowClusters=clusterMarkIndexes(rowCandidates).map(values=>{
     let peak=values[0];
     values.forEach(y=>{if(rowCounts[y]>rowCounts[peak])peak=y});
     return{center:peak,peak:rowCounts[peak]};
   });
-  let rowPair=null,rowPairScore=-1;
+  let best=null;
   for(let a=0;a<rowClusters.length;a++)for(let b=a+1;b<rowClusters.length;b++){
-    const distance=rowClusters[b].center-rowClusters[a].center;
-    if(distance<height*.03||distance>height*.06)continue;
-    const score=rowClusters[a].peak+rowClusters[b].peak;
-    if(score>rowPairScore){rowPairScore=score;rowPair=[rowClusters[a],rowClusters[b]]}
+    const yTop=rowClusters[a].center,yBottom=rowClusters[b].center,span=yBottom-yTop;
+    if(span<height*.03||span>height*.09)continue;
+    const scale=span/(ATTENDANCE_MARK_TEMPLATE.outer.bottom-ATTENDANCE_MARK_TEMPLATE.outer.top);
+    const colCounts=new Uint16Array(width);
+    for(let x=0;x<width;x++){
+      let count=0;
+      for(let y=yTop;y<=yBottom;y++)if(markLuminance(data,(y*width+x)*4)<MARK_HEADER_LINE_LUMINANCE)count++;
+      colCounts[x]=count;
+    }
+    const colCandidates=[];
+    for(let x=0;x<width;x++)if(colCounts[x]>=span*.45)colCandidates.push(x);
+    const colClusters=clusterMarkIndexes(colCandidates).map(values=>{
+      let peak=values[0];
+      values.forEach(x=>{if(colCounts[x]>colCounts[peak])peak=x});
+      return peak;
+    });
+    for(let left=0;left<colClusters.length;left++)for(let right=left+1;right<colClusters.length;right++){
+      const xLeft=colClusters[left],xRight=colClusters[right],measuredUnits=(xRight-xLeft)/scale;
+      if(measuredUnits<3500||measuredUnits>4200)continue;
+      const lineScore=rowClusters[a].peak+rowClusters[b].peak+colCounts[xLeft]*5+colCounts[xRight]*5;
+      const score=lineScore-Math.abs(measuredUnits-3988.64)*.08;
+      if(!best||score>best.score)best={score,xLeft,xRight,yTop,yBottom,scale,measuredUnits};
+    }
   }
-  if(!rowPair)throw new Error("記名欄の上下罫線を検出できませんでした");
-  const yTop=rowPair[0].center,yBottom=rowPair[1].center,span=yBottom-yTop;
-  const colCounts=new Uint16Array(width);
-  for(let x=0;x<width;x++){
-    let count=0;
-    for(let y=yTop;y<=yBottom;y++)if(markLuminance(data,(y*width+x)*4)<100)count++;
-    colCounts[x]=count;
-  }
-  const colCandidates=[];
-  for(let x=0;x<width;x++)if(colCounts[x]>=span*.55)colCandidates.push(x);
-  const colClusters=clusterMarkIndexes(colCandidates).map(values=>{
-    let peak=values[0];
-    values.forEach(x=>{if(colCounts[x]>colCounts[peak])peak=x});
-    return peak;
-  });
-  if(colClusters.length<2)throw new Error("記名欄の左右罫線を検出できませんでした");
-  const xLeft=colClusters[0],xRight=colClusters[colClusters.length-1];
-  const scale=(yBottom-yTop)/(ATTENDANCE_MARK_TEMPLATE.outer.bottom-ATTENDANCE_MARK_TEMPLATE.outer.top);
-  const originX=xLeft-scale*ATTENDANCE_MARK_TEMPLATE.outer.left;
-  const originY=yTop-scale*ATTENDANCE_MARK_TEMPLATE.outer.top;
-  const measuredUnits=(xRight-xLeft)/scale;
-  if(scale<=0||measuredUnits<3500||measuredUnits>4200)throw new Error("記名欄の大きさが想定範囲外です");
-  const layout=Math.abs(measuredUnits-3988.64)<Math.abs(measuredUnits-3678.17)?"wide":"legacy";
-  return{xLeft,xRight,yTop,yBottom,scale,originX,originY,layout,measuredUnits};
+  if(!best)throw new Error("記名欄の外枠を検出できませんでした");
+  const originX=best.xLeft-best.scale*ATTENDANCE_MARK_TEMPLATE.outer.left;
+  const originY=best.yTop-best.scale*ATTENDANCE_MARK_TEMPLATE.outer.top;
+  const layout=Math.abs(best.measuredUnits-3988.64)<Math.abs(best.measuredUnits-3678.17)?"wide":"legacy";
+  return{xLeft:best.xLeft,xRight:best.xRight,yTop:best.yTop,yBottom:best.yBottom,scale:best.scale,originX,originY,layout,measuredUnits:best.measuredUnits};
+}
+function normalizedMarkHeaderBounds(bounds,width,height){
+  return{left:bounds.xLeft/width,right:bounds.xRight/width,top:bounds.yTop/height,bottom:bounds.yBottom/height};
 }
 function estimateMarkHeaderBackground(imageData,bounds){
   const {data,width}=imageData,values=[];
@@ -5141,10 +5147,9 @@ function scoreAttendanceBubble(imageData,bounds,point,background){
 function classifyAttendanceMark(imageData,bounds,points,background){
   const scores=points.map(point=>scoreAttendanceBubble(imageData,bounds,point,background)).sort((a,b)=>b.coverage-a.coverage);
   const top=scores[0],second=scores[1],margin=top.coverage-second.coverage;
-  const strong=scores.filter(score=>score.coverage>=MARK_MIN_COVERAGE);
   let reason="clear";
   if(top.coverage<MARK_MIN_COVERAGE||top.medianDarkness<MARK_MIN_MEDIAN_DARKNESS)reason="blank";
-  else if(strong.length>1)reason="double";
+  else if(second.coverage>=MARK_DOUBLE_COVERAGE&&second.medianDarkness>=MARK_MIN_MEDIAN_DARKNESS)reason="double";
   else if(margin<MARK_MIN_MARGIN)reason="close";
   return{confident:reason==="clear",reason,value:top.value,coverage:top.coverage,margin,medianDarkness:top.medianDarkness};
 }
@@ -5181,10 +5186,11 @@ function readAttendanceMarks(canvas,context){
       markIssue:markProblems.join("・"),
       markConfidence:Number(Math.min(group.confident?group.margin:0,tensBlank?1:tens.confident?tens.margin:0,ones.confident?ones.margin:0).toFixed(3)),
       markLayout:bounds.layout,
+      markHeaderBounds:normalizedMarkHeaderBounds(bounds,canvas.width,canvas.height),
       markMetrics:{
-        group:{value:group.value,coverage:Number(group.coverage.toFixed(3)),margin:Number(group.margin.toFixed(3))},
-        tens:{value:tens.value,coverage:Number(tens.coverage.toFixed(3)),margin:Number(tens.margin.toFixed(3)),blank:tensBlank},
-        ones:{value:ones.value,coverage:Number(ones.coverage.toFixed(3)),margin:Number(ones.margin.toFixed(3))}
+        group:{value:group.value,coverage:Number(group.coverage.toFixed(3)),margin:Number(group.margin.toFixed(3)),darkness:Number(group.medianDarkness.toFixed(1))},
+        tens:{value:tens.value,coverage:Number(tens.coverage.toFixed(3)),margin:Number(tens.margin.toFixed(3)),darkness:Number(tens.medianDarkness.toFixed(1)),blank:tensBlank},
+        ones:{value:ones.value,coverage:Number(ones.coverage.toFixed(3)),margin:Number(ones.margin.toFixed(3)),darkness:Number(ones.medianDarkness.toFixed(1))}
       }
     };
   }catch(error){
@@ -5423,7 +5429,45 @@ function invalidateReviewConfirmation(){
   gradingState.workflowCompleted={...(gradingState.workflowCompleted||{}),2:false};
   document.getElementById("openGradeButton")?.classList.remove("show");
 }
-function nameCropRect(image){return {x:image.naturalWidth*.335,y:image.naturalHeight*.039,width:image.naturalWidth*.268,height:image.naturalHeight*.047}}
+const nameHeaderBoundsCache=new WeakMap();
+function markHeaderBoundsFromMetadata(image,page){
+  const saved=page?.markHeaderBounds;
+  if(!saved||![saved.left,saved.right,saved.top,saved.bottom].every(Number.isFinite))return null;
+  const xLeft=saved.left*image.naturalWidth,xRight=saved.right*image.naturalWidth,yTop=saved.top*image.naturalHeight,yBottom=saved.bottom*image.naturalHeight;
+  const scale=(yBottom-yTop)/(ATTENDANCE_MARK_TEMPLATE.outer.bottom-ATTENDANCE_MARK_TEMPLATE.outer.top);
+  if(scale<=0||xRight<=xLeft)return null;
+  return{xLeft,xRight,yTop,yBottom,scale,originX:xLeft-scale*ATTENDANCE_MARK_TEMPLATE.outer.left,originY:yTop-scale*ATTENDANCE_MARK_TEMPLATE.outer.top};
+}
+function detectMarkHeaderBoundsFromImage(image){
+  if(nameHeaderBoundsCache.has(image))return nameHeaderBoundsCache.get(image);
+  try{
+    const canvas=document.createElement("canvas");canvas.width=image.naturalWidth;canvas.height=image.naturalHeight;
+    const context=canvas.getContext("2d",{alpha:false,willReadFrequently:true});
+    context.fillStyle="#fff";context.fillRect(0,0,canvas.width,canvas.height);context.drawImage(image,0,0);
+    const bounds=findMarkHeaderBounds(context.getImageData(0,0,canvas.width,canvas.height));
+    nameHeaderBoundsCache.set(image,bounds);return bounds;
+  }catch(error){nameHeaderBoundsCache.set(image,null);return null}
+}
+function clampNameCropRect(image,rect){
+  const x=Math.max(0,Math.min(image.naturalWidth-1,rect.x)),y=Math.max(0,Math.min(image.naturalHeight-1,rect.y));
+  const right=Math.max(x+1,Math.min(image.naturalWidth,rect.x+rect.width)),bottom=Math.max(y+1,Math.min(image.naturalHeight,rect.y+rect.height));
+  return{x,y,width:right-x,height:bottom-y};
+}
+function fallbackNameCropRect(image,test={}){
+  const paper=paperDimensionsMm(test,image),headerWidth=Math.min(139,paper.width-20),headerHeight=headerWidth*ATTENDANCE_MARK_TEMPLATE.height/ATTENDANCE_MARK_TEMPLATE.width;
+  const leftMm=10+headerWidth*MARK_NAME_TEMPLATE.left/ATTENDANCE_MARK_TEMPLATE.width;
+  const rightMm=10+headerWidth*MARK_NAME_TEMPLATE.right/ATTENDANCE_MARK_TEMPLATE.width;
+  const topMm=10+headerHeight*MARK_NAME_TEMPLATE.top/ATTENDANCE_MARK_TEMPLATE.height;
+  const bottomMm=10+headerHeight*MARK_NAME_TEMPLATE.bottom/ATTENDANCE_MARK_TEMPLATE.height;
+  return{x:image.naturalWidth*leftMm/paper.width,y:image.naturalHeight*topMm/paper.height,width:image.naturalWidth*(rightMm-leftMm)/paper.width,height:image.naturalHeight*(bottomMm-topMm)/paper.height};
+}
+function nameCropRect(image,page=null,test={}){
+  const bounds=markHeaderBoundsFromMetadata(image,page)||detectMarkHeaderBoundsFromImage(image);
+  if(!bounds)return clampNameCropRect(image,fallbackNameCropRect(image,test));
+  const left=bounds.originX+bounds.scale*MARK_NAME_TEMPLATE.left,right=bounds.originX+bounds.scale*MARK_NAME_TEMPLATE.right;
+  const top=bounds.originY+bounds.scale*MARK_NAME_TEMPLATE.top,bottom=bounds.originY+bounds.scale*MARK_NAME_TEMPLATE.bottom;
+  return clampNameCropRect(image,{x:left,y:top,width:right-left,height:bottom-top});
+}
 async function renderNameCrops(){
   const token=++nameCropRenderToken;
   const canvases=[...document.querySelectorAll(".name-crop-canvas[data-page-id]")];
@@ -5431,7 +5475,8 @@ async function renderNameCrops(){
     try{
       const image=await loadPageImage(canvas.dataset.pageId);
       if(token!==nameCropRenderToken||!canvas.isConnected)return;
-      const crop=nameCropRect(image);canvas.width=504;canvas.height=120;
+      const page=gradingState.pdfPages.find(item=>item.id===canvas.dataset.pageId);
+      const crop=nameCropRect(image,page,currentTest()||state);canvas.width=504;canvas.height=120;
       const context=canvas.getContext("2d",{alpha:false});context.fillStyle="#fff";context.fillRect(0,0,canvas.width,canvas.height);
       context.drawImage(image,crop.x,crop.y,crop.width,crop.height,0,0,canvas.width,canvas.height);canvas.classList.remove("answer-card-loading");
     }catch(error){canvas.classList.remove("answer-card-loading")}
