@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="YUTORI">
-<title>YUTORI v0.3.40</title>
+<title>YUTORI v0.3.41</title>
 <link rel="icon" type="image/svg+xml" href="assets/yutori-symbol.svg">
 <link rel="apple-touch-icon" href="assets/yutori-192.png">
 <link rel="manifest" href="manifest.webmanifest">
@@ -3197,10 +3197,10 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
 <body>
 <div class="app-shell">
 <header class="app-header no-print">
-  <div class="brand" aria-label="YUTORI v0.3.40">
+  <div class="brand" aria-label="YUTORI v0.3.41">
     <div class="brand-copy">
       <img class="brand-logo-image" src="assets/yutori-logo.svg" alt="YUTORI つくる・つける・つなげる">
-      <span class="brand-version">v0.3.40</span>
+      <span class="brand-version">v0.3.41</span>
     </div>
   </div>
   <nav aria-label="主要メニュー">
@@ -3328,7 +3328,7 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
         <button class="primary return-output-sidebar-button" type="button" onclick="printReturnPdfs()">返却用PDFを保存</button>
       </div>
     </div>
-    <div id="outputLibraryControlsHost" class="special-controls-host output-library-controls-host" aria-label="採点済みデータの一覧">
+    <div id="outputLibraryControlsHost" class="special-controls-host output-library-controls-host" aria-label="処理済みデータの本棚">
       <div class="special-sidebar-section output-library-sidebar-section">
         <label class="output-library-sort">並び順
           <select id="outputSessionSort" onchange="renderOutputSessionCards()">
@@ -3824,12 +3824,12 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
     <div class="start-library-head">
       <div>
         <h2>返却資料を作成</h2>
-        <p>採点済みのデータを選ぶと、答案と個別練習プリントのプレビューを開きます。</p>
+        <p>採点済みデータは右側の机に並びます。処理が終わったものは左側の本棚へ収納できます。</p>
       </div>
     </div>
     <div class="output-selected-board">
       <section class="output-library-panel output-selected-panel" aria-labelledby="outputSelectedTitle">
-        <div class="output-library-panel-head"><h3 id="outputSelectedTitle">採点済みデータ</h3></div>
+        <div class="output-library-panel-head"><h3 id="outputSelectedTitle">採点済みデータ（机）</h3></div>
         <div id="outputSessionCards" class="output-session-list"></div>
       </section>
     </div>
@@ -6321,7 +6321,8 @@ async function confirmDeleteSession(){
 
   closeDeleteSessionModal();
   renderResumeList();
-  outputLibraryState.selectedIds.delete(id);
+  outputLibraryState.shelvedIds.delete(id);
+  saveOutputShelvedSessionIds();
   renderOutputSessionCards();
 }
 
@@ -6692,7 +6693,17 @@ function exportResultsCsv(){
   link.href=url;link.download=`${gradingResultBaseName(session,className)}.csv`;document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
 
-const outputLibraryState={selectedIds:new Set()};
+const OUTPUT_SHELVED_SESSIONS_KEY="yutori_output_shelved_session_ids_v1";
+function readOutputShelvedSessionIds(){
+  try{
+    const stored=JSON.parse(localStorage.getItem(OUTPUT_SHELVED_SESSIONS_KEY)||"[]");
+    return new Set(Array.isArray(stored)?stored.map(String):[]);
+  }catch(error){return new Set()}
+}
+const outputLibraryState={shelvedIds:readOutputShelvedSessionIds()};
+function saveOutputShelvedSessionIds(){
+  localStorage.setItem(OUTPUT_SHELVED_SESSIONS_KEY,JSON.stringify([...outputLibraryState.shelvedIds]));
+}
 const returnOutputState={session:null,className:"",selectedNos:new Set(),previewNo:null,previewPage:1,imageUrls:{},ownedUrls:[],loadToken:0};
 function returnOutputSessions(){
   try{return JSON.parse(localStorage.getItem(sessionsKey())||"[]")}catch(error){return[]}
@@ -6720,31 +6731,32 @@ function outputSessionCard(session){
   const classes=(session.classes||[]).map(className=>classDisplayName(className)).join("・")||"クラス未設定";
   const completed=completedQuestionCount(session),total=(session.questions||[]).length;
   const detail=[gradeLabel(session.grade),session.subject,session.unit].filter(Boolean).join(" ／ ");
-  return `<article class="output-session-card"><h3>${escapeHtml(title)}</h3><p>${detail?escapeHtml(detail):"&nbsp;"}</p><div class="output-session-meta"><span>${escapeHtml(classes)}</span><span>採点済み ${completed}/${total}問</span><span>最終保存 ${escapeHtml(formatSavedAt(session.lastSavedAt))}</span></div><div class="output-session-actions"><button class="secondary" type="button" onclick="moveOutputSessionToList(decodeURIComponent('${encodedId}'))">一覧へ移動</button><button class="danger" type="button" onclick="openDeleteSessionModal(decodeURIComponent('${encodedId}'),decodeURIComponent('${encodedTitle}'))">削除</button><button class="primary" type="button" onclick="openReturnOutputSession(decodeURIComponent('${encodedId}'))">返却資料を作る</button></div></article>`;
+  return `<article class="output-session-card"><h3>${escapeHtml(title)}</h3><p>${detail?escapeHtml(detail):"&nbsp;"}</p><div class="output-session-meta"><span>${escapeHtml(classes)}</span><span>採点済み ${completed}/${total}問</span><span>最終保存 ${escapeHtml(formatSavedAt(session.lastSavedAt))}</span></div><div class="output-session-actions"><button class="secondary" type="button" onclick="moveOutputSessionToList(decodeURIComponent('${encodedId}'))">本棚へ収納</button><button class="danger" type="button" onclick="openDeleteSessionModal(decodeURIComponent('${encodedId}'),decodeURIComponent('${encodedTitle}'))">削除</button><button class="primary" type="button" onclick="openReturnOutputSession(decodeURIComponent('${encodedId}'))">返却資料を作る</button></div></article>`;
 }
 function renderOutputSessionCards(){
   const host=document.getElementById("outputSessionCards"),catalog=document.getElementById("outputSessionCatalog");if(!host||!catalog)return;
   const sessions=outputGradedSessions(),validIds=new Set(sessions.map(session=>String(session.id)));
-  outputLibraryState.selectedIds=new Set([...outputLibraryState.selectedIds].filter(id=>validIds.has(id)));
-  const selected=sessions.filter(session=>outputLibraryState.selectedIds.has(String(session.id)));
-  const available=sortedOutputSessions(sessions.filter(session=>!outputLibraryState.selectedIds.has(String(session.id))));
-  catalog.innerHTML=available.length?available.map(session=>{
+  outputLibraryState.shelvedIds=new Set([...outputLibraryState.shelvedIds].filter(id=>validIds.has(id)));
+  saveOutputShelvedSessionIds();
+  const shelved=sortedOutputSessions(sessions.filter(session=>outputLibraryState.shelvedIds.has(String(session.id))));
+  const desk=sortedOutputSessions(sessions.filter(session=>!outputLibraryState.shelvedIds.has(String(session.id))));
+  catalog.innerHTML=shelved.length?shelved.map(session=>{
     const encodedId=outputInlineValue(session.id),title=testTileTitle(session,"名称未設定"),encodedTitle=outputInlineValue(title);
     const classes=(session.classes||[]).map(className=>classDisplayName(className)).join("・")||"クラス未設定";
     const meta=[gradeLabel(session.grade),classes,`最終保存 ${formatSavedAt(session.lastSavedAt)}`].filter(Boolean).join(" ／ ");
-    return `<article class="output-catalog-row"><div class="output-catalog-copy"><strong title="${escapeHtml(title)}">${escapeHtml(title)}</strong><span title="${escapeHtml(meta)}">${escapeHtml(meta)}</span></div><div class="output-catalog-actions"><button class="secondary" type="button" onclick="selectOutputSession(decodeURIComponent('${encodedId}'))">選ぶ</button><button class="danger" type="button" onclick="openDeleteSessionModal(decodeURIComponent('${encodedId}'),decodeURIComponent('${encodedTitle}'))">削除</button></div></article>`;
-  }).join(""):'<div class="output-library-empty">一覧に表示する採点済みデータはありません。</div>';
-  host.innerHTML=selected.length?sortedOutputSessions(selected).map(outputSessionCard).join(""):'<div class="output-library-empty">選択されたデータはありません。<br>左の一覧から「選ぶ」を押してください。</div>';
+    return `<article class="output-catalog-row"><div class="output-catalog-copy"><strong title="${escapeHtml(title)}">${escapeHtml(title)}</strong><span title="${escapeHtml(meta)}">${escapeHtml(meta)}</span></div><div class="output-catalog-actions"><button class="secondary" type="button" onclick="selectOutputSession(decodeURIComponent('${encodedId}'))">机に戻す</button><button class="danger" type="button" onclick="openDeleteSessionModal(decodeURIComponent('${encodedId}'),decodeURIComponent('${encodedTitle}'))">削除</button></div></article>`;
+  }).join(""):'<div class="output-library-empty">本棚に収納した採点済みデータはありません。</div>';
+  host.innerHTML=desk.length?desk.map(outputSessionCard).join(""):'<div class="output-library-empty">机上の採点済みデータはありません。<br>新しい採点済みデータは自動でここに表示されます。</div>';
 }
-function selectOutputSession(sessionId){outputLibraryState.selectedIds.add(String(sessionId));renderOutputSessionCards()}
-function moveOutputSessionToList(sessionId){outputLibraryState.selectedIds.delete(String(sessionId));renderOutputSessionCards()}
+function selectOutputSession(sessionId){outputLibraryState.shelvedIds.delete(String(sessionId));saveOutputShelvedSessionIds();renderOutputSessionCards()}
+function moveOutputSessionToList(sessionId){outputLibraryState.shelvedIds.add(String(sessionId));saveOutputShelvedSessionIds();renderOutputSessionCards()}
 function setOutputEntryMode(isEntry){
   document.getElementById("workspaceShell")?.classList.toggle("output-entry-mode",isEntry);
   document.querySelector(".app-sidebar")?.classList.toggle("output-entry-mode",isEntry);
 }
 function showOutputEntry(){
   const entry=document.getElementById("outputEntryView"),creator=document.getElementById("outputCreatorView");if(entry)entry.style.display="";if(creator)creator.style.display="none";setOutputEntryMode(true);
-  document.getElementById("workspaceTitle").textContent="採点済みデータから選ぶ";document.getElementById("workspaceHint").textContent="返却資料を作る採点データを選択してください";document.getElementById("sidebarTitle").textContent="採点済みデータの一覧";document.getElementById("sidebarSubtitle").textContent="選択すると右側に表示";document.getElementById("sidebarCurrentLabel").textContent="現在の画面：結果出力";document.getElementById("sidebarCurrentText").textContent="左側の一覧からデータを選ぶと、右側へ返却用のタイルが表示されます。";
+  document.getElementById("workspaceTitle").textContent="採点済みデータ";document.getElementById("workspaceHint").textContent="右側を机、左側を本棚として整理できます";document.getElementById("sidebarTitle").textContent="本棚・処理済み";document.getElementById("sidebarSubtitle").textContent="収納した採点済みデータ";document.getElementById("sidebarCurrentLabel").textContent="現在の画面：結果出力";document.getElementById("sidebarCurrentText").textContent="採点済みデータはまず右側の机に並びます。処理後に「本棚へ収納」を押すと、左側へ移動してその状態を保存します。";
   renderOutputSessionCards();
 }
 async function openReturnOutputSession(sessionId){
