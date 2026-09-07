@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="YUTORI">
-<title>YUTORI v0.3.42</title>
+<title>YUTORI v0.3.43</title>
 <link rel="icon" type="image/svg+xml" href="assets/yutori-symbol.svg">
 <link rel="apple-touch-icon" href="assets/yutori-192.png">
 <link rel="manifest" href="manifest.webmanifest">
@@ -3200,10 +3200,10 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
 <body>
 <div class="app-shell">
 <header class="app-header no-print">
-  <div class="brand" aria-label="YUTORI v0.3.42">
+  <div class="brand" aria-label="YUTORI v0.3.43">
     <div class="brand-copy">
       <img class="brand-logo-image" src="assets/yutori-logo.svg" alt="YUTORI つくる・つける・つなげる">
-      <span class="brand-version">v0.3.42</span>
+      <span class="brand-version">v0.3.43</span>
     </div>
   </div>
   <nav aria-label="主要メニュー">
@@ -3314,8 +3314,8 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
         <h3>1ページ目</h3>
         <label>集計範囲
           <select id="returnRateScope" onchange="updateReturnOutputOptions()">
-            <option value="class">対象クラス（正答率・平均点）</option>
-            <option value="grade">同学年（正答率・平均点）</option>
+            <option value="class">対象クラス（正答率・平均点・順位）</option>
+            <option value="grade">同学年（正答率・平均点・順位）</option>
           </select>
         </label>
         <label class="output-check-row"><input id="returnShowQuestionRate" type="checkbox" checked onchange="updateReturnOutputOptions()">問題ごとの正答率</label>
@@ -6900,10 +6900,10 @@ function returnMaximumScore(session){
   return (session.questions||[]).reduce((sum,_,q)=>sum+Number(session.questionScores?.[q]?.ok??session.fullScore??1),0);
 }
 function returnClassStats(session,className,person,scope="class"){
-  const classRows=(session.answers?.[className]||[]).map(value=>({person:value,result:calculateStudentResult(session,className,value)})).filter(row=>row.result.complete);
+  const rankingRows=resultRateClasses(session,className,scope).flatMap(name=>(session.answers?.[name]||[]).map(value=>({className:name,person:value,result:calculateStudentResult(session,name,value)})).filter(row=>row.result.complete));
   const average=resultAverageScore(session,className,scope);
-  const own=calculateStudentResult(session,className,person),rank=own.complete?1+classRows.filter(row=>Number(row.result.score)>Number(own.score)).length:null;
-  return {average,rank,count:classRows.length};
+  const own=calculateStudentResult(session,className,person),rank=own.complete?1+rankingRows.filter(row=>Number(row.result.score)>Number(own.score)).length:null;
+  return {average,rank,count:rankingRows.length};
 }
 function formatReturnScore(value){const number=Number(value||0);return Number.isInteger(number)?String(number):String(Math.round(number*10)/10)}
 function returnQuestionRect(session,q){
@@ -6942,7 +6942,7 @@ function returnAnswerPageHtml(session,className,person,options){
     if(!mark&&!options.showQuestionRate)return"";
     return `<div class="return-question-annotation" style="left:${rect.left.toFixed(4)}%;top:${rect.top.toFixed(4)}%;width:${rect.width.toFixed(4)}%;height:${rect.height.toFixed(4)}%">${returnHandwrittenMark(mark,q)}${correct?`<span class="return-correct-answer">正：${escapeHtml(correct)}</span>`:""}${options.showQuestionRate?`<span class="return-question-rate">正答率 ${rates[q]}%</span>`:""}</div>`;
   }).join("");
-  const extras=[];if(options.showAverage)extras.push(`${options.rateScope==="grade"?"学年平均":"クラス平均"} ${formatReturnScore(stats.average)}点`);if(options.showRank&&stats.rank!=null)extras.push(`順位 ${stats.rank}/${stats.count}`);
+  const extras=[];if(options.showAverage)extras.push(`${options.rateScope==="grade"?"学年平均":"クラス平均"} ${formatReturnScore(stats.average)}点`);if(options.showRank&&stats.rank!=null)extras.push(`${options.rateScope==="grade"?"学年順位":"クラス順位"} ${stats.rank}/${stats.count}`);
   return `<section class="return-sheet ${paper.className} return-answer-sheet" style="--return-paper-ratio:${paper.ratio}" aria-label="${escapeHtml(person.name)}の採点済み答案">${imageUrl?`<img class="return-answer-image" src="${escapeHtml(imageUrl)}" alt="${escapeHtml(person.name)}の答案">`:'<div class="return-answer-placeholder">答案画像を表示できません</div>'}${annotations}<div class="return-score-overlay" style="${overlay.score}">${formatReturnScore(result.score)} / ${formatReturnScore(maximum)}点</div>${extras.length?`<div class="return-extra-overlay" style="${overlay.extra}">${extras.map(value=>`<span>${escapeHtml(value)}</span>`).join("")}</div>`:""}</section>`;
 }
 function returnPracticeQuestions(session,className,person,options){
