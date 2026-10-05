@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="YUTORI">
-<title>YUTORI v0.3.44</title>
+<title>YUTORI v0.3.45</title>
 <link rel="icon" type="image/svg+xml" href="assets/yutori-symbol.svg">
 <link rel="apple-touch-icon" href="assets/yutori-192.png">
 <link rel="manifest" href="manifest.webmanifest">
@@ -3138,11 +3138,27 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
   .output-session-actions{height:78px;grid-template-rows:36px 36px}
 }
 
-/* v0.3.44：個別課題の4線先頭へRuRiRu Fontの手本を表示 */
+/* v0.3.45：フォントの実寸に合わせた4線と、上下を切らないなぞり書き手本 */
 @font-face{font-family:"RuRiRu Font";src:url("assets/fonts/ruriru/RuRiRuFontv2.ttf") format("truetype");font-style:normal;font-weight:400;font-display:swap}
-.return-practice-details{grid-template-rows:minmax(0,2fr) minmax(0,1fr)}
-.return-practice-detail-rate{align-self:center}
-.return-practice-model-answer{position:absolute;z-index:1;left:1.2%;top:2%;display:flex;align-items:center;height:96%;max-width:46%;overflow:hidden;color:#252525;font-family:"RuRiRu Font","YUTORI Andika","BIZ UDPGothic","Yu Gothic",sans-serif;font-weight:400;line-height:1;white-space:nowrap}
+.return-practice-work{grid-template-columns:14% minmax(0,1fr);gap:1.4%}
+.return-practice-details{display:flex;flex-direction:column;justify-content:center;gap:.18cqw;padding:.1cqw .65cqw .1cqw 0}
+.return-practice-detail-first,.return-practice-detail-second{display:contents}
+.return-practice-number,.return-practice-detail-question{font-size:1.12cqw;font-weight:800;line-height:1.2}
+.return-practice-detail-question{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;white-space:normal;overflow-wrap:anywhere}
+.return-practice-detail-rate{align-self:flex-start;font-size:.93cqw;line-height:1.2}
+.return-sheet.return-landscape .return-practice-number,.return-sheet.return-landscape .return-practice-detail-question{font-size:.85cqw}
+.return-sheet.return-landscape .return-practice-detail-rate{font-size:.76cqw}
+/* RuRiRu: cap=1000, x-height=512, baseline=0, descender=-507 (1000 units/em).
+   Writing box = row height minus .9cqw padding and .12cqw border.
+   51% of that box gives safe margins, with an explicit baseline at 61%. */
+.return-four-lines{--practice-model-size:calc((var(--practice-row-height,9.3cqw) - 1.02cqw) * .51)}
+.return-four-lines i{transform:translateY(-50%)}
+.return-four-lines i:nth-child(1){top:10%}
+.return-four-lines i:nth-child(2){top:34.888%}
+.return-four-lines i:nth-child(3){top:61%;border-top-width:.18cqw}
+.return-four-lines i:nth-child(4){top:86.857%}
+.return-practice-model-layer{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.return-practice-model-answer{fill:#969696;font-family:"RuRiRu Font","YUTORI Andika","BIZ UDPGothic","Yu Gothic",sans-serif;font-size:var(--practice-model-size);font-weight:400;font-synthesis:none;dominant-baseline:alphabetic;white-space:pre}
 
 @media print{
   html,body{
@@ -3206,10 +3222,10 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
 <body>
 <div class="app-shell">
 <header class="app-header no-print">
-  <div class="brand" aria-label="YUTORI v0.3.44">
+  <div class="brand" aria-label="YUTORI v0.3.45">
     <div class="brand-copy">
       <img class="brand-logo-image" src="assets/yutori-logo.svg" alt="YUTORI つくる・つける・つなげる">
-      <span class="brand-version">v0.3.44</span>
+      <span class="brand-version">v0.3.45</span>
     </div>
   </div>
   <nav aria-label="主要メニュー">
@@ -6957,30 +6973,62 @@ function returnPracticeQuestions(session,className,person,options){
   const limit=Math.max(1,Math.floor(Number(options.practiceCount)||5));
   return items.slice(0,limit);
 }
-function returnPracticeModelFontSize(rowHeight,answer){
-  const length=Math.max(1,Array.from(String(answer||"").trim()).length);
-  const verticalSize=rowHeight*.63,horizontalSize=36/(length*.62);
-  return Math.max(1.55,Math.min(verticalSize,horizontalSize));
+let returnPracticeFontPromise=null;
+function loadReturnPracticeFont(){
+  if(!document.fonts)return Promise.resolve();
+  return returnPracticeFontPromise||(returnPracticeFontPromise=document.fonts.load('16px "RuRiRu Font"').catch(error=>{returnPracticeFontPromise=null;throw error}));
 }
-function returnPracticeSheetHtml(session,className,person,items,pageIndex=0,pageCount=1){
+function returnPracticeRowHeight(session,count){
+  const landscape=returnPaperSpec(session).orientation==="landscape";
+  return landscape?Math.max(5.2,Math.min(7.2,(50.5-Math.max(0,count-1)*.7)/Math.max(1,count))):Math.max(6.8,Math.min(9.3,(112-Math.max(0,count-1)*.7)/Math.max(1,count)));
+}
+function wrapReturnPracticeItems(items,rowHeight){
+  const context=document.createElement("canvas").getContext("2d");
+  context.font='100px "RuRiRu Font","YUTORI Andika","BIZ UDPGothic","Yu Gothic",sans-serif';
+  // The writing area is 84.6% of the row. Leave inset and right-edge safety space.
+  const availableEm=82/((rowHeight-1.02)*.51);
+  const fits=value=>{const m=context.measureText(value);return Math.max(m.width,m.actualBoundingBoxRight)/100<=availableEm};
+  return items.flatMap(item=>{
+    const lines=[];let line="";
+    for(const word of String(item.answer||"").trim().split(/\s+/)){
+      const candidate=line?`${line} ${word}`:word;
+      if(fits(candidate)){line=candidate;continue}
+      if(line){lines.push(line);line=""}
+      for(const letter of Array.from(word)){
+        if(line&&!fits(line+letter)){lines.push(line);line=""}
+        line+=letter;
+      }
+    }
+    if(line||!lines.length)lines.push(line);
+    return lines.map((answer,index)=>({...item,answer,continued:index>0}));
+  });
+}
+function returnPracticeSheetHtml(session,className,person,items,pageIndex=0,pageCount=1,rowHeight=returnPracticeRowHeight(session,items.length)){
   const title=session.testName||[session.subject,session.unit].filter(Boolean).join(" ")||"テスト";
-  const paper=returnPaperSpec(session),landscape=paper.orientation==="landscape";
-  const rowHeight=landscape?Math.max(5.2,Math.min(7.2,(50.5-Math.max(0,items.length-1)*.7)/Math.max(1,items.length))):Math.max(6.8,Math.min(9.3,(112-Math.max(0,items.length-1)*.7)/Math.max(1,items.length)));
-  const itemHtml=items.map(item=>`<article class="return-practice-item"><div class="return-practice-work"><div class="return-practice-details"><div class="return-practice-detail-first"><span class="return-practice-number">${String(item.q+1).padStart(2,"0")}</span><span class="return-practice-detail-question">${escapeHtml(item.question||"未登録")}</span></div><div class="return-practice-detail-second"><span class="return-practice-detail-rate">正答率 ${item.rate}%</span></div></div><div class="return-four-lines" aria-label="英語4線"><i></i><i></i><i></i><i></i>${item.answer?`<span class="return-practice-model-answer" style="font-size:${returnPracticeModelFontSize(rowHeight,item.answer).toFixed(2)}cqw" aria-label="手本：${escapeHtml(item.answer)}">${escapeHtml(item.answer)}</span>`:""}</div></div></article>`).join("");
+  const paper=returnPaperSpec(session);
+  const itemHtml=items.map(item=>`<article class="return-practice-item"><div class="return-practice-work"><div class="return-practice-details"><div class="return-practice-detail-first"><span class="return-practice-number">${String(item.q+1).padStart(2,"0")}${item.continued?"（続）":""}</span><span class="return-practice-detail-question">${escapeHtml(item.question||"未登録")}</span></div><div class="return-practice-detail-second"><span class="return-practice-detail-rate">正答率 ${item.rate}%</span></div></div><div class="return-four-lines" aria-label="英語4線"><i></i><i></i><i></i><i></i>${item.answer?`<svg class="return-practice-model-layer" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="手本：${escapeHtml(item.answer)}"><text class="return-practice-model-answer" x="1.2%" y="61%">${escapeHtml(item.answer)}</text></svg>`:""}</div></div></article>`).join("");
   return `<section class="return-sheet ${paper.className} return-practice-sheet" style="--return-paper-ratio:${paper.ratio}" aria-label="${escapeHtml(person.name)}の個別練習課題"><header class="return-practice-head"><div><div class="return-practice-title">個別練習プリント${pageCount>1?` ${pageIndex+1}`:""}</div><div class="return-practice-meta">${escapeHtml(title)}　正答率が高い問題から復習します</div></div><div class="return-practice-name">${escapeHtml(classFullDisplayName(className))}<br>${String(person.no).padStart(2,"0")} ${escapeHtml(person.name)}</div></header>${items.length?`<div class="return-practice-list" style="--practice-row-height:${rowHeight.toFixed(2)}cqw">${itemHtml}</div>`:'<div class="return-practice-empty">全問正解です。よくできました！</div>'}</section>`;
 }
 function returnPracticePagesHtml(session,className,person,options){
   const items=returnPracticeQuestions(session,className,person,options),chunks=[];
   const pageCapacity=returnPaperSpec(session).orientation==="landscape"?7:15;
-  for(let index=0;index<items.length;index+=pageCapacity)chunks.push(items.slice(index,index+pageCapacity));
+  // Use the requested count for a consistent size across pupils in this batch.
+  const requestedCount=Math.max(1,Math.floor(Number(options.practiceCount)||5));
+  const rowHeight=returnPracticeRowHeight(session,Math.min(pageCapacity,requestedCount));
+  const rows=wrapReturnPracticeItems(items,rowHeight);
+  // Continuations consume rows too; keep one size even on the last page.
+  const rowBudget=returnPaperSpec(session).orientation==="landscape"?50.5:112;
+  const rowCapacity=Math.min(pageCapacity,Math.max(1,Math.floor((rowBudget+.7)/(rowHeight+.7))));
+  for(let index=0;index<rows.length;index+=rowCapacity)chunks.push(rows.slice(index,index+rowCapacity));
   if(!chunks.length)chunks.push([]);
-  return chunks.map((chunk,index)=>returnPracticeSheetHtml(session,className,person,chunk,index,chunks.length));
+  return chunks.map((chunk,index)=>returnPracticeSheetHtml(session,className,person,chunk,index,chunks.length,rowHeight));
 }
 function returnPagesForPerson(session,className,person,options){return [returnAnswerPageHtml(session,className,person,options),...returnPracticePagesHtml(session,className,person,options)]}
 function selectedReturnPeople(){
   return returnOutputPeople().filter(person=>returnOutputState.selectedNos.has(Number(person.no))&&person.pageId&&!person.absent).sort((a,b)=>Number(a.no)-Number(b.no));
 }
-function renderReturnOutputPreview(){
+async function renderReturnOutputPreview(){
+  try{await loadReturnPracticeFont()}catch(error){setReturnOutputNotice("手本フォントを読み込めませんでした。接続を確認して更新してください。",true);return}
   const preview=document.getElementById("returnOutputPreview"),session=returnOutputState.session,className=returnOutputState.className,options=returnOutputOptions();if(!preview)return;
   const people=selectedReturnPeople(),person=people.find(value=>Number(value.no)===Number(returnOutputState.previewNo))||people[0];
   document.getElementById("returnPreviewPage1")?.classList.toggle("active",returnOutputState.previewPage===1);
@@ -7004,11 +7052,14 @@ async function printReturnPdfs(){
   const session=returnOutputState.session,className=returnOutputState.className,people=selectedReturnPeople();
   if(!session||!className)return alert("出力する採点データとクラスを選択してください。");
   if(!people.length)return alert("出力する生徒を1名以上選択してください。");
+  try{await loadReturnPracticeFont()}catch(error){setReturnOutputNotice("手本フォントを読み込めませんでした。接続を確認して更新してください。",true);return}
   const options=returnOutputOptions(),root=document.getElementById("returnPrintRoot");
   root.innerHTML=people.flatMap(person=>returnPagesForPerson(session,className,person,options)).join("");
   root.setAttribute("aria-hidden","false");
   await waitForReturnImages(root);
-  if(document.fonts?.ready)await Promise.race([document.fonts.ready,new Promise(resolve=>setTimeout(resolve,3000))]);
+  if(document.fonts){
+    await document.fonts.ready;
+  }
   const paper=returnPaperSpec(session);
   root.style.setProperty("--return-paper-width",`${paper.width}mm`);
   root.style.setProperty("--return-paper-height",`${paper.height}mm`);
