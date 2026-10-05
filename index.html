@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="YUTORI">
-<title>YUTORI v0.3.46</title>
+<title>YUTORI v0.3.47</title>
 <link rel="icon" type="image/svg+xml" href="assets/yutori-symbol.svg">
 <link rel="apple-touch-icon" href="assets/yutori-192.png">
 <link rel="manifest" href="manifest.webmanifest">
@@ -75,6 +75,13 @@ input,select{height:36px;padding:0 10px}
 .capacity.inline{margin-top:0;white-space:nowrap}
 .capacity.warning{color:var(--danger)}
 .paste-area{width:100%;height:88px;padding:8px 10px;resize:vertical;line-height:1.45}
+.question-mode-options{margin:0 0 8px;padding:8px;border:1px solid var(--line);border-radius:9px;min-width:0}
+.question-mode-options legend{padding:0 4px;color:var(--brown);font-size:11px;font-weight:800}
+.question-mode-options label{display:grid;grid-template-columns:14px minmax(0,1fr);align-items:start;gap:6px;color:var(--text);line-height:1.5}
+.question-mode-options label+label{margin-top:7px}
+.question-mode-options input[type=radio]{width:14px;height:14px;min-height:0;margin:3px 0 0;padding:0}
+.question-mode-hint{margin:6px 0 0;font-size:11px;color:var(--muted);line-height:1.5}
+.question-paste-help{margin:0 0 7px;line-height:1.5}
 .actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px}
 .actions.end{justify-content:flex-end}
 .question-table{margin-top:8px;border:1px solid var(--line);border-radius:13px;overflow:hidden}
@@ -2005,6 +2012,8 @@ body{
 .editor-controls-host .question-table{margin-top:6px;border-radius:9px}
 .editor-controls-host .question-head,
 .editor-controls-host .question-row{grid-template-columns:38px minmax(0,1fr) minmax(0,1fr)}
+.question-table.answers-only .question-head,.question-table.answers-only .question-row{grid-template-columns:38px minmax(0,1fr)}
+.question-table.answers-only .question-head>div:nth-child(2),.question-table.answers-only .question-row>div:nth-child(2){display:none}
 .editor-controls-host .question-head>div,
 .editor-controls-host .question-row>div{padding:4px;font-size:10px}
 .editor-controls-host .question-row input{height:27px;padding:0 3px;font-size:11px}
@@ -3222,10 +3231,10 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
 <body>
 <div class="app-shell">
 <header class="app-header no-print">
-  <div class="brand" aria-label="YUTORI v0.3.46">
+  <div class="brand" aria-label="YUTORI v0.3.47">
     <div class="brand-copy">
       <img class="brand-logo-image" src="assets/yutori-logo.svg" alt="YUTORI つくる・つける・つなげる">
-      <span class="brand-version">v0.3.46</span>
+      <span class="brand-version">v0.3.47</span>
     </div>
   </div>
   <nav aria-label="主要メニュー">
@@ -3495,17 +3504,23 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
       <div>
         <div class="step-line">
           <h2 class="step-title">問題入力</h2>
-          <div class="help">ExcelまたはGoogleスプレッドシートから、「問題」「模範解答」の2列をそのまま貼り付けてください。</div>
         </div>
-        <textarea id="pasteArea" class="paste-area" placeholder="りんご&#9;apple&#10;犬&#9;dog&#10;本&#9;book"></textarea>
+        <fieldset class="question-mode-options">
+          <legend>問題の載せ方・読み取り範囲</legend>
+          <label><input type="radio" name="questionMode" value="inline" checked onchange="changeQuestionMode()"><span>問題を解答欄の一部に載せる</span></label>
+          <label><input type="radio" name="questionMode" value="separate" onchange="changeQuestionMode()"><span>問題は別紙で用意し、問題番号のみ載せる</span></label>
+          <p id="questionModeHint" class="question-mode-hint">問題部分を除いた解答欄を読み取ります。</p>
+        </fieldset>
+        <div id="pasteHelp" class="help question-paste-help" aria-live="polite">ExcelまたはGoogleスプレッドシートから、「問題」「模範解答」の2列をそのまま貼り付けてください。</div>
+        <textarea id="pasteArea" class="paste-area" aria-describedby="pasteHelp" placeholder="りんご&#9;apple&#10;犬&#9;dog&#10;本&#9;book"></textarea>
         <div class="actions">
-          <button class="primary" onclick="applyPaste()">2列貼り付けを反映</button>
+          <button id="applyPasteButton" class="primary" onclick="applyPaste()">2列貼り付けを反映</button>
           <button class="secondary" onclick="addRow()">行追加</button>
           <button class="secondary" onclick="removeRow()">最終行削除</button>
         </div>
         <div id="questionCountText" class="capacity">問題数：0問</div>
 
-        <div class="question-table">
+        <div id="questionTable" class="question-table">
           <div class="question-head"><div>番号</div><div>問題</div><div>模範解答</div></div>
           <div id="questionRows" class="question-scroll"></div>
         </div>
@@ -3517,7 +3532,7 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
       <div>
         <div class="step-line">
           <h2 class="step-title">プレビュー</h2>
-          <div class="help">問題と解答欄を1枚にまとめて表示します。</div>
+          <div id="questionPreviewHelp" class="help">問題と解答欄を1枚にまとめて表示します。</div>
         </div>
         <div class="actions end">
           <button class="green" onclick="printDocument()">印刷・PDF保存</button>
@@ -3893,7 +3908,7 @@ const state = {
   grade:"", subject:"", unit:"", testName:"",
   titleVisibility:{grade:true,subject:true,unit:true,testName:true},
   paperSize:"a4", orientation:"portrait",
-  rows:10, cols:3, flow:"column", answerLine:"fourline", fourLineHeight:"auto",
+  rows:10, cols:3, flow:"column", answerLine:"fourline", fourLineHeight:"auto", questionMode:"inline",
   questions:[], answers:[]
 };
 
@@ -3930,6 +3945,7 @@ function copyTestState(source=state){
     flow:source.flow==="row"?"row":"column",
     answerLine:["fourline","third","none"].includes(source.answerLine)?source.answerLine:"fourline",
     fourLineHeight:["auto","large","medium","compact"].includes(source.fourLineHeight)?source.fourLineHeight:"auto",
+    questionMode:source.questionMode==="separate"?"separate":"inline",
     questions:Array.isArray(source.questions)?source.questions.map(value=>String(value??"")):[],
     answers:Array.isArray(source.answers)?source.answers.map(value=>String(value??"")):[]
   };
@@ -4453,6 +4469,7 @@ function syncState(){
   state.flow=checked("flow");
   state.answerLine=checked("answerLine");
   state.fourLineHeight=document.getElementById("fourLineHeight")?.value||"auto";
+  state.questionMode=checked("questionMode");
 }
 function updateFourLineHeightControl(){
   const control=document.getElementById("fourLineHeightControl"),select=document.getElementById("fourLineHeight");
@@ -4502,12 +4519,48 @@ function updateCounts(){
   scheduleLivePreview();
   scheduleDraftSave();
 }
+function questionPasteText(source=state){
+  return source.questions.map((question,index)=>source.questionMode==="separate"?source.answers[index]||"":`${question}\t${source.answers[index]||""}`).join("\n");
+}
+function updateQuestionModeControls(){
+  const separate=state.questionMode==="separate";
+  document.querySelector(`input[name="questionMode"][value="${separate?"separate":"inline"}"]`).checked=true;
+  document.getElementById("pasteHelp").textContent=separate
+    ?"ExcelまたはGoogleスプレッドシートから、「模範解答」の1列だけを、問題番号順に貼り付けてください。問題文は別紙で用意してください。"
+    :"ExcelまたはGoogleスプレッドシートから、「問題」「模範解答」の2列をそのまま貼り付けてください。";
+  document.getElementById("questionModeHint").textContent=separate?"各マスの内側全体を読み取ります（問題番号を含みます）。":"問題部分を除いた解答欄を読み取ります。";
+  document.getElementById("pasteArea").placeholder=separate?"apple\ndog\nbook":"りんご\tapple\n犬\tdog\n本\tbook";
+  document.getElementById("applyPasteButton").textContent=separate?"1列貼り付けを反映":"2列貼り付けを反映";
+  document.getElementById("questionTable").classList.toggle("answers-only",separate);
+  document.getElementById("questionPreviewHelp").textContent=separate?"問題番号と解答欄のみを表示します。問題文は別紙で用意してください。":"問題と解答欄を1枚にまとめて表示します。";
+}
+function changeQuestionMode(){
+  const pasteArea=document.getElementById("pasteArea");
+  const refreshPaste=!pasteArea.value.trim()||pasteArea.value===questionPasteText();
+  state.questionMode=checked("questionMode");
+  updateQuestionModeControls();
+  if(refreshPaste)pasteArea.value=questionPasteText();
+  renderQuestionRows();updateCounts();
+}
+function questionDisplayText(source,q,question=source.questions?.[q]){
+  return source.questionMode==="separate"?"別紙参照":question||"未登録";
+}
 function applyPaste(){
-  const raw=document.getElementById("pasteArea").value.replace(/\r/g,"").trim();
-  if(!raw)return;
-  const rows=raw.split("\n").filter(line=>line.trim()!=="").map(line=>line.includes("\t")?line.split("\t"):line.split(","));
-  state.questions=rows.map(r=>(r[0]||"").trim());
-  state.answers=rows.map(r=>(r[1]||"").trim());
+  const raw=document.getElementById("pasteArea").value.replace(/\r/g,"");
+  if(!raw.trim())return;
+  const lines=raw.split("\n");
+  if(state.questionMode==="separate"){
+    if(lines.some(line=>line.includes("\t")))return alert("問題別紙の場合は、模範解答の1列だけを貼り付けてください。");
+    // Keep blank answer cells aligned with the separate paper's question numbers.
+    // Only discard a clipboard terminator; generated editor text already has exact rows.
+    if(raw!==questionPasteText()&&lines[lines.length-1]==="")lines.pop();
+    state.questions=lines.map(()=>"");
+    state.answers=lines.map(line=>line.trim());
+  }else{
+    const rows=lines.filter(line=>line.trim()!=="").map(line=>line.includes("\t")?line.split("\t"):line.split(","));
+    state.questions=rows.map(r=>(r[0]||"").trim());
+    state.answers=rows.map(r=>(r[1]||"").trim());
+  }
   renderQuestionRows(); updateCounts();
 }
 function addRow(){state.questions.push("");state.answers.push("");renderQuestionRows();updateCounts()}
@@ -4649,12 +4702,13 @@ function applyTestToEditor(source,id=""){
   document.querySelector(`input[name="flow"][value="${state.flow}"]`).checked=true;
   document.querySelector(`input[name="answerLine"][value="${state.answerLine}"]`).checked=true;
   document.getElementById("fourLineHeight").value=state.fourLineHeight||"auto";
+  updateQuestionModeControls();
   document.getElementById("rows").innerHTML="";
   document.getElementById("cols").innerHTML="";
   applyLimits();
   document.getElementById("rows").value=String(Math.min(document.getElementById("rows").options.length,state.rows));
   document.getElementById("cols").value=String(Math.min(document.getElementById("cols").options.length,state.cols));
-  document.getElementById("pasteArea").value=state.questions.map((question,index)=>`${question}\t${state.answers[index]||""}`).join("\n");
+  document.getElementById("pasteArea").value=questionPasteText();
   renderQuestionRows();
   updateCounts();
   showScreen("editorScreen");
@@ -4707,7 +4761,7 @@ function renderPaper(){
     return `<div class="problem-cell${lastCol}${lastRow}">
       <div class="problem-top">
         <div class="problem-no">${String(i+1).padStart(2,"0")}</div>
-        <div class="problem-text">${escapeHtml(q)||"&nbsp;"}</div>
+        ${state.questionMode==="separate"?"":`<div class="problem-text">${escapeHtml(q)||"&nbsp;"}</div>`}
       </div>
       <div class="answer-guide ${state.answerLine}${fourLineClass}"><i aria-hidden="true"></i><i aria-hidden="true"></i><i aria-hidden="true"></i><i aria-hidden="true"></i></div>
     </div>`;
@@ -4872,11 +4926,12 @@ function refreshGradeUi(){
     flow:item.flow==="row"?"row":"column",
     answerLine:["fourline","third","none"].includes(item.answerLine)?item.answerLine:"fourline",
     fourLineHeight:["auto","large","medium","compact"].includes(item.fourLineHeight)?item.fourLineHeight:"auto",
+    questionMode:item.questionMode==="separate"?"separate":"inline",
     questions:[...(item.questions||[])],
     answers:[...(item.answers||[])]
   }));
   if(!gradingState.testSets.length){
-    gradingState.testSets=[{id:"current",name:testTileTitle(state,"現在作成中のテスト"),displayTitle:testDisplayTitle(state),testName:String(state.testName||""),grade:state.grade||"",subject:state.subject||"",unit:state.unit||"",titleVisibility:normalizeTitleVisibility(state.titleVisibility),paperSize:state.paperSize||"a4",orientation:state.orientation==="landscape"?"landscape":"portrait",rows:Number(state.rows)||10,cols:Number(state.cols)||3,flow:state.flow==="row"?"row":"column",answerLine:state.answerLine||"fourline",fourLineHeight:state.fourLineHeight||"auto",questions:[...state.questions],answers:[...state.answers]}];
+    gradingState.testSets=[{id:"current",name:testTileTitle(state,"現在作成中のテスト"),displayTitle:testDisplayTitle(state),testName:String(state.testName||""),grade:state.grade||"",subject:state.subject||"",unit:state.unit||"",titleVisibility:normalizeTitleVisibility(state.titleVisibility),paperSize:state.paperSize||"a4",orientation:state.orientation==="landscape"?"landscape":"portrait",rows:Number(state.rows)||10,cols:Number(state.cols)||3,flow:state.flow==="row"?"row":"column",answerLine:state.answerLine||"fourline",fourLineHeight:state.fourLineHeight||"auto",questionMode:state.questionMode==="separate"?"separate":"inline",questions:[...state.questions],answers:[...state.answers]}];
   }
   gradingState.selectedTestId=gradingState.testSets.some(item=>item.id===previousTestId)?previousTestId:gradingState.testSets[0].id;
   const testSelect=document.getElementById("gradingTestSet");
@@ -5705,7 +5760,7 @@ function renderGradeGrid(){
   mainGradeView.classList.toggle("individual-grading",individualMode);
   if(individualMode){renderIndividualGradeGrid(test,cols);return}
   problemSeq.textContent=String(q+1).padStart(2,"0");
-  problemText.textContent=test.questions[q]||"未登録";
+  problemText.textContent=questionDisplayText(test,q);
   modelAnswer.textContent=test.answers[q]||"未登録";
   applyQuestionScoreInputs();
   const sections=gradingState.classes.map(c=>({className:c,people:visibleGradingPeople(c)})).filter(group=>group.people.length);
@@ -5728,7 +5783,7 @@ function individualQuestionCard(className,person,q,test){
   const encodedClass=encodeURIComponent(className),realPdf=person.pageId&&gradingState.pageImageUrls[person.pageId];
   const answer=realPdf?`<canvas class="answer-crop-canvas answer-card-loading" data-page-id="${escapeHtml(person.pageId)}" data-question-index="${q}"></canvas>`:`<div class="answer-image-placeholder">答案画像なし</div>`;
   const zoom=realPdf?`<button class="answer-zoom-button" type="button" title="答案用紙を表示" aria-label="${escapeHtml(person.name)}の問題${q+1}を拡大表示" onpointerdown="event.stopPropagation()" onclick="event.stopPropagation();openAnswerPreview(decodeURIComponent('${encodedClass}'),${person.no},${q})"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="10.5" cy="10.5" r="6.5"></circle><path d="m15.5 15.5 5 5"></path></svg></button>`:"";
-  return `<article class="individual-question-card ${mark}" tabindex="0" aria-label="${escapeHtml(person.name)}の問題${q+1}を採点" onclick="applySelectedPenToQuestion(decodeURIComponent('${encodedClass}'),${person.no},${q})" onkeydown="if(event.target===event.currentTarget&&(event.key==='Enter'||event.key===' ')){event.preventDefault();applySelectedPenToQuestion(decodeURIComponent('${encodedClass}'),${person.no},${q})}"><div class="individual-question-head"><span class="individual-question-number">${String(q+1).padStart(2,"0")}</span><div class="individual-question-copy"><span><small>問題</small>${escapeHtml(test.questions[q]||"未登録")}</span><span><small>模範解答</small>${escapeHtml(test.answers[q]||"未登録")}</span></div><div class="individual-question-actions"><span class="individual-question-mark">${markLabel}</span>${zoom}</div></div><div class="individual-answer-image">${answer}</div><div class="individual-question-score">${mark?`${Number(grade.score||0)}点`:"未採点"}</div></article>`;
+  return `<article class="individual-question-card ${mark}" tabindex="0" aria-label="${escapeHtml(person.name)}の問題${q+1}を採点" onclick="applySelectedPenToQuestion(decodeURIComponent('${encodedClass}'),${person.no},${q})" onkeydown="if(event.target===event.currentTarget&&(event.key==='Enter'||event.key===' ')){event.preventDefault();applySelectedPenToQuestion(decodeURIComponent('${encodedClass}'),${person.no},${q})}"><div class="individual-question-head"><span class="individual-question-number">${String(q+1).padStart(2,"0")}</span><div class="individual-question-copy"><span><small>問題</small>${escapeHtml(questionDisplayText(test,q))}</span><span><small>模範解答</small>${escapeHtml(test.answers[q]||"未登録")}</span></div><div class="individual-question-actions"><span class="individual-question-mark">${markLabel}</span>${zoom}</div></div><div class="individual-answer-image">${answer}</div><div class="individual-question-score">${mark?`${Number(grade.score||0)}点`:"未採点"}</div></article>`;
 }
 function isClassDone(c,q){const active=(gradingState.answers[c]||[]).filter(person=>!person.absent);return active.length&&active.every(person=>gradingState.grades[key(c,person.no,q)])}
 function card(c,p,q){
@@ -5897,8 +5952,16 @@ function answerCropRect(image,test,q){
   const cellWidth=(grid.right-grid.left)/cols,cellHeight=(grid.bottom-grid.top)/rows;
   const cell={x:grid.left+column*cellWidth,y:grid.top+row*cellHeight,width:cellWidth,height:cellHeight};
   const pxPerMmX=(grid.right-grid.left)/Math.max(1,grid.paper.width-ANSWER_SHEET_GRID_MM.side*2);
-  const horizontalInset=Math.min(cellWidth*.08,pxPerMmX*1.5);
-  const detected=detectedFourLineCrop(image,test,q,cell),vertical=detected||fallbackAnswerCropY(test,q,cell,grid.paper);
+  const separate=test.questionMode==="separate";
+  const horizontalInset=Math.min(cellWidth*.08,pxPerMmX*(separate?.5:1.5));
+  let vertical;
+  if(separate){
+    const pxPerMmY=(grid.bottom-grid.top)/Math.max(1,grid.paper.height-ANSWER_SHEET_GRID_MM.top-ANSWER_SHEET_GRID_MM.bottom);
+    const inset=Math.min(cellHeight*.08,pxPerMmY*.5);
+    vertical={top:cell.y+inset,bottom:cell.y+cell.height-inset};
+  }else{
+    vertical=detectedFourLineCrop(image,test,q,cell)||fallbackAnswerCropY(test,q,cell,grid.paper);
+  }
   const x=Math.max(0,cell.x+horizontalInset),y=Math.max(0,vertical.top);
   const right=Math.min(image.naturalWidth,cell.x+cell.width-horizontalInset),bottom=Math.min(image.naturalHeight,vertical.bottom);
   return {x,y,width:Math.max(1,right-x),height:Math.max(1,bottom-y)};
@@ -5912,7 +5975,7 @@ async function renderAnswerCrops(q,test){
       if(token!==answerCropRenderToken||!canvas.isConnected)return;
       const questionIndex=canvas.dataset.questionIndex==null?Number(q):Number(canvas.dataset.questionIndex);
       const crop=answerCropRect(image,test,questionIndex);
-      canvas.width=480;canvas.height=128;
+      canvas.width=480;canvas.height=test.questionMode==="separate"?Math.max(1,Math.round(480*crop.height/crop.width)):128;
       const context=canvas.getContext("2d",{alpha:false});
       context.fillStyle="#fff";context.fillRect(0,0,canvas.width,canvas.height);
       context.drawImage(image,crop.x,crop.y,crop.width,crop.height,0,0,canvas.width,canvas.height);
@@ -6210,6 +6273,7 @@ function serializeSession(){
     paperSize:["a4","b5","a5"].includes(t.paperSize)?t.paperSize:"a4",orientation:t.orientation==="landscape"?"landscape":"portrait",
     rows:Number(t.rows)||10,cols:Number(t.cols)||3,flow:t.flow==="row"?"row":"column",
     answerLine:["fourline","third","none"].includes(t.answerLine)?t.answerLine:"fourline",fourLineHeight:["auto","large","medium","compact"].includes(t.fourLineHeight)?t.fourLineHeight:"auto",
+    questionMode:t.questionMode==="separate"?"separate":"inline",
     questions:t.questions||[],modelAnswers:t.answers||[],
     classes:[...gradingState.classes],files:gradingState.files.map(f=>({name:f.name,type:f.type,size:f.size,lastModified:f.lastModified})),
     pdfPages:gradingState.pdfPages||[],ignoredPageIds:gradingState.ignoredPageIds||[],issues:gradingState.issues,answers:gradingState.answers,
@@ -6392,6 +6456,8 @@ async function resumeGradingSession(id){
   const orientation=s.orientation==="landscape"||s.orientation==="portrait"?s.orientation:savedTest.orientation==="landscape"?"landscape":"portrait";
   const answerLine=["fourline","third","none"].includes(s.answerLine)?s.answerLine:["fourline","third","none"].includes(savedTest.answerLine)?savedTest.answerLine:"fourline";
   const fourLineHeight=["auto","large","medium","compact"].includes(s.fourLineHeight)?s.fourLineHeight:["auto","large","medium","compact"].includes(savedTest.fourLineHeight)?savedTest.fourLineHeight:"auto";
+  // Older grading sessions keep their original crop, even if the saved test was edited later.
+  const questionMode=s.questionMode==="separate"?"separate":"inline";
   Object.assign(gradingState,{sessionId:s.id,selectedTestId:s.selectedTestId||"current",classes:s.classes||[],files:s.files||[],issues:s.issues||[],answers:s.answers||{},grades:s.grades||{},q:Number(s.q||0),selectedPen:s.selectedPen||"ok",gradeColumns:Number(s.gradeColumns||localStorage.getItem("yutori_grade_columns_v023")||5),status:s.status||"in-progress",workflowCompleted:s.workflowCompleted||{},currentWorkflowStep:s.currentWorkflowStep||1,questionScores:s.questionScores||[],lastSavedAt:s.lastSavedAt||0,pdfPages:s.pdfPages||[],ignoredPageIds:s.ignoredPageIds||[],answerPreview:null,dragPageId:"",gradeHistory:s.gradeHistory||[],gradingScope:s.gradingScope||"all",activeLateBatchId:s.activeLateBatchId||""});
   gradingState.classes.forEach(className=>(gradingState.answers[className]||[]).forEach(person=>{
     if(!person.lateAdded||!person.pageId)return;
@@ -6399,7 +6465,7 @@ async function resumeGradingSession(id){
     const page=gradingState.pdfPages.find(item=>item.id===person.pageId);
     if(page?.manualAssignment)page.lateValidationWarning=false;
   }));
-  gradingState.testSets=[{id:s.selectedTestId||"current",name:testTileTitle(s,"保存済みテスト"),displayTitle:testDisplayTitle(s)||String(s.displayTitle||"").trim(),testName:String(s.testName||""),grade:s.grade||"",subject:s.subject||"",unit:s.unit||"",titleVisibility:normalizeTitleVisibility(s.titleVisibility),paperSize,orientation,rows:Number(s.rows)||10,cols:Number(s.cols)||3,flow:s.flow==="row"?"row":"column",answerLine,fourLineHeight,questions:s.questions||[],answers:s.modelAnswers||[]}];
+  gradingState.testSets=[{id:s.selectedTestId||"current",name:testTileTitle(s,"保存済みテスト"),displayTitle:testDisplayTitle(s)||String(s.displayTitle||"").trim(),testName:String(s.testName||""),grade:s.grade||"",subject:s.subject||"",unit:s.unit||"",titleVisibility:normalizeTitleVisibility(s.titleVisibility),paperSize,orientation,rows:Number(s.rows)||10,cols:Number(s.cols)||3,flow:s.flow==="row"?"row":"column",answerLine,fourLineHeight,questionMode,questions:s.questions||[],answers:s.modelAnswers||[]}];
   if(gradingState.pdfPages.length){
     try{await restorePdfPagesFromIndexedDB(id)}catch(error){console.warn("答案画像の復元に失敗しました",error)}
   }else{revokePdfPageUrls()}
@@ -6502,6 +6568,7 @@ function loadLatestSessionForResults(){
       flow:currentTest()?.flow==="row"?"row":"column",
       answerLine:currentTest()?.answerLine||state.answerLine||"fourline",
       fourLineHeight:currentTest()?.fourLineHeight||state.fourLineHeight||"auto",
+      questionMode:(currentTest()||state).questionMode==="separate"?"separate":"inline",
       questions:currentTest()?.questions||[],
       modelAnswers:currentTest()?.answers||[],
       classes:[...gradingState.classes],
@@ -6681,7 +6748,7 @@ function renderSelectedResultClass(){
                     onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();jumpFromResultsToQuestion(${q})}">
                   <span class="qnum">${String(q+1).padStart(2,"0")}</span><span class="results-rate">${rate}</span>
                   <span class="problem-tooltip">
-                    <strong>問題：</strong>${escapeHtml(question||"未登録")}<br>
+                    <strong>問題：</strong>${escapeHtml(questionDisplayText(session,q,question))}<br>
                     <strong>模範解答：</strong>${escapeHtml(modelAnswers[q]||"未登録")}<br>
                     <strong>○配点：</strong>${formatScore((session.questionScores?.[q]?.ok)??session.fullScore??1)}<br>
                     <strong>△配点：</strong>${formatScore((session.questionScores?.[q]?.partial)??session.partialScore??0.5)}
@@ -6714,7 +6781,7 @@ function csvCell(value){return `"${String(value??"").replace(/"/g,'""')}"`}
 function exportResultsCsv(){
   const session=currentResultsSession,className=document.getElementById("resultsClassSelect")?.value;if(!session||!className)return alert("書き出すクラスを選択してください。");
   const questions=session.questions||[],people=session.answers?.[className]||[],scope=document.getElementById("resultsRateScope")?.value||"class",rates=resultQuestionRates(session,className,scope),maximum=returnMaximumScore(session);
-  const headers=["出席番号","氏名","合計点","正答率(%)",...questions.map((question,q)=>`${String(q+1).padStart(2,"0")} ${question||"未登録"}`)];
+  const headers=["出席番号","氏名","合計点","正答率(%)",...questions.map((question,q)=>`${String(q+1).padStart(2,"0")} ${questionDisplayText(session,q,question)}`)];
   const rows=people.map(person=>{
     const result=calculateStudentResult(session,className,person),marks=questions.map((_,q)=>session.grades?.[`${className}::${person.no}::${q}`]?.mark||""),graded=marks.filter(Boolean),correct=marks.filter(mark=>mark==="ok").length;
     return [person.no,person.name,person.absent?"欠席":formatReturnScore(result.score),person.absent?"":graded.length?Math.round(correct/graded.length*100):0,...marks.map(mark=>mark==="ok"?"○":mark==="ng"?"×":mark==="partial"?"△":"")];
@@ -7006,7 +7073,7 @@ function wrapReturnPracticeItems(items,rowHeight){
 function returnPracticeSheetHtml(session,className,person,items,pageIndex=0,pageCount=1,rowHeight=returnPracticeRowHeight(session,items.length)){
   const title=session.testName||[session.subject,session.unit].filter(Boolean).join(" ")||"テスト";
   const paper=returnPaperSpec(session);
-  const itemHtml=items.map(item=>`<article class="return-practice-item"><div class="return-practice-work"><div class="return-practice-details"><div class="return-practice-detail-first"><span class="return-practice-number">${String(item.q+1).padStart(2,"0")}${item.continued?"（続）":""}</span><span class="return-practice-detail-question">${escapeHtml(item.question||"未登録")}</span></div><div class="return-practice-detail-second"><span class="return-practice-detail-rate">正答率 ${item.rate}%</span></div></div><div class="return-four-lines" aria-label="英語4線"><i></i><i></i><i></i><i></i>${item.answer?`<svg class="return-practice-model-layer" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="手本：${escapeHtml(item.answer)}"><text class="return-practice-model-answer" x="1.2%" y="61%">${escapeHtml(item.answer)}</text></svg>`:""}</div></div></article>`).join("");
+  const itemHtml=items.map(item=>`<article class="return-practice-item"><div class="return-practice-work"><div class="return-practice-details"><div class="return-practice-detail-first"><span class="return-practice-number">${String(item.q+1).padStart(2,"0")}${item.continued?"（続）":""}</span><span class="return-practice-detail-question">${escapeHtml(questionDisplayText(session,item.q,item.question))}</span></div><div class="return-practice-detail-second"><span class="return-practice-detail-rate">正答率 ${item.rate}%</span></div></div><div class="return-four-lines" aria-label="英語4線"><i></i><i></i><i></i><i></i>${item.answer?`<svg class="return-practice-model-layer" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="手本：${escapeHtml(item.answer)}"><text class="return-practice-model-answer" x="1.2%" y="61%">${escapeHtml(item.answer)}</text></svg>`:""}</div></div></article>`).join("");
   return `<section class="return-sheet ${paper.className} return-practice-sheet" style="--return-paper-ratio:${paper.ratio}" aria-label="${escapeHtml(person.name)}の個別練習課題"><header class="return-practice-head"><div><div class="return-practice-title">個別練習プリント${pageCount>1?` ${pageIndex+1}`:""}</div><div class="return-practice-meta">${escapeHtml(title)}　正答率が高い問題から復習します</div></div><div class="return-practice-name">${escapeHtml(classFullDisplayName(className))}<br>${String(person.no).padStart(2,"0")} ${escapeHtml(person.name)}</div></header>${items.length?`<div class="return-practice-list" style="--practice-row-height:${rowHeight.toFixed(2)}cqw">${itemHtml}</div>`:'<div class="return-practice-empty">全問正解です。よくできました！</div>'}</section>`;
 }
 function returnPracticePagesHtml(session,className,person,options){
@@ -7167,6 +7234,8 @@ if(initialSaved){
 populateGradeControls(state.grade);
 document.getElementById("grade").value=state.grade||"";
 applyTitleVisibilityToControls(state);
+updateQuestionModeControls();
+document.getElementById("pasteArea").value=questionPasteText();
 loadHistory();
 renderSettingsChoices();
 renderSavedTestList();
