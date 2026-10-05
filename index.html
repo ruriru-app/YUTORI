@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="YUTORI">
-<title>YUTORI v0.3.45</title>
+<title>YUTORI v0.3.46</title>
 <link rel="icon" type="image/svg+xml" href="assets/yutori-symbol.svg">
 <link rel="apple-touch-icon" href="assets/yutori-192.png">
 <link rel="manifest" href="manifest.webmanifest">
@@ -3140,7 +3140,7 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
 
 /* v0.3.45：フォントの実寸に合わせた4線と、上下を切らないなぞり書き手本 */
 @font-face{font-family:"RuRiRu Font";src:url("assets/fonts/ruriru/RuRiRuFontv2.ttf") format("truetype");font-style:normal;font-weight:400;font-display:swap}
-.return-practice-work{grid-template-columns:14% minmax(0,1fr);gap:1.4%}
+.return-practice-work{grid-template-columns:10.5% minmax(0,1fr);gap:1.4%}
 .return-practice-details{display:flex;flex-direction:column;justify-content:center;gap:.18cqw;padding:.1cqw .65cqw .1cqw 0}
 .return-practice-detail-first,.return-practice-detail-second{display:contents}
 .return-practice-number,.return-practice-detail-question{font-size:1.12cqw;font-weight:800;line-height:1.2}
@@ -3222,10 +3222,10 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
 <body>
 <div class="app-shell">
 <header class="app-header no-print">
-  <div class="brand" aria-label="YUTORI v0.3.45">
+  <div class="brand" aria-label="YUTORI v0.3.46">
     <div class="brand-copy">
       <img class="brand-logo-image" src="assets/yutori-logo.svg" alt="YUTORI つくる・つける・つなげる">
-      <span class="brand-version">v0.3.45</span>
+      <span class="brand-version">v0.3.46</span>
     </div>
   </div>
   <nav aria-label="主要メニュー">
@@ -6985,8 +6985,8 @@ function returnPracticeRowHeight(session,count){
 function wrapReturnPracticeItems(items,rowHeight){
   const context=document.createElement("canvas").getContext("2d");
   context.font='100px "RuRiRu Font","YUTORI Andika","BIZ UDPGothic","Yu Gothic",sans-serif';
-  // The writing area is 84.6% of the row. Leave inset and right-edge safety space.
-  const availableEm=82/((rowHeight-1.02)*.51);
+  // The writing area is 88.1% of the row. Leave inset and right-edge safety space.
+  const availableEm=85.5/((rowHeight-1.02)*.51);
   const fits=value=>{const m=context.measureText(value);return Math.max(m.width,m.actualBoundingBoxRight)/100<=availableEm};
   return items.flatMap(item=>{
     const lines=[];let line="";
