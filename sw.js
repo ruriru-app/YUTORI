@@ -1,4 +1,4 @@
-const CACHE_NAME="yutori-v0.3.43";
+const CACHE_NAME="yutori-v0.3.44";
 const APP_SHELL=[
   "./",
   "./index.html",
@@ -13,6 +13,7 @@ const APP_SHELL=[
   "./assets/grade-circle-hand.svg",
   "./assets/grade-cross-hand.svg",
   "./assets/grade-triangle-hand.svg",
+  "./assets/fonts/ruriru/RuRiRuFontv2.ttf",
   "./assets/pdfjs/pdf.min.js",
   "./assets/pdfjs/pdf.worker.min.js"
 ];

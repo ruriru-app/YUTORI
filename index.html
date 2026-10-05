@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="YUTORI">
-<title>YUTORI v0.3.43</title>
+<title>YUTORI v0.3.44</title>
 <link rel="icon" type="image/svg+xml" href="assets/yutori-symbol.svg">
 <link rel="apple-touch-icon" href="assets/yutori-192.png">
 <link rel="manifest" href="manifest.webmanifest">
@@ -3138,6 +3138,12 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
   .output-session-actions{height:78px;grid-template-rows:36px 36px}
 }
 
+/* v0.3.44：個別課題の4線先頭へRuRiRu Fontの手本を表示 */
+@font-face{font-family:"RuRiRu Font";src:url("assets/fonts/ruriru/RuRiRuFontv2.ttf") format("truetype");font-style:normal;font-weight:400;font-display:swap}
+.return-practice-details{grid-template-rows:minmax(0,2fr) minmax(0,1fr)}
+.return-practice-detail-rate{align-self:center}
+.return-practice-model-answer{position:absolute;z-index:1;left:1.2%;top:2%;display:flex;align-items:center;height:96%;max-width:46%;overflow:hidden;color:#252525;font-family:"RuRiRu Font","YUTORI Andika","BIZ UDPGothic","Yu Gothic",sans-serif;font-weight:400;line-height:1;white-space:nowrap}
+
 @media print{
   html,body{
     background:#fff!important;
@@ -3200,10 +3206,10 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
 <body>
 <div class="app-shell">
 <header class="app-header no-print">
-  <div class="brand" aria-label="YUTORI v0.3.43">
+  <div class="brand" aria-label="YUTORI v0.3.44">
     <div class="brand-copy">
       <img class="brand-logo-image" src="assets/yutori-logo.svg" alt="YUTORI つくる・つける・つなげる">
-      <span class="brand-version">v0.3.43</span>
+      <span class="brand-version">v0.3.44</span>
     </div>
   </div>
   <nav aria-label="主要メニュー">
@@ -6951,11 +6957,16 @@ function returnPracticeQuestions(session,className,person,options){
   const limit=Math.max(1,Math.floor(Number(options.practiceCount)||5));
   return items.slice(0,limit);
 }
+function returnPracticeModelFontSize(rowHeight,answer){
+  const length=Math.max(1,Array.from(String(answer||"").trim()).length);
+  const verticalSize=rowHeight*.63,horizontalSize=36/(length*.62);
+  return Math.max(1.55,Math.min(verticalSize,horizontalSize));
+}
 function returnPracticeSheetHtml(session,className,person,items,pageIndex=0,pageCount=1){
   const title=session.testName||[session.subject,session.unit].filter(Boolean).join(" ")||"テスト";
   const paper=returnPaperSpec(session),landscape=paper.orientation==="landscape";
   const rowHeight=landscape?Math.max(5.2,Math.min(7.2,(50.5-Math.max(0,items.length-1)*.7)/Math.max(1,items.length))):Math.max(6.8,Math.min(9.3,(112-Math.max(0,items.length-1)*.7)/Math.max(1,items.length)));
-  const itemHtml=items.map(item=>`<article class="return-practice-item"><div class="return-practice-work"><div class="return-practice-details"><div class="return-practice-detail-first"><span class="return-practice-number">${String(item.q+1).padStart(2,"0")}</span><span class="return-practice-detail-question">${escapeHtml(item.question||"未登録")}</span></div><div class="return-practice-detail-second"><span class="return-practice-detail-answer"><span class="return-practice-detail-answer-label">模範：</span>${escapeHtml(item.answer||"未登録")}</span><span class="return-practice-detail-rate">正答率 ${item.rate}%</span></div></div><div class="return-four-lines" aria-label="英語4線"><i></i><i></i><i></i><i></i></div></div></article>`).join("");
+  const itemHtml=items.map(item=>`<article class="return-practice-item"><div class="return-practice-work"><div class="return-practice-details"><div class="return-practice-detail-first"><span class="return-practice-number">${String(item.q+1).padStart(2,"0")}</span><span class="return-practice-detail-question">${escapeHtml(item.question||"未登録")}</span></div><div class="return-practice-detail-second"><span class="return-practice-detail-rate">正答率 ${item.rate}%</span></div></div><div class="return-four-lines" aria-label="英語4線"><i></i><i></i><i></i><i></i>${item.answer?`<span class="return-practice-model-answer" style="font-size:${returnPracticeModelFontSize(rowHeight,item.answer).toFixed(2)}cqw" aria-label="手本：${escapeHtml(item.answer)}">${escapeHtml(item.answer)}</span>`:""}</div></div></article>`).join("");
   return `<section class="return-sheet ${paper.className} return-practice-sheet" style="--return-paper-ratio:${paper.ratio}" aria-label="${escapeHtml(person.name)}の個別練習課題"><header class="return-practice-head"><div><div class="return-practice-title">個別練習プリント${pageCount>1?` ${pageIndex+1}`:""}</div><div class="return-practice-meta">${escapeHtml(title)}　正答率が高い問題から復習します</div></div><div class="return-practice-name">${escapeHtml(classFullDisplayName(className))}<br>${String(person.no).padStart(2,"0")} ${escapeHtml(person.name)}</div></header>${items.length?`<div class="return-practice-list" style="--practice-row-height:${rowHeight.toFixed(2)}cqw">${itemHtml}</div>`:'<div class="return-practice-empty">全問正解です。よくできました！</div>'}</section>`;
 }
 function returnPracticePagesHtml(session,className,person,options){
