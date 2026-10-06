@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="YUTORI">
-<title>YUTORI v0.3.47</title>
+<title>YUTORI v0.3.48</title>
 <link rel="icon" type="image/svg+xml" href="assets/yutori-symbol.svg">
 <link rel="apple-touch-icon" href="assets/yutori-192.png">
 <link rel="manifest" href="manifest.webmanifest">
@@ -2728,6 +2728,8 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
 .individual-question-card .answer-zoom-button svg{width:13px;height:13px}
 .individual-answer-image{width:100%;aspect-ratio:15/4;overflow:hidden;border:1px solid var(--line);border-radius:9px;background:#fff}
 .individual-answer-image canvas{width:100%;height:100%;display:block;background:#fff}
+.answer-image.answer-image-natural,.individual-answer-image.answer-image-natural{aspect-ratio:auto}
+.answer-image-natural>.answer-crop-canvas{height:auto;aspect-ratio:auto}
 .individual-question-score{display:flex;justify-content:flex-end;color:var(--muted);font-size:9px;font-weight:900}
 
 /* v0.3.16：採点再開タイルと個別答案確認の簡略化 */
@@ -3231,10 +3233,10 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
 <body>
 <div class="app-shell">
 <header class="app-header no-print">
-  <div class="brand" aria-label="YUTORI v0.3.47">
+  <div class="brand" aria-label="YUTORI v0.3.48">
     <div class="brand-copy">
       <img class="brand-logo-image" src="assets/yutori-logo.svg" alt="YUTORI つくる・つける・つなげる">
-      <span class="brand-version">v0.3.47</span>
+      <span class="brand-version">v0.3.48</span>
     </div>
   </div>
   <nav aria-label="主要メニュー">
@@ -3355,9 +3357,11 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
       </div>
       <div class="special-sidebar-section output-control-section">
         <h3>2ページ目・個別課題</h3>
-        <label>出題数（自由入力）
-          <span class="return-practice-count-field"><input id="returnPracticeCount" type="number" min="1" step="1" value="5" inputmode="numeric" oninput="updateReturnOutputOptions()" onchange="normalizeReturnPracticeCount(this)"><span>問</span></span>
+        <label>出題数（上限・自由入力）
+          <span class="return-practice-count-field"><input id="returnPracticeCount" type="number" min="1" step="1" value="15" inputmode="numeric" oninput="changeReturnPracticeCount()" onchange="normalizeReturnPracticeCount(this)"><span>問</span></span>
         </label>
+        <button id="returnPracticeAutoButton" class="secondary" type="button" onclick="resetReturnPracticeCount()">1枚に収まる最大数に戻す</button>
+        <div id="returnPracticeCountHint" class="help" aria-live="polite">自動：縦は最大15問、横は最大7問。長い手本は複数行分として調整します。</div>
         <label class="output-check-row"><input id="returnIncludePartial" type="checkbox" onchange="updateReturnOutputOptions()">△の問題も含める</label>
         <button class="primary return-output-sidebar-button" type="button" onclick="printReturnPdfs()">返却用PDFを保存</button>
       </div>
@@ -5970,6 +5974,9 @@ async function renderAnswerCrops(q,test){
   const token=++answerCropRenderToken;
   const canvases=[...document.querySelectorAll(`.answer-crop-canvas[data-page-id]`)];
   await Promise.all(canvases.map(async canvas=>{
+    const answerImage=canvas.closest(".answer-image,.individual-answer-image");
+    answerImage?.classList.remove("answer-image-natural");
+    canvas.width=480;canvas.height=128;
     try{
       const image=await loadPageImage(canvas.dataset.pageId);
       if(token!==answerCropRenderToken||!canvas.isConnected)return;
@@ -5979,6 +5986,7 @@ async function renderAnswerCrops(q,test){
       const context=canvas.getContext("2d",{alpha:false});
       context.fillStyle="#fff";context.fillRect(0,0,canvas.width,canvas.height);
       context.drawImage(image,crop.x,crop.y,crop.width,crop.height,0,0,canvas.width,canvas.height);
+      if(test.questionMode==="separate")answerImage?.classList.add("answer-image-natural");
       canvas.classList.remove("answer-card-loading");
     }catch(error){
       canvas.classList.remove("answer-card-loading");
@@ -6803,7 +6811,7 @@ const outputLibraryState={shelvedIds:readOutputShelvedSessionIds()};
 function saveOutputShelvedSessionIds(){
   localStorage.setItem(OUTPUT_SHELVED_SESSIONS_KEY,JSON.stringify([...outputLibraryState.shelvedIds]));
 }
-const returnOutputState={session:null,className:"",selectedNos:new Set(),previewNo:null,previewPage:1,imageUrls:{},ownedUrls:[],loadToken:0};
+const returnOutputState={session:null,className:"",selectedNos:new Set(),previewNo:null,previewPage:1,imageUrls:{},ownedUrls:[],loadToken:0,practiceCountAutomatic:true};
 function returnOutputSessions(){
   try{return JSON.parse(localStorage.getItem(sessionsKey())||"[]")}catch(error){return[]}
 }
@@ -6915,7 +6923,9 @@ async function prepareReturnOutput(preferredSessionId=""){
 }
 async function changeReturnOutputSession(sessionId){
   const session=returnOutputSessions().find(item=>item.id===sessionId);if(!session)return;
+  const resetPractice=returnOutputState.session?.id!==session.id||returnPaperSpec(returnOutputState.session||{}).orientation!==returnPaperSpec(session).orientation;
   returnOutputState.session=session;returnOutputState.previewPage=1;
+  if(resetPractice)resetReturnPracticeCount(false);
   const classSelect=document.getElementById("returnClassSelect"),previous=returnOutputState.className;
   classSelect.innerHTML=(session.classes||[]).map(className=>`<option value="${escapeHtml(className)}">${escapeHtml(classFullDisplayName(className))}</option>`).join("");
   returnOutputState.className=(session.classes||[]).includes(previous)?previous:(session.classes||[])[0]||"";
@@ -6968,6 +6978,24 @@ function refreshReturnPreviewStudents(){
 function changeReturnPreviewStudent(no){returnOutputState.previewNo=no===""?null:Number(no);renderReturnOutputPreview()}
 function setReturnPreviewPage(page){returnOutputState.previewPage=Number(page)===2?2:1;renderReturnOutputPreview()}
 function updateReturnOutputOptions(){renderReturnOutputPreview()}
+function returnPracticePageCapacity(session={}){return returnPaperSpec(session).orientation==="landscape"?7:15}
+function updateReturnPracticeCountHint(){
+  const hint=document.getElementById("returnPracticeCountHint");
+  if(hint)hint.textContent=returnOutputState.practiceCountAutomatic
+    ?`自動：最大${returnPracticePageCapacity(returnOutputState.session||{})}問。長い手本は複数行分として、1枚に収まる問題数に調整します。`
+    :"指定した問題数を出題します。1枚に収まらない場合は、続きのページを作成します。";
+}
+function resetReturnPracticeCount(refresh=true){
+  returnOutputState.practiceCountAutomatic=true;
+  document.getElementById("returnPracticeCount").value=String(returnPracticePageCapacity(returnOutputState.session||{}));
+  updateReturnPracticeCountHint();
+  if(refresh)updateReturnOutputOptions();
+}
+function changeReturnPracticeCount(){
+  returnOutputState.practiceCountAutomatic=false;
+  updateReturnPracticeCountHint();
+  updateReturnOutputOptions();
+}
 function returnOutputOptions(){
   const practiceValue=Math.floor(Number(document.getElementById("returnPracticeCount")?.value));
   return {
@@ -6976,13 +7004,14 @@ function returnOutputOptions(){
     showRank:Boolean(document.getElementById("returnShowRank")?.checked),
     rateScope:document.getElementById("returnRateScope")?.value||"class",
     includePartial:Boolean(document.getElementById("returnIncludePartial")?.checked),
-    practiceCount:Number.isFinite(practiceValue)&&practiceValue>0?practiceValue:5
+    practiceCount:Number.isFinite(practiceValue)&&practiceValue>0?practiceValue:returnPracticePageCapacity(returnOutputState.session||{}),
+    fitPracticePage:returnOutputState.practiceCountAutomatic
   };
 }
 function normalizeReturnPracticeCount(input){
   const value=Math.floor(Number(input?.value));
   if(input)input.value=String(Number.isFinite(value)&&value>0?value:1);
-  updateReturnOutputOptions();
+  changeReturnPracticeCount();
 }
 function returnQuestionRates(session,className,scope="class"){return resultQuestionRates(session,className,scope)}
 function returnMaximumScore(session){
@@ -7037,7 +7066,7 @@ function returnAnswerPageHtml(session,className,person,options){
 function returnPracticeQuestions(session,className,person,options){
   const rates=returnQuestionRates(session,className,options.rateScope);
   const items=(session.questions||[]).map((question,q)=>({q,question,answer:session.modelAnswers?.[q]||"",rate:rates[q],mark:session.grades?.[`${className}::${person.no}::${q}`]?.mark||""})).filter(item=>item.mark==="ng"||(options.includePartial&&item.mark==="partial")).sort((a,b)=>b.rate-a.rate||a.q-b.q);
-  const limit=Math.max(1,Math.floor(Number(options.practiceCount)||5));
+  const limit=Math.max(1,Math.floor(Number(options.practiceCount)||returnPracticePageCapacity(session)));
   return items.slice(0,limit);
 }
 let returnPracticeFontPromise=null;
@@ -7045,9 +7074,41 @@ function loadReturnPracticeFont(){
   if(!document.fonts)return Promise.resolve();
   return returnPracticeFontPromise||(returnPracticeFontPromise=document.fonts.load('16px "RuRiRu Font"').catch(error=>{returnPracticeFontPromise=null;throw error}));
 }
+const returnPracticeBudgetCache=new WeakMap();
+function returnPracticeRowBudget(session){
+  const paper=returnPaperSpec(session);
+  const people=(session.classes||[]).flatMap(className=>(session.answers?.[className]||[]).map(person=>({className,person})));
+  if(!people.length)people.push({className:"",person:{no:1,name:""}});
+  const cacheKey=JSON.stringify([paper.width,paper.height,session.testName,session.subject,session.unit,people.map(({className,person})=>[classFullDisplayName(className),person.no,person.name])]);
+  const cached=returnPracticeBudgetCache.get(session);
+  if(cached?.key===cacheKey)return cached.budget;
+  const host=document.createElement("div");
+  host.setAttribute("aria-hidden","true");
+  host.style.cssText=`position:absolute;left:-100000px;top:0;width:${paper.width}mm;visibility:hidden;pointer-events:none;contain:layout style`;
+  document.body.appendChild(host);
+  let budget=Infinity;
+  try{
+    for(const {className,person} of people){
+      // Measure the real paper/header at print size. Use one explicit-height probe row
+      // to avoid recursion; the smallest space keeps handwriting identical for everyone.
+      host.innerHTML=returnPracticeSheetHtml(session,className,person,[{q:0,question:"",answer:"",rate:0}],0,1,9.3);
+      const sheet=host.firstElementChild;sheet.style.height=`${paper.height}mm`;sheet.style.aspectRatio="auto";
+      const list=sheet.querySelector(".return-practice-list"),sheetStyle=getComputedStyle(sheet),listStyle=getComputedStyle(list);
+      const contentWidth=sheet.getBoundingClientRect().width-parseFloat(sheetStyle.paddingLeft)-parseFloat(sheetStyle.paddingRight);
+      const available=list.getBoundingClientRect().height-parseFloat(listStyle.paddingTop)-parseFloat(listStyle.paddingBottom);
+      // cqw is relative to the sheet's content width, not its outer paper width.
+      if(contentWidth>0&&available>0)budget=Math.min(budget,available/contentWidth*100-1.2);
+    }
+  }finally{host.remove()}
+  if(!Number.isFinite(budget))budget=paper.orientation==="landscape"?50.5:112;
+  budget=Math.max(1,budget);
+  returnPracticeBudgetCache.set(session,{key:cacheKey,budget});
+  return budget;
+}
 function returnPracticeRowHeight(session,count){
-  const landscape=returnPaperSpec(session).orientation==="landscape";
-  return landscape?Math.max(5.2,Math.min(7.2,(50.5-Math.max(0,count-1)*.7)/Math.max(1,count))):Math.max(6.8,Math.min(9.3,(112-Math.max(0,count-1)*.7)/Math.max(1,count)));
+  const minimum=returnPaperSpec(session).orientation==="landscape"?5.2:6.8;
+  const height=Math.max(minimum,Math.min(9.3,(returnPracticeRowBudget(session)-Math.max(0,count-1)*.7)/Math.max(1,count)));
+  return Math.floor(height*100)/100;
 }
 function wrapReturnPracticeItems(items,rowHeight){
   const context=document.createElement("canvas").getContext("2d");
@@ -7077,15 +7138,27 @@ function returnPracticeSheetHtml(session,className,person,items,pageIndex=0,page
   return `<section class="return-sheet ${paper.className} return-practice-sheet" style="--return-paper-ratio:${paper.ratio}" aria-label="${escapeHtml(person.name)}の個別練習課題"><header class="return-practice-head"><div><div class="return-practice-title">個別練習プリント${pageCount>1?` ${pageIndex+1}`:""}</div><div class="return-practice-meta">${escapeHtml(title)}　正答率が高い問題から復習します</div></div><div class="return-practice-name">${escapeHtml(classFullDisplayName(className))}<br>${String(person.no).padStart(2,"0")} ${escapeHtml(person.name)}</div></header>${items.length?`<div class="return-practice-list" style="--practice-row-height:${rowHeight.toFixed(2)}cqw">${itemHtml}</div>`:'<div class="return-practice-empty">全問正解です。よくできました！</div>'}</section>`;
 }
 function returnPracticePagesHtml(session,className,person,options){
-  const items=returnPracticeQuestions(session,className,person,options),chunks=[];
-  const pageCapacity=returnPaperSpec(session).orientation==="landscape"?7:15;
+  const candidates=options.fitPracticePage?{...options,practiceCount:(session.questions||[]).length}:options;
+  const items=returnPracticeQuestions(session,className,person,candidates),chunks=[];
+  const pageCapacity=returnPracticePageCapacity(session);
   // Use the requested count for a consistent size across pupils in this batch.
-  const requestedCount=Math.max(1,Math.floor(Number(options.practiceCount)||5));
+  const requestedCount=Math.max(1,Math.floor(Number(options.practiceCount)||pageCapacity));
   const rowHeight=returnPracticeRowHeight(session,Math.min(pageCapacity,requestedCount));
-  const rows=wrapReturnPracticeItems(items,rowHeight);
+  let rows=wrapReturnPracticeItems(items,rowHeight);
   // Continuations consume rows too; keep one size even on the last page.
-  const rowBudget=returnPaperSpec(session).orientation==="landscape"?50.5:112;
+  const rowBudget=returnPracticeRowBudget(session);
   const rowCapacity=Math.min(pageCapacity,Math.max(1,Math.floor((rowBudget+.7)/(rowHeight+.7))));
+  if(options.fitPracticePage){
+    const fitted=[];let questionCount=0;
+    for(const item of items){
+      if(questionCount>=requestedCount)break;
+      const group=rows.filter(row=>row.q===item.q);
+      if(fitted.length+group.length>rowCapacity)continue;
+      fitted.push(...group);questionCount++;
+    }
+    // Never cut off a model answer. A single oversized answer retains continuation pages.
+    rows=fitted.length?fitted:rows.filter(row=>row.q===items[0]?.q);
+  }
   for(let index=0;index<rows.length;index+=rowCapacity)chunks.push(rows.slice(index,index+rowCapacity));
   if(!chunks.length)chunks.push([]);
   return chunks.map((chunk,index)=>returnPracticeSheetHtml(session,className,person,chunk,index,chunks.length,rowHeight));
@@ -7109,7 +7182,8 @@ async function renderReturnOutputPreview(){
   preview.innerHTML=returnOutputState.previewPage===1?pages[0]:pages[1];
   const title=session.testName||"名称未設定";document.getElementById("returnOutputTitle").textContent=`${title}｜${classFullDisplayName(className)}｜${person.no} ${person.name}`;
   const totalPages=people.reduce((sum,value)=>sum+returnPagesForPerson(session,className,value,options).length,0);
-  setReturnOutputNotice(`${people.length}名を選択中です。合計${totalPages}ページを、生徒ごとに採点済み答案・個別練習課題の順で出力します。`,false);
+  const practiceNotice=options.fitPracticePage&&totalPages>people.length*2?" 1問の手本が長く1枚に収まらない場合は、途中で切らず続きのページを作成します。":"";
+  setReturnOutputNotice(`${people.length}名を選択中です。合計${totalPages}ページを、生徒ごとに採点済み答案・個別練習課題の順で出力します。${practiceNotice}`,false);
 }
 async function waitForReturnImages(root){
   const images=[...root.querySelectorAll("img")];

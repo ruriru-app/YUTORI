@@ -64,10 +64,14 @@ after(async () => {
 });
 
 async function renderPracticeItems(items, orientation = "portrait", width = 794) {
-  await page.evaluate(({ itemsToRender, orientation, width }) => {
+  await page.evaluate(async ({ itemsToRender, orientation, width }) => {
     const session = { testName: "Alphabet", orientation };
     const person = { no: 1, name: "Test Student" };
-    document.body.innerHTML = `<div style="width:${width}px">${returnPracticeSheetHtml(session, "1組", person, itemsToRender)}</div>`;
+    await loadReturnPracticeFont();
+    const rowHeight = returnPracticeRowHeight(session, itemsToRender.length);
+    // The sheet renderer consumes already-wrapped rows in the real print pipeline.
+    const rows = wrapReturnPracticeItems(itemsToRender, rowHeight);
+    document.body.innerHTML = `<div style="width:${width}px">${returnPracticeSheetHtml(session, "1組", person, rows, 0, 1, rowHeight)}</div>`;
   }, { itemsToRender: items, orientation, width });
   await page.evaluate(() => document.fonts.ready);
 }
