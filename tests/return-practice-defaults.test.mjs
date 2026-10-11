@@ -145,8 +145,8 @@ test("maximum layouts fit all supported paper sizes with long headers and names 
     const result = await page.locator("#returnPrintRoot .return-practice-sheet").evaluate(sheet => {
       const rows = [...sheet.querySelectorAll(".return-practice-item")], list = sheet.querySelector(".return-practice-list"), bounds = list.getBoundingClientRect();
       return { rows: rows.length, bottom: rows.at(-1).getBoundingClientRect().bottom, allowedBottom: bounds.bottom, glyphsFit: rows.every(row => {
-        const text = row.querySelector("text"), box = text.getBBox(), svg = text.ownerSVGElement.getBoundingClientRect();
-        return box.x >= 0 && box.x + box.width <= svg.width + 1 && box.y >= 0 && box.y + box.height <= svg.height + 1;
+        const text = row.querySelector("text"), box = text.getBBox(), svg = text.ownerSVGElement;
+        return box.x >= 0 && box.x + box.width <= svg.clientWidth + 1 && box.y >= 0 && box.y + box.height <= svg.clientHeight + 1;
       }) };
     });
     assert.equal(result.rows, orientation === "portrait" ? 15 : 7, `${paperSize} ${orientation}`);
