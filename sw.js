@@ -1,4 +1,4 @@
-const CACHE_NAME="yutori-v0.3.50";
+const CACHE_NAME="yutori-v0.3.51";
 const APP_SHELL=[
   "./",
   "./index.html",
@@ -9,13 +9,17 @@ const APP_SHELL=[
   "./assets/yutori-192.png",
   "./assets/yutori-512.png",
   "./assets/settings.svg",
+  "./assets/backup.svg",
   "./assets/test-mark-name-header.svg",
   "./assets/grade-circle-hand.svg",
   "./assets/grade-cross-hand.svg",
   "./assets/grade-triangle-hand.svg",
   "./assets/fonts/ruriru/RuRiRuFontv2.ttf",
   "./assets/pdfjs/pdf.min.js",
-  "./assets/pdfjs/pdf.worker.min.js"
+  "./assets/pdfjs/pdf.worker.min.js",
+  "./assets/yutori-backup-archive.js",
+  "./assets/yutori-backup-storage.js",
+  "./assets/yutori-backup.js"
 ];
 
 self.addEventListener("install",event=>{
