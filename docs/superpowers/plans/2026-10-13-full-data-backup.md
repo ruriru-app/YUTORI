@@ -459,3 +459,23 @@ git commit -m "release: prepare YUTORI v0.3.51 backup support"
 Run: `git status --short --branch`
 
 Expected: clean feature worktree/branch with commits from Tasks 1-7. Do not push or deploy until the user separately authorizes publication.
+
+### Task 8: Restore-Safe Counts and Collection Shapes
+
+User authorized this follow-up on 2026-10-14 after reviewing the remaining security findings. Continue from `b81d87ada000f0c2901be3e698fc4fded7d7fb80`; do not repeat Tasks 1-7.
+
+**Files:**
+- Modify: `index.html` (class settings, grading resume, result-output cards, and directly related count helpers)
+- Modify: `tests/backup-restore.test.mjs` or create a focused restore-security test file using the existing real-browser harness
+- This approved plan addendum belongs in the fix commit.
+
+**Requirements:**
+- Fix the remaining archive-to-executable-HTML paths at current lines 6271, 6470, and 7008. Treat questions and rosters as arrays only after `Array.isArray`; validate related collection shapes before traversing. Never render an arbitrary object `.length` as a numeric count.
+- Derived count fields must be finite nonnegative integer values and must reach the UI through text-safe rendering. Validate the class-profile student-count fallback as well. Preserve valid existing arrays, counts, titles, and controls.
+- Audit directly related archive-dependent count interpolations for the same wrong-shape input; repair equivalent sinks found in this bounded audit. Do not rewrite unrelated application features or silently alter archived raw storage.
+- Use the established full archive inspection, real safety file, confirmation, replacement, actual reload, and normal UI navigation in security tests. At least three regression cases: forged `session.questions.length` in grading resume, forged roster `.length` in settings, and forged `session.questions.length` in graded result output. Use a foreign-storage sentinel and an execution sentinel. Assert no injected elements, no execution, sentinel preserved, application ready, and no unhandled page errors.
+- Add well-formed data assertions proving correct counts and working ordinary controls. Include wrong-shaped null/primitive/object collections and hostile studentCount fallback where relevant; arbitrary malformed data must not become executable HTML.
+- Follow TDD: reproduce the reported behavior before implementing; run focused tests while iterating, one complete suite before commit, syntax/inline-script parsing and whitespace checks. Record exact results in `task-8-report.md` under this plan's SDD workspace.
+- Commit the reviewed fix to the existing feature branch. Do not merge, push, publish, or delete the worktree in this task.
+
+**Acceptance:** Independent scoped review confirms all three known exploits and directly equivalent count sinks are closed, valid-data behavior remains correct, and no security-relevant finding remains open. After that the controller performs final verification and hands off the concrete result.

@@ -5032,19 +5032,43 @@ function revokePdfPageUrls(){
   gradingState.pageImageCache={};
 }
 
+// Restored JSON is kept verbatim in storage. Only these runtime views may be
+// traversed as collections; an object's apparent "length" is never a count.
+function arrayOrEmpty(value){return Array.isArray(value)?value:[]}
+function isDataRecord(value){return value!==null&&typeof value==="object"&&!Array.isArray(value)}
+function recordOrEmpty(value){return isDataRecord(value)?value:{}}
+function recordArray(value){return arrayOrEmpty(value).filter(isDataRecord)}
+function nonnegativeCount(value){
+  const number=typeof value==="number"||typeof value==="string"?Number(value):NaN;
+  return Number.isFinite(number)&&Number.isInteger(number)&&number>=0?number:0;
+}
+function countHtml(value){return escapeHtml(nonnegativeCount(value))}
+function classStudentCount(profile,roster){return nonnegativeCount(profile.studentCount)||arrayOrEmpty(roster).length}
+function sessionCollectionView(session){
+  return {...session,
+    questions:arrayOrEmpty(session.questions),modelAnswers:arrayOrEmpty(session.modelAnswers),
+    classes:arrayOrEmpty(session.classes).filter(value=>typeof value==="string"),
+    answers:Object.fromEntries(Object.entries(recordOrEmpty(session.answers)).map(([name,people])=>[name,recordArray(people)])),
+    files:recordArray(session.files),pdfPages:recordArray(session.pdfPages),issues:recordArray(session.issues),
+    ignoredPageIds:arrayOrEmpty(session.ignoredPageIds),questionScores:arrayOrEmpty(session.questionScores),gradeHistory:recordArray(session.gradeHistory)
+  };
+}
+function readSessionViews(){
+  try{return recordArray(JSON.parse(localStorage.getItem(sessionsKey())||"[]")).map(sessionCollectionView)}catch(error){return[]}
+}
 function ensureRosters(){
   try{
     const savedRosters=JSON.parse(localStorage.getItem("yutori_rosters")||"{}");
-    gradingState.rosters=savedRosters&&typeof savedRosters==="object"&&!Array.isArray(savedRosters)?savedRosters:{};
+    gradingState.rosters=Object.fromEntries(Object.entries(recordOrEmpty(savedRosters)).map(([name,people])=>[name,recordArray(people)]));
   }catch(e){
     gradingState.rosters={};
   }
   try{
     const profiles=JSON.parse(localStorage.getItem(CLASS_PROFILES_KEY)||"{}");
-    gradingState.classProfiles=profiles&&typeof profiles==="object"&&!Array.isArray(profiles)?profiles:{};
+    gradingState.classProfiles=Object.fromEntries(Object.entries(recordOrEmpty(profiles)).map(([name,profile])=>[name,recordOrEmpty(profile)]));
   }catch(e){gradingState.classProfiles={}}
   Object.keys(gradingState.rosters).forEach(className=>{
-    if(!gradingState.classProfiles[className])gradingState.classProfiles[className]={schoolName:"",className,grade:"",studentCount:(gradingState.rosters[className]||[]).length};
+    if(!gradingState.classProfiles[className])gradingState.classProfiles[className]={schoolName:"",className,grade:"",studentCount:arrayOrEmpty(gradingState.rosters[className]).length};
   });
 }
 function saveRosters(){localStorage.setItem("yutori_rosters",JSON.stringify(gradingState.rosters))}
@@ -5244,7 +5268,7 @@ function openGrading(){ensureRosters();refreshGradeUi();showScreen("gradingScree
 function showGradingEntry(){gradingEntryView.style.display="";loadView.style.display="none";reviewView.style.display="none";mainGradeView.style.display="none";renderResumeList()}
 function showPdfLoadSummary(total,autoAssigned,reviewCount){
   const status=document.getElementById("pdfSummary");if(!status)return;
-  status.innerHTML=`<strong>読込完了：全${Number(total)||0}ページ</strong><span>番号自動割り当て ${Number(autoAssigned)||0}ページ</span><span>要確認 ${Number(reviewCount)||0}ページ</span>`;
+  status.innerHTML=`<strong>読込完了：全${countHtml(total)}ページ</strong><span>番号自動割り当て ${countHtml(autoAssigned)}ページ</span><span>要確認 ${countHtml(reviewCount)}ページ</span>`;
   status.classList.add("complete");
 }
 function showNewGradingLoad(){
@@ -5646,7 +5670,7 @@ function renderIssues(){
   const ignoredSet=new Set(gradingState.ignoredPageIds||[]);
   const unassigned=gradingState.pdfPages.filter(page=>!assignedSet.has(page.id)&&!ignoredSet.has(page.id));
   const ignored=gradingState.pdfPages.filter(page=>ignoredSet.has(page.id));
-  const expected=gradingState.classes.reduce((sum,className)=>sum+(gradingState.answers[className]||[]).length,0);
+  const expected=gradingState.classes.reduce((sum,className)=>sum+arrayOrEmpty(gradingState.answers[className]).length,0);
   const recognizedCount=gradingState.pdfPages.filter(page=>page.detectedAttendanceNo!=null).length;
   if(gradingState.dragPageId&&!unassigned.some(page=>page.id===gradingState.dragPageId))gradingState.dragPageId="";
   const studentCards=gradingState.classes.flatMap(className=>(gradingState.answers[className]||[]).map(person=>{
@@ -5674,7 +5698,7 @@ function renderIssues(){
     </div>`;
   }).join("");
   issueList.innerHTML=`
-    <div class="pdf-review-summary"><span class="pdf-review-pill">PDF ${gradingState.pdfPages.length}ページ</span><span class="pdf-review-pill">番号認識 ${recognizedCount}ページ</span><span class="pdf-review-pill">名簿 ${expected}名</span><span class="pdf-review-pill ${gradingState.issues.length?"warning":""}">${gradingState.issues.length?`要確認 ${gradingState.issues.length}件`:"割り当て確認済み"}</span></div>
+    <div class="pdf-review-summary"><span class="pdf-review-pill">PDF ${countHtml(gradingState.pdfPages.length)}ページ</span><span class="pdf-review-pill">番号認識 ${countHtml(recognizedCount)}ページ</span><span class="pdf-review-pill">名簿 ${countHtml(expected)}名</span><span class="pdf-review-pill ${gradingState.issues.length?"warning":""}">${gradingState.issues.length?`要確認 ${countHtml(gradingState.issues.length)}件`:"割り当て確認済み"}</span></div>
     ${gradingState.issues.length?"":'<div class="pdf-review-ok">すべての答案ページが重複なく割り当てられています。</div>'}
     <div class="pdf-review-layout">
       ${unassigned.length?`<section class="pdf-unassigned-pool"><h3>要確認のPDF ${unassigned.length}ページ</h3><p>名前欄の画像を名簿カードへドラッグ＆ドロップしてください。タッチ操作ではPDFを一度タップし、割り当てる名簿カードをタップします。</p><div class="pdf-unassigned-grid">${unassignedCards}</div></section>`:""}
@@ -5920,11 +5944,12 @@ function renderGradeGrid(){
   renderAnswerCrops(q,test);
 }
 function renderIndividualGradeGrid(test,cols){
+  const questions=arrayOrEmpty(test.questions);
   const groups=gradingState.classes.map(className=>({className,people:selectedLateBatchPeople(className)})).filter(group=>group.people.length);
   const totalPeople=groups.reduce((sum,group)=>sum+group.people.length,0);
   const sections=groups.flatMap(group=>group.people.map(person=>{
-    const completed=(test.questions||[]).filter((_,q)=>gradingState.grades[key(group.className,person.no,q)]).length;
-    return `<section class="individual-student-section"><div class="class-title"><span>${escapeHtml(classFullDisplayName(group.className))}　${escapeHtml(String(person.no).padStart(2,"0"))} ${escapeHtml(person.name)}</span><span>${completed} / ${(test.questions||[]).length}問</span></div><div class="individual-question-grid" style="grid-template-columns:repeat(${cols},minmax(0,1fr))">${(test.questions||[]).map((_,q)=>individualQuestionCard(group.className,person,q,test)).join("")}</div></section>`;
+    const completed=questions.filter((_,q)=>gradingState.grades[key(group.className,person.no,q)]).length;
+    return `<section class="individual-student-section"><div class="class-title"><span>${escapeHtml(classFullDisplayName(group.className))}　${escapeHtml(String(person.no).padStart(2,"0"))} ${escapeHtml(person.name)}</span><span>${countHtml(completed)} / ${countHtml(questions.length)}問</span></div><div class="individual-question-grid" style="grid-template-columns:repeat(${cols},minmax(0,1fr))">${questions.map((_,q)=>individualQuestionCard(group.className,person,q,test)).join("")}</div></section>`;
   })).join("");
   gradeAnswers.innerHTML=sections?`<div class="individual-grading-note">追加した${totalPeople}名を個人別に表示しています。採点パレットで○・×・△を選び、各問題タイルをタップしてください。</div>${sections}`:'<div class="pdf-review-ok">今回追加した答案がありません。「確認と修正」で個別答案を名前へ割り当ててください。</div>';
   bindUiEvents(gradeAnswers);
@@ -6263,12 +6288,12 @@ function renderClassSettings(){
     return;
   }
   host.innerHTML=classNames.map(className=>{
-    const roster=gradingState.rosters[className]||[];
+    const roster=arrayOrEmpty(gradingState.rosters[className]);
     const profile=gradingState.classProfiles[className]||{};
-    const studentCount=Number(profile.studentCount)||roster.length;
+    const studentCount=classStudentCount(profile,roster);
     const group=classGroupNumber(className);
     return `<article class="class-settings-card" style="--class-color:${yutoriClassColorValue(profile.color)}">
-      <div class="class-settings-card-copy"><div class="class-settings-school">${escapeHtml(profile.schoolName||"学校名未設定")}</div><h3>${escapeHtml(classDisplayName(className))}</h3><p>組 ${group?`${group}組`:"未設定"}・人数 ${studentCount}名・名簿 ${roster.length}名</p></div>
+      <div class="class-settings-card-copy"><div class="class-settings-school">${escapeHtml(profile.schoolName||"学校名未設定")}</div><h3>${escapeHtml(classDisplayName(className))}</h3><p>組 ${group?`${group}組`:"未設定"}・人数 ${countHtml(studentCount)}名・名簿 ${countHtml(roster.length)}名</p></div>
       <button class="secondary class-settings-edit" type="button" ${uiEvent("click",()=>openClassModal(className))}>編集</button>
     </article>`;
   }).join("");
@@ -6301,8 +6326,9 @@ function openClassModal(className=""){
   gradeInput.value=profile.grade||"";
   groupInput.value=String(normalizedClassGroupValue(profile.group)||classGroupNumberFromText(className)||"");
   colorInput.value=profile.color||"grade3";
-  rosterInput.value=isEditing?(gradingState.rosters[className]||[]).map(person=>`${person.no}\t${person.name}`).join("\n"):"";
-  studentCountInput.value=String(Number(profile.studentCount)||(gradingState.rosters[className]||[]).length||0);
+  const roster=arrayOrEmpty(gradingState.rosters[className]);
+  rosterInput.value=isEditing?roster.map(person=>`${person.no}\t${person.name}`).join("\n"):"";
+  studentCountInput.value=String(classStudentCount(profile,roster));
   updateClassRosterCount();
   modal.classList.add("show");
   modal.setAttribute("aria-hidden","false");
@@ -6452,22 +6478,22 @@ function flushYutoriAutoSaves(){
 }
 function cancelYutoriAutoSaves(){clearTimeout(draftSaveTimer);clearTimeout(autoSaveTimer);draftSaveTimer=null;autoSaveTimer=null}
 function changeGradeColumns(v){gradingState.gradeColumns=Number(v)||5;localStorage.setItem("yutori_grade_columns_v023",String(gradingState.gradeColumns));renderGradeGrid();scheduleAutoSave()}
-function completedQuestionCount(s){let count=0;for(let q=0;q<(s.questions||[]).length;q++){let total=0,done=0;(s.classes||[]).forEach(c=>(s.answers?.[c]||[]).forEach(p=>{if(p.absent)return;total++;if(s.grades?.[`${c}::${p.no}::${q}`])done++}));if(total&&done===total)count++}return count}
+function completedQuestionCount(s){let count=0;for(let q=0;q<arrayOrEmpty(s.questions).length;q++){let total=0,done=0;arrayOrEmpty(s.classes).filter(c=>typeof c==="string").forEach(c=>recordArray(s.answers?.[c]).forEach(p=>{if(p.absent)return;total++;if(s.grades?.[`${c}::${p.no}::${q}`])done++}));if(total&&done===total)count++}return count}
 function formatSavedAt(ts){if(!ts)return"未保存";const d=new Date(ts);return`${d.getMonth()+1}月${d.getDate()}日 ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`}
 function sessionMissingStudents(session){
-  return (session.classes||[]).flatMap(className=>(session.answers?.[className]||[]).filter(person=>person.absent||!person.pageId).map(person=>({className,no:person.no,name:person.name,absent:Boolean(person.absent)})));
+  return arrayOrEmpty(session.classes).filter(value=>typeof value==="string").flatMap(className=>recordArray(session.answers?.[className]).filter(person=>person.absent||!person.pageId).map(person=>({className,no:person.no,name:person.name,absent:Boolean(person.absent)})));
 }
 function renderResumeList(){
   const box=document.getElementById("resumeList");if(!box)return;
-  const sessions=JSON.parse(localStorage.getItem(sessionsKey())||"[]");
+  const sessions=readSessionViews();
   if(!sessions.length){box.innerHTML='<div class="empty-resume">保存された採点データはありません。</div>';return}
   box.innerHTML=sessions.map(session=>{
-    const completed=completedQuestionCount(session),total=(session.questions||[]).length,title=testTileTitle(session,"名称未設定");
+    const completed=completedQuestionCount(session),total=arrayOrEmpty(session.questions).length,title=testTileTitle(session,"名称未設定");
     const classes=(session.classes||[]).map(className=>classFullDisplayName(className)).join("・")||"クラス未設定";
     const missing=sessionMissingStudents(session);
     const missingNames=missing.map(person=>`${classFullDisplayName(person.className)} ${String(person.no).padStart(2,"0")} ${person.name}`).join("、");
-    const missingHtml=`<div class="resume-missing-simple"><strong>未受験・答案なし ${missing.length}名</strong>${missingNames?`<span class="resume-missing-names" title="${escapeHtml(missingNames)}">${escapeHtml(missingNames)}</span>`:""}</div>`;
-    return `<div class="resume-item"><button class="resume-delete" type="button" title="削除" ${uiEvent("click",()=>openDeleteSessionModal(session.id,title))}>×</button><div class="resume-heading"><span class="resume-title">${escapeHtml(title)}</span><span class="resume-classes">${escapeHtml(classes)}</span></div><div class="resume-meta-row"><span>採点途中：${completed} / ${total}問</span><span>最終保存：${formatSavedAt(session.lastSavedAt)}</span></div>${missingHtml}<div class="resume-actions">${missing.length?`<button class="resume-late-button" type="button" ${uiEvent("click",()=>openLatePdfModal(session.id))}>個別のPDF読込</button>`:""}<button class="primary" ${uiEvent("click",()=>resumeGradingSession(session.id))}>採点を再開</button></div></div>`;
+    const missingHtml=`<div class="resume-missing-simple"><strong>未受験・答案なし ${countHtml(missing.length)}名</strong>${missingNames?`<span class="resume-missing-names" title="${escapeHtml(missingNames)}">${escapeHtml(missingNames)}</span>`:""}</div>`;
+    return `<div class="resume-item"><button class="resume-delete" type="button" title="削除" ${uiEvent("click",()=>openDeleteSessionModal(session.id,title))}>×</button><div class="resume-heading"><span class="resume-title">${escapeHtml(title)}</span><span class="resume-classes">${escapeHtml(classes)}</span></div><div class="resume-meta-row"><span>採点途中：${countHtml(completed)} / ${countHtml(total)}問</span><span>最終保存：${formatSavedAt(session.lastSavedAt)}</span></div>${missingHtml}<div class="resume-actions">${missing.length?`<button class="resume-late-button" type="button" ${uiEvent("click",()=>openLatePdfModal(session.id))}>個別のPDF読込</button>`:""}<button class="primary" ${uiEvent("click",()=>resumeGradingSession(session.id))}>採点を再開</button></div></div>`;
   }).join("");
   bindUiEvents(box);
 }
@@ -6615,7 +6641,7 @@ async function deleteSessionAssetsFromIndexedDBUnlocked(sessionId){
 }
 
 async function resumeGradingSession(id){
-  const s=JSON.parse(localStorage.getItem(sessionsKey())||"[]").find(x=>x.id===id);
+  const s=readSessionViews().find(x=>x.id===id);
   if(!s)return alert("保存データを読み込めませんでした。");
   if((s.pdfPages||[]).length&&s.assignmentMode!=="attendance-mark"){
     alert("この採点データは、PDFをページ順で割り当てていた旧形式です。正しい出席番号で採点するため、「新しく採点を始める」から答案PDFをもう一度読み込んでください。");
@@ -6725,7 +6751,7 @@ async function restorePdfPagesFromIndexedDB(sessionId){
 
 
 function loadLatestSessionForResults(){
-  const sessions=JSON.parse(localStorage.getItem("yutori_grading_sessions_v023")||"[]");
+  const sessions=readSessionViews();
 
   if(gradingState.sessionId && gradingState.classes?.length && gradingState.answers){
     return {
@@ -6761,7 +6787,7 @@ function loadLatestSessionForResults(){
 }
 
 function calculateStudentResult(session,className,person){
-  const totalQuestions=(session.questions||[]).length;
+  const totalQuestions=arrayOrEmpty(session.questions).length;
   const questionScores=session.questionScores||[];
   let score=0;
   let gradedCount=0;
@@ -6981,7 +7007,7 @@ function saveOutputShelvedSessionIds(){
 }
 const returnOutputState={session:null,className:"",selectedNos:new Set(),previewNo:null,previewPage:1,imageUrls:{},ownedUrls:[],loadToken:0,practiceCountAutomatic:true,layoutSessionId:""};
 function returnOutputSessions(){
-  try{return JSON.parse(localStorage.getItem(sessionsKey())||"[]")}catch(error){return[]}
+  return readSessionViews();
 }
 function outputGradedSessions(){
   return returnOutputSessions().filter(session=>session?.id&&Object.keys(session.grades||{}).length);
@@ -7003,9 +7029,9 @@ function sortedOutputSessions(sessions){
 function outputSessionCard(session){
   const title=testTileTitle(session,"名称未設定");
   const classes=(session.classes||[]).map(className=>classFullDisplayName(className)).join("・")||"クラス未設定";
-  const completed=completedQuestionCount(session),total=(session.questions||[]).length;
+  const completed=completedQuestionCount(session),total=arrayOrEmpty(session.questions).length;
   const detail=[gradeLabel(session.grade),session.subject,session.unit].filter(Boolean).join(" ／ ");
-  return `<article class="output-session-card"><h3>${escapeHtml(title)}</h3><p>${detail?escapeHtml(detail):"&nbsp;"}</p><div class="output-session-meta"><span>${escapeHtml(classes)}</span><span>採点済み ${completed}/${total}問</span><span>最終保存 ${escapeHtml(formatSavedAt(session.lastSavedAt))}</span></div><div class="output-session-actions"><button class="secondary" type="button" ${uiEvent("click",()=>moveOutputSessionToList(session.id))}>本棚へ収納</button><button class="danger" type="button" ${uiEvent("click",()=>openDeleteSessionModal(session.id,title))}>削除</button><button class="primary" type="button" ${uiEvent("click",()=>openReturnOutputSession(session.id))}>返却資料を作る</button></div></article>`;
+  return `<article class="output-session-card"><h3>${escapeHtml(title)}</h3><p>${detail?escapeHtml(detail):"&nbsp;"}</p><div class="output-session-meta"><span>${escapeHtml(classes)}</span><span>採点済み ${countHtml(completed)}/${countHtml(total)}問</span><span>最終保存 ${escapeHtml(formatSavedAt(session.lastSavedAt))}</span></div><div class="output-session-actions"><button class="secondary" type="button" ${uiEvent("click",()=>moveOutputSessionToList(session.id))}>本棚へ収納</button><button class="danger" type="button" ${uiEvent("click",()=>openDeleteSessionModal(session.id,title))}>削除</button><button class="primary" type="button" ${uiEvent("click",()=>openReturnOutputSession(session.id))}>返却資料を作る</button></div></article>`;
 }
 function renderOutputSessionCards(){
   const host=document.getElementById("outputSessionCards"),catalog=document.getElementById("outputSessionCatalog");if(!host||!catalog)return;
@@ -7357,7 +7383,7 @@ function returnPracticeSheetHtml(session,className,person,items,pageIndex=0,page
   return `<section class="return-sheet ${paper.className} return-practice-sheet" style="--return-paper-ratio:${paper.ratio}" aria-label="${escapeHtml(person.name)}の個別練習課題"><header class="return-practice-head"><div><div class="return-practice-title">個別練習プリント${pageCount>1?` ${pageIndex+1}`:""}</div><div class="return-practice-meta">${escapeHtml(title)}　正答率が高い問題から復習します</div></div><div class="return-practice-name">${escapeHtml(classFullDisplayName(className))}<br>${escapeHtml(String(person.no).padStart(2,"0"))} ${escapeHtml(person.name)}</div></header>${items.length?`<div class="return-practice-list" style="--practice-row-height:${resolvedRowHeight.toFixed(2)}cqw">${itemHtml}</div>`:'<div class="return-practice-empty">全問正解です。よくできました！</div>'}</section>`;
 }
 function returnPracticePagesHtml(session,className,person,options){
-  const candidates=options.fitPracticePage?{...options,practiceCount:(session.questions||[]).length}:options;
+  const candidates=options.fitPracticePage?{...options,practiceCount:arrayOrEmpty(session.questions).length}:options;
   const items=returnPracticeQuestions(session,className,person,candidates),chunks=[];
   const pageCapacity=returnPracticePageCapacity(session,options);
   // Use the requested count for a consistent size across pupils in this batch.
