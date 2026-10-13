@@ -3,6 +3,9 @@
 
   const FORMAT_VERSION = 1;
   const CHUNK_BYTES = 1024 * 1024;
+  // Format 1 permits at most 2 MiB of decompressed UTF-8 per NDJSON frame,
+  // excluding its newline. This accommodates a 1 MiB base64 binary chunk.
+  const MAX_FRAME_BYTES = 2 * CHUNK_BYTES;
   const encoder = new TextEncoder();
   const typedArrays = new Map([
     Int8Array, Uint8Array, Uint8ClampedArray, Int16Array, Uint16Array,
@@ -33,6 +36,12 @@
       .map(byte => byte.toString(16).padStart(2, "0")).join("");
   }
   const jsonDigest = value => digest(encoder.encode(stableStringify(value)));
+  function encodeFrame(value) {
+    const bytes = encoder.encode(stableStringify(value));
+    if (bytes.byteLength > MAX_FRAME_BYTES) fail("CHECKSUM_MISMATCH");
+    return bytes;
+  }
+  const frameDigest = value => digest(encodeFrame(value));
 
   function base64(bytes) {
     let binary = "";
@@ -98,7 +107,17 @@
   }
 
   async function deserializeStructuredValue(jsonValue, attachments) {
-    const values = attachments instanceof Map ? attachments : new Map((attachments || []).map(item => [item.id, item]));
+    let values;
+    if (attachments instanceof Map) values = attachments;
+    else {
+      if (attachments !== undefined && !Array.isArray(attachments)) fail("CHECKSUM_MISMATCH");
+      values = new Map();
+      for (const item of attachments || []) {
+        if (!item || typeof item !== "object" || typeof item.id !== "string") fail("CHECKSUM_MISMATCH");
+        if (values.has(item.id)) fail("DUPLICATE_ENTRY");
+        values.set(item.id, item);
+      }
+    }
     async function visit(item) {
       if (item === null || ["string", "boolean", "number"].includes(typeof item)) return item;
       if (!item || typeof item !== "object" || typeof item.tag !== "string") fail("UNSUPPORTED_VERSION");
@@ -108,8 +127,12 @@
           if (!["NaN", "Infinity", "-Infinity"].includes(item.value)) fail("CHECKSUM_MISMATCH");
           return Number(item.value);
         }
-        case "BigInt": return BigInt(item.value);
+        case "BigInt": {
+          if (typeof item.value !== "string" || !/^-?(0|[1-9][0-9]*)$/.test(item.value)) fail("CHECKSUM_MISMATCH");
+          try { return BigInt(item.value); } catch { fail("CHECKSUM_MISMATCH"); }
+        }
         case "Date": {
+          if (typeof item.value !== "string") fail("CHECKSUM_MISMATCH");
           const date = new Date(item.value);
           if (!Number.isFinite(date.getTime()) || date.toISOString() !== item.value) fail("CHECKSUM_MISMATCH");
           return date;
@@ -139,7 +162,11 @@
           if (attachment.kind && attachment.kind !== item.tag) fail("CHECKSUM_MISMATCH");
           if (attachment.byteLength !== undefined && blob.size !== attachment.byteLength) fail("TRUNCATED");
           if (item.tag === "Blob") return blob.slice(0, blob.size, metadata.mimeType ?? blob.type);
-          if (item.tag === "File") return new File([blob], metadata.name, { type: metadata.mimeType, lastModified: metadata.lastModified });
+          if (item.tag === "File") {
+            if (typeof metadata.name !== "string" || typeof metadata.mimeType !== "string" ||
+                typeof metadata.lastModified !== "number" || !Number.isFinite(metadata.lastModified)) fail("CHECKSUM_MISMATCH");
+            return new File([blob], metadata.name, { type: metadata.mimeType, lastModified: metadata.lastModified });
+          }
           const buffer = await blob.arrayBuffer();
           if (item.tag === "ArrayBuffer") return buffer;
           if (item.tag === "DataView") return new DataView(buffer);
@@ -159,16 +186,31 @@
     if (record.source !== "localStorage" && record.source !== "indexedDB") fail("UNSUPPORTED_VERSION");
     if (record.source === "localStorage" && typeof record.key !== "string") fail("CHECKSUM_MISMATCH");
     if (record.source === "indexedDB" && typeof record.store !== "string") fail("CHECKSUM_MISMATCH");
-    const key = await serializeStructuredValue(record.key);
-    const binaryHashes = [];
-    for (const attachment of key.attachments) {
-      const hashes = [];
-      for (let start = 0; start < attachment.blob.size; start += CHUNK_BYTES) {
-        hashes.push(await digest(await attachment.blob.slice(start, start + CHUNK_BYTES).arrayBuffer()));
+    const active = new WeakSet();
+    async function normalizeKey(key) {
+      if (typeof key === "string") return ["string", key];
+      if (typeof key === "number" && !Number.isNaN(key)) return ["number", String(key)];
+      if (key instanceof Date && Number.isFinite(key.getTime())) return ["date", key.getTime()];
+      if (key instanceof ArrayBuffer || ArrayBuffer.isView(key)) {
+        // IndexedDB equality uses visible bytes, regardless of view type/offset.
+        const bytes = key instanceof ArrayBuffer ? new Uint8Array(key) : new Uint8Array(key.buffer, key.byteOffset, key.byteLength);
+        const blob = new Blob([bytes]);
+        const hashes = [];
+        for (let start = 0; start < blob.size; start += CHUNK_BYTES) {
+          hashes.push(await digest(await blob.slice(start, start + CHUNK_BYTES).arrayBuffer()));
+        }
+        return ["binary", blob.size, hashes];
       }
-      binaryHashes.push(hashes);
+      if (Array.isArray(key) && !active.has(key)) {
+        active.add(key);
+        const values = [];
+        for (const item of key) values.push(await normalizeKey(item));
+        active.delete(key);
+        return ["array", values];
+      }
+      fail("CHECKSUM_MISMATCH");
     }
-    return stableStringify([record.source, record.source === "indexedDB" ? record.store : null, key.jsonValue, binaryHashes]);
+    return stableStringify([record.source, record.source === "indexedDB" ? record.store : null, await normalizeKey(record.key)]);
   }
 
   function increment(counts, type) {
@@ -183,7 +225,7 @@
     const identities = new Set();
     async function* frames() {
       const header = { type: "header", magic: "YUTORI-BACKUP", formatVersion: FORMAT_VERSION, manifest };
-      const headerHash = await jsonDigest(header);
+      const headerHash = await frameDigest(header);
       digests.push(headerHash);
       yield { ...header, checksum: headerHash };
       let ordinal = 0;
@@ -197,7 +239,7 @@
         }));
         // Tagged references remain local to the logical record. Frame ids are archive-wide.
         const body = { type: "record", record: encoded.jsonValue, attachments };
-        const checksum = await jsonDigest(body);
+        const checksum = await frameDigest(body);
         digests.push(checksum);
         yield { ...body, checksum };
         for (let i = 0; i < encoded.attachments.length; i++) {
@@ -207,7 +249,7 @@
             const bytes = new Uint8Array(await blob.slice(start, start + chunkBytes).arrayBuffer());
             const checksum = await digest(bytes);
             const chunk = { type: "chunk", attachmentId: attachments[i].id, index: index++, data: base64(bytes), checksum };
-            digests.push(await jsonDigest(chunk));
+            digests.push(await frameDigest(chunk));
             yield chunk;
           }
         }
@@ -223,7 +265,14 @@
         try {
           const next = await iterator.next();
           if (next.done) controller.close();
-          else controller.enqueue(encoder.encode(stableStringify(next.value) + "\n"));
+          else {
+            const bytes = encodeFrame(next.value);
+            // Only one bounded frame and its trailing newline are materialized.
+            const line = new Uint8Array(bytes.byteLength + 1);
+            line.set(bytes);
+            line[bytes.byteLength] = 10;
+            controller.enqueue(line);
+          }
         } catch (error) { controller.error(error); }
       },
       async cancel() { await iterator.return(); },
@@ -242,6 +291,11 @@
     const reader = stream.getReader();
     const decoder = new TextDecoder("utf-8", { fatal: true });
     let pending = "";
+    let pendingBytes = 0;
+    function decode(bytes, stream = false) {
+      try { return decoder.decode(bytes, { stream }); }
+      catch { fail("CHECKSUM_MISMATCH"); }
+    }
     try {
       while (true) {
         let next;
@@ -253,19 +307,27 @@
           throw error;
         }
         if (next.done) break;
-        pending += decoder.decode(next.value, { stream: true });
-        let end;
-        while ((end = pending.indexOf("\n")) !== -1) {
-          const line = pending.slice(0, end);
-          pending = pending.slice(end + 1);
-          if (!line) fail("CHECKSUM_MISMATCH");
-          try { yield JSON.parse(line); } catch (error) {
-            if (error instanceof ArchiveFormatError) throw error;
-            fail("CHECKSUM_MISMATCH");
-          }
+        let start = 0;
+        while (start < next.value.byteLength) {
+          const end = next.value.indexOf(10, start);
+          const segmentEnd = end === -1 ? next.value.byteLength : end;
+          const segment = next.value.subarray(start, segmentEnd);
+          // Check raw bytes before decoding, concatenating, or parsing a frame.
+          pendingBytes += segment.byteLength;
+          if (pendingBytes > MAX_FRAME_BYTES) fail("CHECKSUM_MISMATCH");
+          pending += decode(segment, true);
+          if (end === -1) break;
+          pending += decode();
+          if (!pending) fail("CHECKSUM_MISMATCH");
+          let frame;
+          try { frame = JSON.parse(pending); } catch { fail("CHECKSUM_MISMATCH"); }
+          pending = "";
+          pendingBytes = 0;
+          yield frame;
+          start = end + 1;
         }
       }
-      pending += decoder.decode();
+      pending += decode();
       if (pending) fail("TRUNCATED");
     } finally {
       await reader.cancel().catch(() => {});
@@ -300,6 +362,7 @@
     }
 
     for await (const frame of readLines(measured.pipeThrough(new DecompressionStream("gzip")))) {
+        if (!frame || typeof frame !== "object" || Array.isArray(frame)) fail("CHECKSUM_MISMATCH");
         if (!header) {
           if (frame?.type !== "header" || frame.magic !== "YUTORI-BACKUP") fail("BAD_MAGIC");
           if (frame.formatVersion !== FORMAT_VERSION) fail("UNSUPPORTED_VERSION");
@@ -317,7 +380,7 @@
           if (await jsonDigest(body) !== checksum) fail("CHECKSUM_MISMATCH");
           if (!Array.isArray(frame.attachments)) fail("CHECKSUM_MISMATCH");
           const attachments = frame.attachments.map(item => {
-            if (typeof item.id !== "string" || !Number.isSafeInteger(item.byteLength) || item.byteLength < 0 ||
+            if (!item || typeof item !== "object" || typeof item.id !== "string" || !Number.isSafeInteger(item.byteLength) || item.byteLength < 0 ||
                 !Number.isSafeInteger(item.chunks) || item.chunks < 0 || (item.byteLength === 0) !== (item.chunks === 0) ||
                 item.chunks > item.byteLength || item.byteLength > item.chunks * CHUNK_BYTES) fail("CHECKSUM_MISMATCH");
             if (attachmentIds.has(item.id)) fail("DUPLICATE_ENTRY");
@@ -353,7 +416,7 @@
   }
 
   global.YutoriBackupArchive = Object.freeze({
-    FORMAT_VERSION, ArchiveFormatError, createArchiveStream, readArchiveStream,
+    FORMAT_VERSION, MAX_FRAME_BYTES, ArchiveFormatError, createArchiveStream, readArchiveStream,
     serializeStructuredValue, deserializeStructuredValue,
   });
 })(globalThis);
