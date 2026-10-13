@@ -246,7 +246,56 @@ test("malformed UTF-8, frames, and structured payloads return stable corruption 
   });
 });
 
-test("oversized unterminated frames are rejected early and writer uses the same byte budget", async () => {
+test("all binary metadata is validated in direct values and independently re-signed archives", async () => {
+  const result = await page.evaluate(async () => {
+    const api = YutoriBackupArchive;
+    const canonical = value => Array.isArray(value) ? `[${value.map(canonical).join(",")}]` :
+      value !== null && typeof value === "object" ? `{${Object.keys(value).sort().map(key => `${JSON.stringify(key)}:${canonical(value[key])}`).join(",")}}` : JSON.stringify(value);
+    const hash = async value => [...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(canonical(value))))].map(byte => byte.toString(16).padStart(2, "0")).join("");
+    const failure = async operation => {
+      try { await operation(); return "ACCEPTED"; }
+      catch (error) { return error instanceof api.ArchiveFormatError ? error.code : error.name; }
+    };
+    const values = [new Blob(["答案"]), new File(["答案"], "答案.txt", { lastModified: 1 }), new Uint8Array([1, 2]).buffer, new Uint16Array([1, 2]), new DataView(new ArrayBuffer(2))];
+    const output = [];
+    for (const value of values) {
+      const encoded = await api.serializeStructuredValue(value);
+      const direct = structuredClone(encoded.attachments);
+      direct[0].mimeType = { toString: 0, valueOf: 0 };
+      const directCode = await failure(() => api.deserializeStructuredValue(encoded.jsonValue, direct));
+      const tagged = structuredClone(encoded.jsonValue);
+      tagged.mimeType = { toString: 0, valueOf: 0 };
+      const mapCode = await failure(() => api.deserializeStructuredValue(tagged, new Map(encoded.attachments.map(item => [item.id, item.blob]))));
+      const archive = await new Response(api.createArchiveStream({}, (async function* () {
+        yield { type: "indexedDB", source: "indexedDB", store: "pdfFiles", key: 1, value };
+      })())).blob();
+      const frames = (await new Response(archive.stream().pipeThrough(new DecompressionStream("gzip"))).text()).trim().split("\n").map(JSON.parse);
+      const digests = [frames[0].checksum];
+      for (const frame of frames.slice(1, -1)) {
+        if (frame.type === "record") {
+          frame.attachments[0].mimeType = { toString: 0, valueOf: 0 };
+          const { checksum, ...body } = frame;
+          frame.checksum = await hash(body);
+          digests.push(frame.checksum);
+        } else digests.push(await hash(frame));
+      }
+      frames.at(-1).archiveHash = await hash(digests);
+      const archiveCode = await failure(() => api.readArchiveStream(new Blob([frames.map(frame => canonical(frame) + "\n").join("")]).stream().pipeThrough(new CompressionStream("gzip"))));
+      output.push({ directCode, mapCode, archiveCode });
+    }
+    const encoded = await api.serializeStructuredValue(new Uint16Array([1, 2]));
+    const invalid = [];
+    for (const [field, value] of [["byteLength", {}], ["typedArrayName", {}], ["kind", {}], ["id", {}]]) {
+      const attachments = [...encoded.attachments.map(item => ({ ...item }))];
+      attachments[0][field] = value;
+      invalid.push(await failure(() => api.deserializeStructuredValue(encoded.jsonValue, attachments)));
+    }
+    return { output, invalid };
+  });
+  assert.deepEqual(result, { output: Array.from({ length: 5 }, () => ({ directCode: "CHECKSUM_MISMATCH", mapCode: "CHECKSUM_MISMATCH", archiveCode: "CHECKSUM_MISMATCH" })), invalid: Array(4).fill("CHECKSUM_MISMATCH") });
+});
+
+test("oversized unterminated wire frames are rejected and cancelled early", async () => {
   const result = await page.evaluate(async () => {
     const api = YutoriBackupArchive;
     const parts = [];
@@ -274,31 +323,100 @@ test("oversized unterminated frames are rejected early and writer uses the same 
     try { await api.readArchiveStream(source); }
     catch (error) { overflowCode = error.code ?? error.name; }
     await new Promise(resolve => setTimeout(resolve, 0));
-    const writerCode = async (manifest, value) => {
-      const reader = api.createArchiveStream(manifest, (async function* () {
-        yield { type: "localStorage", source: "localStorage", key: "yutori_limit", value };
-      })()).getReader();
-      try { while (!(await reader.read()).done) {} return "ACCEPTED"; }
-      catch (error) { return error.code ?? error.name; }
-    };
-    const metadata = await writerCode({ note: "x".repeat(2 * 1024 * 1024) }, "small");
-    const record = await writerCode({}, "x".repeat(2 * 1024 * 1024));
-    const utf8Record = await writerCode({}, "あ".repeat(800000));
-    const supported = "x".repeat(2 * 1024 * 1024 - 1024);
-    const archive = await new Response(api.createArchiveStream({}, (async function* () {
-      yield { type: "localStorage", source: "localStorage", key: "yutori_limit", value: supported };
-    })())).blob();
-    let restored;
-    await api.readArchiveStream(archive, { onRecord(item) { restored = item.value; } });
-    return { overflowCode, cancelled, consumedBytes: offset, compressedBytes: compressed.size, metadata, record, utf8Record, nearLimitRoundTrip: restored === supported };
+    return { overflowCode, cancelled, consumedBytes: offset, compressedBytes: compressed.size };
   });
   assert.equal(result.overflowCode, "CHECKSUM_MISMATCH");
   assert.equal(result.cancelled, true);
   assert.ok(result.consumedBytes < result.compressedBytes / 2, "reject without consuming most of the no-newline input");
-  assert.equal(result.metadata, "CHECKSUM_MISMATCH");
-  assert.equal(result.record, "CHECKSUM_MISMATCH");
-  assert.equal(result.utf8Record, "CHECKSUM_MISMATCH", "budget counts UTF-8 bytes rather than string characters");
-  assert.equal(result.nearLimitRoundTrip, true);
+});
+
+test("large ASCII, Unicode, nested records and manifests round-trip through bounded payload chunks", async () => {
+  const result = await page.evaluate(async () => {
+    const api = YutoriBackupArchive;
+    const ascii = "x".repeat(2 * 1024 * 1024 + 37);
+    const unicode = "日本語📝\n".repeat(250000);
+    const compound = { nested: [{ text: "答案".repeat(400000) }, { text: "z".repeat(800000) }], date: new Date("2026-10-13T00:00:00Z"), blob: new Blob(["PDF答案"], { type: "application/pdf" }), typed: new Int16Array([-12, 34]) };
+    const manifest = { appVersion: "v0.3.40", note: "名簿".repeat(400000), counts: { localStorage: 2, indexedDB: 1 } };
+    const originals = [
+      { type: "localStorage", source: "localStorage", key: "yutori_large_ascii", value: ascii },
+      { type: "localStorage", source: "localStorage", key: "yutori_large_unicode", value: unicode },
+      { type: "indexedDB", source: "indexedDB", store: "pdfFiles", key: ["答案", [7, new Uint8Array([1, 2])]], value: compound },
+    ];
+    const nativeArrayBuffer = Blob.prototype.arrayBuffer;
+    Blob.prototype.arrayBuffer = function () {
+      if (this.size > 1024 * 1024) throw new Error("unbounded payload read");
+      return nativeArrayBuffer.call(this);
+    };
+    let archive;
+    try {
+      const reader = api.createArchiveStream(manifest, (async function* () { yield* originals; })()).getReader();
+      const compressed = [];
+      while (true) { const next = await reader.read(); if (next.done) break; compressed.push(next.value); }
+      archive = new Blob(compressed);
+    }
+    finally { Blob.prototype.arrayBuffer = nativeArrayBuffer; }
+    const text = await new Response(archive.stream().pipeThrough(new DecompressionStream("gzip"))).text();
+    const lines = text.trim().split("\n");
+    const frames = lines.map(JSON.parse);
+    const received = [];
+    const validated = await api.readArchiveStream(archive, { onRecord(record) { received.push(record); } });
+    const restored = received[2].value;
+    const canonical = value => Array.isArray(value) ? `[${value.map(canonical).join(",")}]` :
+      value !== null && typeof value === "object" ? `{${Object.keys(value).sort().map(key => `${JSON.stringify(key)}:${canonical(value[key])}`).join(",")}}` : JSON.stringify(value);
+    const hash = async value => [...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(canonical(value))))].map(byte => byte.toString(16).padStart(2, "0")).join("");
+    const byteHash = async bytes => [...new Uint8Array(await crypto.subtle.digest("SHA-256", bytes))].map(byte => byte.toString(16).padStart(2, "0")).join("");
+    const pack = frames => new Blob([frames.map(frame => canonical(frame) + "\n").join("")]).stream().pipeThrough(new CompressionStream("gzip"));
+    const sign = async frames => {
+      const digests = [];
+      for (const frame of frames.slice(0, -1)) {
+        if (frame.type === "header" || frame.type === "record") {
+          const { checksum, ...body } = frame;
+          frame.checksum = await hash(body);
+          digests.push(frame.checksum);
+        } else digests.push(await hash(frame));
+      }
+      frames.at(-1).archiveHash = await hash(digests);
+      return frames;
+    };
+    const failure = async frames => {
+      try { await api.readArchiveStream(pack(frames)); return "ACCEPTED"; }
+      catch (error) { return error.code ?? error.name; }
+    };
+    const firstRecordIndex = frames.findIndex(frame => frame.type === "record");
+    const unknown = structuredClone(frames);
+    unknown[firstRecordIndex].payload.encoding = "future-json";
+    const unknownCode = await failure(await sign(unknown));
+    const changed = structuredClone(frames);
+    const chunk = changed.find(frame => frame.type === "chunk" && frame.attachmentId === changed[firstRecordIndex].payload.attachmentId);
+    const binary = atob(chunk.data);
+    const index = binary.indexOf("x".repeat(100));
+    chunk.data = btoa(binary.slice(0, index) + "y" + binary.slice(index + 1));
+    chunk.checksum = await byteHash(Uint8Array.from(atob(chunk.data), char => char.charCodeAt(0)));
+    const payloadDigestCode = await failure(changed); // Keep the original end digest.
+    const duplicate = structuredClone(frames);
+    const nextRecordIndex = frames.findIndex((frame, i) => i > firstRecordIndex && frame.type === "record");
+    const duplicateFrames = structuredClone(frames.slice(firstRecordIndex, nextRecordIndex));
+    const oldId = duplicateFrames[0].payload.attachmentId;
+    const newId = "duplicate:payload";
+    duplicateFrames[0].payload.attachmentId = newId;
+    duplicateFrames[0].attachments.find(item => item.id === oldId).id = newId;
+    for (const frame of duplicateFrames.slice(1)) if (frame.attachmentId === oldId) frame.attachmentId = newId;
+    duplicate.splice(-1, 0, ...duplicateFrames);
+    const duplicateCode = await failure(await sign(duplicate));
+    let writerDuplicateCode = "ACCEPTED";
+    const reader = api.createArchiveStream({}, (async function* () { yield originals[0]; yield originals[0]; })()).getReader();
+    try { while (!(await reader.read()).done) {} } catch (error) { writerDuplicateCode = error.code; }
+    return {
+      ascii: received[0].value === ascii, unicode: received[1].value === unicode,
+      compound: restored.nested[0].text === compound.nested[0].text && restored.nested[1].text === compound.nested[1].text,
+      date: restored.date.toISOString(), blob: await restored.blob.text(), typed: [...restored.typed], keyBytes: [...received[2].key[1][1]],
+      manifest: validated.manifest.note === manifest.note, counts: validated.counts, recordCount: received.length,
+      bounded: lines.every(line => new TextEncoder().encode(line).byteLength <= 2 * 1024 * 1024),
+      externalRecords: frames.filter(frame => frame.type === "record" && frame.payload).length,
+      unknownCode, payloadDigestCode, duplicateCode, writerDuplicateCode,
+    };
+  });
+  assert.deepEqual(result, { ascii: true, unicode: true, compound: true, date: "2026-10-13T00:00:00.000Z", blob: "PDF答案", typed: [-12, 34], keyBytes: [1, 2], manifest: true, counts: { localStorage: 2, indexedDB: 1 }, recordCount: 3, bounded: true, externalRecords: 3, unknownCode: "UNSUPPORTED_VERSION", payloadDigestCode: "CHECKSUM_MISMATCH", duplicateCode: "DUPLICATE_ENTRY", writerDuplicateCode: "DUPLICATE_ENTRY" });
 });
 
 test("truncation, a changed chunk checksum, duplicate entries, and format 2 are rejected", async () => {

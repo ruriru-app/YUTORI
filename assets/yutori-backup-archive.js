@@ -106,6 +106,21 @@
     return { jsonValue: visit(value), attachments };
   }
 
+  function validateBinaryMetadata(metadata, kind = metadata?.kind, id = metadata?.id) {
+    if (!metadata || typeof metadata !== "object" || typeof kind !== "string" || typeof id !== "string" ||
+        typeof metadata.mimeType !== "string" || !Number.isSafeInteger(metadata.byteLength) || metadata.byteLength < 0) fail("CHECKSUM_MISMATCH");
+    if (!["Blob", "File", "ArrayBuffer", "TypedArray", "DataView", "StructuredJSON"].includes(kind)) fail("UNSUPPORTED_VERSION");
+    if (kind === "StructuredJSON" && metadata.mimeType !== "application/json") fail("CHECKSUM_MISMATCH");
+    if (kind === "File" && (typeof metadata.name !== "string" || typeof metadata.lastModified !== "number" ||
+        !Number.isFinite(metadata.lastModified))) fail("CHECKSUM_MISMATCH");
+    if (kind === "TypedArray") {
+      if (typeof metadata.typedArrayName !== "string") fail("CHECKSUM_MISMATCH");
+      const constructor = typedArrays.get(metadata.typedArrayName);
+      if (!constructor) fail("UNSUPPORTED_VERSION");
+      if (metadata.byteLength % constructor.BYTES_PER_ELEMENT !== 0) fail("CHECKSUM_MISMATCH");
+    }
+  }
+
   async function deserializeStructuredValue(jsonValue, attachments) {
     let values;
     if (attachments instanceof Map) values = attachments;
@@ -154,19 +169,17 @@
           return object;
         }
         case "Blob": case "File": case "ArrayBuffer": case "TypedArray": case "DataView": {
+          validateBinaryMetadata(item, item.tag, item.attachmentId);
           const attachment = values.get(item.attachmentId);
           if (!attachment) fail("TRUNCATED");
           const blob = attachment instanceof Blob ? attachment : attachment.blob;
           const metadata = attachment instanceof Blob ? item : attachment;
           if (!(blob instanceof Blob)) fail("TRUNCATED");
+          if (!(attachment instanceof Blob)) validateBinaryMetadata(attachment);
           if (attachment.kind && attachment.kind !== item.tag) fail("CHECKSUM_MISMATCH");
-          if (attachment.byteLength !== undefined && blob.size !== attachment.byteLength) fail("TRUNCATED");
+          if (blob.size !== metadata.byteLength) fail("TRUNCATED");
           if (item.tag === "Blob") return blob.slice(0, blob.size, metadata.mimeType ?? blob.type);
-          if (item.tag === "File") {
-            if (typeof metadata.name !== "string" || typeof metadata.mimeType !== "string" ||
-                typeof metadata.lastModified !== "number" || !Number.isFinite(metadata.lastModified)) fail("CHECKSUM_MISMATCH");
-            return new File([blob], metadata.name, { type: metadata.mimeType, lastModified: metadata.lastModified });
-          }
+          if (item.tag === "File") return new File([blob], metadata.name, { type: metadata.mimeType, lastModified: metadata.lastModified });
           const buffer = await blob.arrayBuffer();
           if (item.tag === "ArrayBuffer") return buffer;
           if (item.tag === "DataView") return new DataView(buffer);
@@ -210,7 +223,7 @@
       }
       fail("CHECKSUM_MISMATCH");
     }
-    return stableStringify([record.source, record.source === "indexedDB" ? record.store : null, await normalizeKey(record.key)]);
+    return jsonDigest([record.source, record.source === "indexedDB" ? record.store : null, await normalizeKey(record.key)]);
   }
 
   function increment(counts, type) {
@@ -223,11 +236,34 @@
     const counts = {};
     const digests = [];
     const identities = new Set();
+    const jsonBlob = value => new Blob([stableStringify(value)], { type: "application/json" });
+    const payloadAttachment = (blob, id) => ({ id, kind: "StructuredJSON", mimeType: "application/json", byteLength: blob.size, chunks: Math.ceil(blob.size / chunkBytes), blob });
+    const fitsFrame = body => jsonBlob({ ...body, checksum: "0".repeat(64) }).size <= MAX_FRAME_BYTES;
+    async function* chunks(attachments) {
+      for (const attachment of attachments) {
+        let index = 0;
+        for (let start = 0; start < attachment.blob.size; start += chunkBytes) {
+          const bytes = new Uint8Array(await attachment.blob.slice(start, start + chunkBytes).arrayBuffer());
+          const checksum = await digest(bytes);
+          const chunk = { type: "chunk", attachmentId: attachment.id, index: index++, data: base64(bytes), checksum };
+          digests.push(await frameDigest(chunk));
+          yield chunk;
+        }
+      }
+    }
     async function* frames() {
-      const header = { type: "header", magic: "YUTORI-BACKUP", formatVersion: FORMAT_VERSION, manifest };
+      let header = { type: "header", magic: "YUTORI-BACKUP", formatVersion: FORMAT_VERSION, manifest };
+      let manifestAttachment;
+      if (!fitsFrame(header)) {
+        manifestAttachment = payloadAttachment(jsonBlob(manifest), "manifest:payload");
+        const { blob, ...metadata } = manifestAttachment;
+        header = { type: "header", magic: "YUTORI-BACKUP", formatVersion: FORMAT_VERSION,
+          manifestPayload: { encoding: "json-utf8", attachmentId: metadata.id }, attachments: [metadata] };
+      }
       const headerHash = await frameDigest(header);
       digests.push(headerHash);
       yield { ...header, checksum: headerHash };
+      if (manifestAttachment) yield* chunks([manifestAttachment]);
       let ordinal = 0;
       for await (const record of records) {
         const identity = await recordIdentity(record);
@@ -238,21 +274,21 @@
           ...metadata, id: `${ordinal}:${metadata.id}`, chunks: Math.ceil(blob.size / chunkBytes),
         }));
         // Tagged references remain local to the logical record. Frame ids are archive-wide.
-        const body = { type: "record", record: encoded.jsonValue, attachments };
+        let body = { type: "record", record: encoded.jsonValue, attachments };
+        let payload;
+        if (!fitsFrame(body)) {
+          // Only tagged JSON/metadata is externalized. PDF/image Blob bytes stay
+          // in their original attachments and are never folded into this JSON.
+          payload = payloadAttachment(jsonBlob({ record: encoded.jsonValue, attachments }), `${ordinal}:payload`);
+          const { blob, ...metadata } = payload;
+          body = { type: "record", logicalType: record.type, identity,
+            payload: { encoding: "tagged-json-utf8", attachmentId: metadata.id }, attachments: [metadata] };
+        }
         const checksum = await frameDigest(body);
         digests.push(checksum);
         yield { ...body, checksum };
-        for (let i = 0; i < encoded.attachments.length; i++) {
-          const blob = encoded.attachments[i].blob;
-          let index = 0;
-          for (let start = 0; start < blob.size; start += chunkBytes) {
-            const bytes = new Uint8Array(await blob.slice(start, start + chunkBytes).arrayBuffer());
-            const checksum = await digest(bytes);
-            const chunk = { type: "chunk", attachmentId: attachments[i].id, index: index++, data: base64(bytes), checksum };
-            digests.push(await frameDigest(chunk));
-            yield chunk;
-          }
-        }
+        if (payload) yield* chunks([payload]);
+        yield* chunks(encoded.attachments.map((item, index) => ({ ...attachments[index], blob: item.blob })));
         increment(counts, record.type);
         ordinal++;
       }
@@ -347,12 +383,71 @@
     const attachmentIds = new Set();
     let header, end, pending;
 
+    function registerAttachments(metadata) {
+      if (!Array.isArray(metadata)) fail("CHECKSUM_MISMATCH");
+      return metadata.map(item => {
+        validateBinaryMetadata(item);
+        if (!Number.isSafeInteger(item.chunks) || item.chunks < 0 || (item.byteLength === 0) !== (item.chunks === 0) ||
+            item.chunks > item.byteLength || item.byteLength > item.chunks * CHUNK_BYTES) fail("CHECKSUM_MISMATCH");
+        if (attachmentIds.has(item.id)) fail("DUPLICATE_ENTRY");
+        attachmentIds.add(item.id);
+        return { ...item, parts: [], nextIndex: 0, receivedBytes: 0 };
+      });
+    }
+
+    function payloadAttachment(reference, encoding, metadata) {
+      if (!reference || typeof reference !== "object" || Array.isArray(reference) ||
+          typeof reference.encoding !== "string" || typeof reference.attachmentId !== "string") fail("CHECKSUM_MISMATCH");
+      if (reference.encoding !== encoding || Object.keys(reference).some(key => !["encoding", "attachmentId"].includes(key))) fail("UNSUPPORTED_VERSION");
+      const attachments = registerAttachments(metadata);
+      if (attachments.length !== 1 || attachments[0].id !== reference.attachmentId ||
+          attachments[0].kind !== "StructuredJSON" || attachments[0].byteLength === 0) fail("CHECKSUM_MISMATCH");
+      return attachments[0];
+    }
+
+    async function readVerifiedJson(attachment) {
+      if (attachment.nextIndex !== attachment.chunks || attachment.receivedBytes !== attachment.byteLength) fail("TRUNCATED");
+      const reader = new Blob(attachment.parts).stream().getReader();
+      const decoder = new TextDecoder("utf-8", { fatal: true });
+      const parts = [];
+      try {
+        while (true) {
+          const next = await reader.read();
+          if (next.done) break;
+          parts.push(decoder.decode(next.value, { stream: true }));
+        }
+        parts.push(decoder.decode());
+        return JSON.parse(parts.join(""));
+      } catch (error) {
+        if (error instanceof TypeError || error instanceof SyntaxError) fail("CHECKSUM_MISMATCH");
+        throw error;
+      } finally { reader.releaseLock(); }
+    }
+
+    async function loadPayload() {
+      const value = await readVerifiedJson(pending.payload);
+      if (pending.mode === "manifest") {
+        if (!value || typeof value !== "object" || Array.isArray(value)) fail("CHECKSUM_MISMATCH");
+        header.manifest = value;
+        pending = null;
+        return;
+      }
+      if (!value || typeof value !== "object" || Array.isArray(value) || !Object.hasOwn(value, "record") ||
+          !Array.isArray(value.attachments) || Object.keys(value).some(key => !["record", "attachments"].includes(key))) fail("CHECKSUM_MISMATCH");
+      pending.record = value.record;
+      pending.attachments = registerAttachments(value.attachments);
+      if (pending.attachments.some(item => item.kind === "StructuredJSON")) fail("UNSUPPORTED_VERSION");
+      pending.payload = null;
+    }
+
     async function finishRecord() {
       if (!pending) return;
+      if (pending.mode === "manifest" || pending.payload) fail("TRUNCATED");
       if (pending.attachments.some(item => item.nextIndex !== item.chunks || item.receivedBytes !== item.byteLength)) fail("TRUNCATED");
       const attachments = pending.attachments.map((item, index) => ({ ...item, id: String(index), blob: new Blob(item.parts, { type: item.mimeType }) }));
       const record = await deserializeStructuredValue(pending.record, attachments);
       const identity = await recordIdentity(record);
+      if (pending.identity && (pending.identity !== identity || pending.logicalType !== record.type)) fail("CHECKSUM_MISMATCH");
       if (identities.has(identity)) fail("DUPLICATE_ENTRY");
       identities.add(identity);
       increment(counts, record.type);
@@ -368,8 +463,12 @@
           if (frame.formatVersion !== FORMAT_VERSION) fail("UNSUPPORTED_VERSION");
           const { checksum, ...body } = frame;
           if (await jsonDigest(body) !== checksum) fail("CHECKSUM_MISMATCH");
-          if (!frame.manifest || typeof frame.manifest !== "object" || Array.isArray(frame.manifest)) fail("CHECKSUM_MISMATCH");
           header = frame;
+          if (Object.hasOwn(frame, "manifestPayload")) {
+            if (Object.hasOwn(frame, "manifest")) fail("CHECKSUM_MISMATCH");
+            const payload = payloadAttachment(frame.manifestPayload, "json-utf8", frame.attachments);
+            pending = { mode: "manifest", payload, attachments: [payload] };
+          } else if (!frame.manifest || typeof frame.manifest !== "object" || Array.isArray(frame.manifest)) fail("CHECKSUM_MISMATCH");
           digests.push(checksum);
           continue;
         }
@@ -378,16 +477,16 @@
           await finishRecord();
           const { checksum, ...body } = frame;
           if (await jsonDigest(body) !== checksum) fail("CHECKSUM_MISMATCH");
-          if (!Array.isArray(frame.attachments)) fail("CHECKSUM_MISMATCH");
-          const attachments = frame.attachments.map(item => {
-            if (!item || typeof item !== "object" || typeof item.id !== "string" || !Number.isSafeInteger(item.byteLength) || item.byteLength < 0 ||
-                !Number.isSafeInteger(item.chunks) || item.chunks < 0 || (item.byteLength === 0) !== (item.chunks === 0) ||
-                item.chunks > item.byteLength || item.byteLength > item.chunks * CHUNK_BYTES) fail("CHECKSUM_MISMATCH");
-            if (attachmentIds.has(item.id)) fail("DUPLICATE_ENTRY");
-            attachmentIds.add(item.id);
-            return { ...item, parts: [], nextIndex: 0, receivedBytes: 0 };
-          });
-          pending = { record: frame.record, attachments };
+          if (Object.hasOwn(frame, "payload")) {
+            if (Object.hasOwn(frame, "record") || typeof frame.logicalType !== "string" ||
+                typeof frame.identity !== "string" || !/^[a-f0-9]{64}$/.test(frame.identity)) fail("CHECKSUM_MISMATCH");
+            const payload = payloadAttachment(frame.payload, "tagged-json-utf8", frame.attachments);
+            pending = { mode: "record", payload, attachments: [payload], identity: frame.identity, logicalType: frame.logicalType };
+          } else {
+            const attachments = registerAttachments(frame.attachments);
+            if (attachments.some(item => item.kind === "StructuredJSON")) fail("UNSUPPORTED_VERSION");
+            pending = { mode: "record", record: frame.record, attachments };
+          }
           digests.push(checksum);
         } else if (frame.type === "chunk") {
           const attachment = pending?.attachments.find(item => item.id === frame.attachmentId);
@@ -403,6 +502,7 @@
           attachment.parts.push(new Blob([bytes]));
           attachment.nextIndex++;
           digests.push(await jsonDigest(frame));
+          if (attachment === pending.payload && attachment.nextIndex === attachment.chunks) await loadPayload();
         } else if (frame.type === "end") {
           await finishRecord();
           if (stableStringify(counts) !== stableStringify(frame.counts) ||
