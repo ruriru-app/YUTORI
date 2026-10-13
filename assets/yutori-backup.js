@@ -13,7 +13,7 @@
       setTimeout(() => URL.revokeObjectURL(url), 60_000);
     },
   };
-  let destination = null, ready = false, pending = null, controller = null, previousFocus;
+  let destination = null, ready = false, pending = null, activeOperation = null, generation = 0;
   let state = { busy: false, phase: "", itemsDone: 0, itemsTotal: 0, bytesDone: 0, bytesTotal: 0, canCancel: false };
   const storage = () => global.YutoriBackupStorage;
   const codec = () => global.YutoriBackupArchive;
@@ -132,38 +132,66 @@
     }
     return options.pickSaveFile({ suggestedName: DEFAULT_NAME, types: [{ description: "YUTORI 全データバックアップ", accept: { "application/octet-stream": [".yutori"] } }] });
   }
+  function assertActive(operation) {
+    operation.controller.signal.throwIfAborted();
+    if (activeOperation?.generation !== operation.generation) throw new DOMException("Backup operation ended", "AbortError");
+  }
+  function waitCancellable(promise, operation) {
+    const signal = operation.controller.signal;
+    return new Promise((resolve, reject) => {
+      let settled = false;
+      const finish = (settle, value) => {
+        if (settled) return;
+        settled = true; signal.removeEventListener("abort", aborted); settle(value);
+      };
+      const aborted = () => finish(reject, signal.reason);
+      // Keep both handlers attached even after cancellation. Hook APIs need not
+      // support signals, and their abandoned rejection must remain handled.
+      Promise.resolve(promise).then(value => {
+        if (settled) return;
+        try { assertActive(operation); finish(resolve, value); }
+        catch (error) { finish(reject, error); }
+      }, error => finish(reject, error));
+      if (signal.aborted) aborted();
+      else signal.addEventListener("abort", aborted, { once: true });
+    });
+  }
   function startSave(change = false) {
     if (pending) return pending;
     if (!ready) return Promise.resolve({ ok: false, reason: "initializing" });
     state = { busy: true, phase: "準備", itemsDone: 0, itemsTotal: 0, bytesDone: 0, bytesTotal: 0, canCancel: true };
-    controller = new AbortController();
+    const operation = { generation: ++generation, controller: new AbortController(), previousFocus: global.document?.activeElement };
+    activeOperation = operation;
     let selected;
     try { selected = acquireDestination(change); } // user-activation boundary
     catch (error) { selected = Promise.reject(error); }
-    previousFocus = global.document?.activeElement;
     renderStatus(); progress("準備");
     element("backupProgressDialog")?.showModal();
-    pending = performSave(selected).finally(() => {
-      pending = null; controller = null; state = { ...state, busy: false, canCancel: false };
-      element("backupProgressDialog")?.close(); renderStatus(); previousFocus?.focus();
+    pending = performSave(selected, operation).finally(() => {
+      if (activeOperation !== operation) return;
+      pending = null; activeOperation = null; state = { ...state, busy: false, canCancel: false };
+      element("backupProgressDialog")?.close(); renderStatus(); operation.previousFocus?.focus();
     });
     return pending;
   }
-  async function performSave(selected) {
+  async function performSave(selected, operation) {
     try {
-      const handle = await selected;
-      controller.signal.throwIfAborted();
-      if (handle) await handle.getFile(); // detect disconnected/deleted destination
-      await options.waitForIdle();
-      controller.signal.throwIfAborted();
+      const handle = await waitCancellable(selected, operation);
+      assertActive(operation);
+      if (handle) await waitCancellable(handle.getFile(), operation); // detect disconnected/deleted destination
+      assertActive(operation);
+      await waitCancellable(options.waitForIdle(), operation);
+      assertActive(operation);
       progress("データ収集");
-      const source = await storage().createSnapshotRecordSource({ appVersion: options.appVersion, createdAt: options.now().toISOString() });
-      controller.signal.throwIfAborted();
+      const source = await waitCancellable(storage().createSnapshotRecordSource({ appVersion: options.appVersion, createdAt: options.now().toISOString() }), operation);
+      assertActive(operation);
       progress("データ収集", { itemsDone: count(source.manifest.counts), itemsTotal: count(source.manifest.counts), bytesDone: source.manifest.estimatedBytes, bytesTotal: source.manifest.estimatedBytes });
       let result;
       state.canCancel = false;
       if (handle) {
-        result = await writeVerifiedArchiveToHandle(handle, source, { onProgress: info => progress(info.phase, info) });
+        result = await writeVerifiedArchiveToHandle(handle, source, { onProgress: info => {
+          if (activeOperation === operation) progress(info.phase, info);
+        } });
       } else {
         progress("圧縮・保存", { itemsDone: 0, bytesDone: 0, bytesTotal: 0, canCancel: false });
         const blob = await new Response(codec().createArchiveStream(source.manifest, source.records, {
@@ -172,19 +200,22 @@
         progress("保存内容の確認", { itemsDone: 0, bytesDone: 0, bytesTotal: blob.size });
         await codec().readArchiveStream(blob);
         progress("保存内容の確認", { itemsDone: count(source.manifest.counts), bytesDone: blob.size });
+        assertActive(operation);
         await options.downloadBlob(blob, DEFAULT_NAME);
         result = { fileName: DEFAULT_NAME, size: blob.size };
       }
+      assertActive(operation);
       const meta = { handle: handle || null, fileName: result.fileName, size: result.size, lastSuccessfulAt: options.now().toISOString() };
       destination = await storage().saveDestinationMeta(meta);
+      assertActive(operation);
       notify(handle ? "バックアップを保存し、ファイルの内容を確認しました。Google ドライブのクラウド同期完了は、ドライブ側で確認してください。" : "内容を確認したバックアップをダウンロードしました。このブラウザでは毎回ダウンロードします。同じ保存先への自動上書きはできません。保存したファイルを確認してください。");
       return { ok: true, ...result };
     } catch (error) {
-      notify(errorMessage(error), error.name !== "AbortError");
+      if (activeOperation === operation) notify(errorMessage(error), error.name !== "AbortError");
       return { ok: false, reason: error.name };
     }
   }
-  function cancelBackup() { if (state.canCancel) controller?.abort(); }
+  function cancelBackup() { if (state.canCancel) activeOperation?.controller.abort(); }
   function showBackupSettings() { global.showSettingsPanel("backup"); renderStatus(); }
 
   // Intentionally extensible: later tasks add exclusion and restore orchestration.

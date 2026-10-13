@@ -282,3 +282,106 @@ test("status strips local directories and exposes only filename, timestamp and s
   });
   for (const text of Object.values(result)) { assert.doesNotMatch(text, /school-private|C:/); assert.match(text, /答案.yutori/); }
 });
+
+for (const phase of ["idle", "collection"]) {
+  for (const lateOutcome of ["resolve", "reject"]) {
+    test(`cancel promptly settles unresolved ${phase} and ignores late ${lateOutcome}`, async () => {
+      await setup();
+      await page.evaluate(() => saveYutoriBackup());
+      await page.evaluate(async ({ phase, lateOutcome }) => {
+        globalThis.unhandled = [];
+        addEventListener("unhandledrejection", event => unhandled.push(String(event.reason)));
+        globalThis.successBefore = await YutoriBackupStorage.getLastBackupMeta();
+        globalThis.titleBefore = document.getElementById("backupSaveButton").title;
+        globalThis.writesAfterCancel = 0;
+        globalThis.metaUpdatesAfterCancel = 0;
+        globalThis.blockedStarted = false;
+        globalThis.cancelSettled = false;
+        const original = YutoriBackupStorage;
+        const real = backupHandle;
+        const handle = { name: real.name, requestPermission: () => real.requestPermission({ mode: "readwrite" }),
+          getFile: () => real.getFile(), createWritable: () => { writesAfterCancel++; return real.createWritable(); } };
+        const blocked = () => new Promise((resolve, reject) => {
+          blockedStarted = true;
+          globalThis.releaseBlocked = async () => {
+            if (lateOutcome === "reject") reject(new Error("late abandoned hook failure"));
+            else resolve(phase === "collection" ? await original.createSnapshotRecordSource({ appVersion: "v0.3.51" }) : undefined);
+          };
+        });
+        globalThis.YutoriBackupStorage = { ...original,
+          getDestinationMeta: async () => ({ ...(await original.getDestinationMeta()), handle }),
+          saveDestinationMeta: meta => { metaUpdatesAfterCancel++; return original.saveDestinationMeta(meta); },
+          createSnapshotRecordSource: phase === "collection" ? blocked : original.createSnapshotRecordSource,
+        };
+        YutoriBackup.configure({ waitForIdle: phase === "idle" ? blocked : async () => {} });
+        await YutoriBackup.initialize();
+        globalThis.cancellingSave = saveYutoriBackup().then(result => { cancelSettled = true; globalThis.cancelResult = result; return result; });
+      }, { phase, lateOutcome });
+      await page.waitForFunction(() => blockedStarted);
+      assert.equal(await page.locator("#backupCancelButton").isEnabled(), true);
+      await page.locator("#backupCancelButton").click();
+      const prompt = await page.evaluate(async () => {
+        await Promise.race([cancellingSave, new Promise(resolve => setTimeout(resolve, 250))]);
+        return { settled: cancelSettled, busy: YutoriBackup.getOperationState().busy, open: document.getElementById("backupProgressDialog").open,
+          canCancel: YutoriBackup.getOperationState().canCancel, reason: globalThis.cancelResult?.reason };
+      });
+      assert.deepEqual(prompt, { settled: true, busy: false, open: false, canCancel: false, reason: "AbortError" });
+      const late = await page.evaluate(async () => {
+        await releaseBlocked();
+        await new Promise(resolve => setTimeout(resolve, 50));
+        return { writes: writesAfterCancel, metadataWrites: metaUpdatesAfterCancel, downloads: downloads.length, pickerCount: pickerNames.length,
+          before: successBefore, after: await YutoriBackupStorage.getLastBackupMeta(), titleSame: titleBefore === document.getElementById("backupSaveButton").title,
+          unhandled, message: document.getElementById("backupMessage").textContent, busy: YutoriBackup.getOperationState().busy };
+      });
+      assert.equal(late.writes, 0);
+      assert.equal(late.metadataWrites, 0);
+      assert.equal(late.downloads, 0);
+      assert.equal(late.pickerCount, 1);
+      assert.deepEqual(late.after, late.before);
+      assert.equal(late.titleSame, true);
+      assert.deepEqual(late.unhandled, []);
+      assert.match(late.message, /キャンセル/);
+      assert.equal(late.busy, false);
+    });
+  }
+}
+
+test("late cancelled collection cannot change a newer save or its rapid-call promise", async () => {
+  await setup();
+  await page.evaluate(async () => {
+    globalThis.originalStorage = YutoriBackupStorage;
+    globalThis.oldCollectionStarted = false;
+    globalThis.YutoriBackupStorage = { ...originalStorage,
+      createSnapshotRecordSource: () => new Promise(resolve => {
+        oldCollectionStarted = true;
+        globalThis.releaseOldCollection = async () => resolve(await originalStorage.createSnapshotRecordSource({ appVersion: "v0.3.51" }));
+      }),
+    };
+    globalThis.oldSaving = saveYutoriBackup();
+  });
+  await page.waitForFunction(() => oldCollectionStarted);
+  await page.locator("#backupCancelButton").click();
+  await page.waitForFunction(() => !YutoriBackup.getOperationState().busy, { timeout: 1000 });
+  const during = await page.evaluate(async () => {
+    globalThis.YutoriBackupStorage = originalStorage;
+    globalThis.newIdleStarted = false;
+    YutoriBackup.configure({ waitForIdle: () => new Promise(resolve => { newIdleStarted = true; globalThis.releaseNewIdle = resolve; }) });
+    globalThis.newSaving = saveYutoriBackup();
+    const shared = saveYutoriBackup() === newSaving;
+    while (!newIdleStarted) await new Promise(resolve => setTimeout(resolve, 5));
+    await releaseOldCollection();
+    await new Promise(resolve => setTimeout(resolve, 50));
+    return { shared, busy: YutoriBackup.getOperationState().busy, phase: YutoriBackup.getOperationState().phase,
+      open: document.getElementById("backupProgressDialog").open, priorReason: (await oldSaving).reason,
+      meta: await YutoriBackupStorage.getDestinationMeta(), downloads: downloads.length };
+  });
+  assert.equal(during.shared, true);
+  assert.equal(during.busy, true);
+  assert.equal(during.phase, "準備");
+  assert.equal(during.open, true);
+  assert.equal(during.priorReason, "AbortError");
+  assert.equal(during.meta, null);
+  assert.equal(during.downloads, 0);
+  const final = await page.evaluate(async () => { releaseNewIdle(); return (await newSaving).ok; });
+  assert.equal(final, true);
+});
