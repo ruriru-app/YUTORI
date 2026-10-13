@@ -625,6 +625,66 @@ test("blocked inactive database deletion never rolls back finalizing and retries
   assert.deepEqual(result, { error: "RestoreCleanupError", blockedRetry: "RestoreCleanupError", phase: "finalizing", secret: "PRIVATE_CANDIDATE", retry: "completed", active: true, journal: null });
 });
 
+test("queued cleanup across two-page reloads times out visibly and observes late deletion without finalizing", async () => {
+  const target = await page.evaluate(async () => {
+    const candidate = await YutoriBackup.inspectRestoreFile(sourceFile), safety = await YutoriBackup.saveSafetyBackup(candidate);
+    YutoriBackup.setRestoreConfirmation(true); YutoriBackup.configure({ reload: () => {} });
+    await YutoriBackup.replaceWithCandidate(candidate,safety); return candidate.stageDbName;
+  });
+  const blocker = await page.context().newPage(); blocker.on("pageerror", error => errors.push(error.message));
+  await blocker.goto(`${harness.origin}/__test_blank__`);
+  await blocker.evaluate(async () => {
+    globalThis.heldDb = await new Promise(resolve => { const r=indexedDB.open("YUTORI_DB",2);r.onsuccess=()=>resolve(r.result); });
+    heldDb.onversionchange=()=>{};
+    const foreign=await new Promise(resolve=>{const r=indexedDB.open("MITORI_FOREIGN");r.onsuccess=()=>resolve(r.result);});foreign.close();
+  });
+  assert.equal(await page.evaluate(()=>YutoriBackup.recoverInterruptedRestore().then(r=>r.status,e=>e.name)),"RestoreCleanupError");
+  await page.route("**/assets/yutori-backup-storage.js*", async route => {
+    const response=await route.fetch(); await route.fulfill({response,body:`${await response.text()}\nYutoriBackupStorage.configure?.({requestTimeoutMs:80});`});
+  });
+  await page.addInitScript(() => {
+    const remove=IDBFactory.prototype.deleteDatabase; globalThis.cleanupEvents=[];
+    IDBFactory.prototype.deleteDatabase=function(name){const r=remove.call(this,name);cleanupEvents.push(`request:${name}`);for(const type of ["blocked","success","error"])r.addEventListener(type,()=>cleanupEvents.push(`${type}:${name}`));return r;};
+  });
+  for(let attempt=0;attempt<2;attempt++) {
+    await page.reload();
+    const state=await page.evaluate(async()=>{
+      const settled=await Promise.race([yutoriAppInitialization.then(()=>true),new Promise(r=>setTimeout(()=>r(false),600))]);
+      const retry=await Promise.race([YutoriBackup.recoverInterruptedRestore().then(r=>r.status,e=>e.name),new Promise(r=>setTimeout(()=>r("stalled"),300))]);
+      return {settled,retry,ready:!!globalThis.yutoriAppReady,inert:document.body.inert,message:document.querySelector("#startupRecoveryDialog")?.textContent||"",phase:(await YutoriBackupStorage.getRestoreJournal()).phase,active:(await YutoriBackupStorage.getActiveDataDbDescriptor()).name,secret:localStorage.getItem("yutori_secret"),old:localStorage.getItem("yutori_live"),foreign:localStorage.getItem("mitori_fixture"),events:cleanupEvents};
+    });
+    assert.equal(state.settled,true);assert.equal(state.retry,"RestoreCleanupError");assert.equal(state.ready,false);assert.equal(state.inert,true);
+    assert.match(state.message,/他の YUTORI.*閉じて.*再読み込み/);assert.equal(state.phase,"finalizing");assert.equal(state.active,target);
+    assert.equal(state.secret,"PRIVATE_CANDIDATE");assert.equal(state.old,null);assert.equal(state.foreign,"foreign");assert.deepEqual(state.events,["request:YUTORI_DB"]);
+  }
+  await blocker.close();
+  await page.waitForFunction(()=>cleanupEvents.includes("success:YUTORI_DB"));
+  assert.deepEqual(await page.evaluate(async()=>({phase:(await YutoriBackupStorage.getRestoreJournal()).phase,ready:!!globalThis.yutoriAppReady,foreign:(await indexedDB.databases()).some(d=>d.name==="MITORI_FOREIGN")})),{phase:"finalizing",ready:false,foreign:true});
+  await page.reload(); await page.evaluate(()=>yutoriAppInitialization);
+  assert.deepEqual(await page.evaluate(async()=>({ready:!!globalThis.yutoriAppReady,journal:await YutoriBackupStorage.getRestoreJournal(),active:(await YutoriBackupStorage.getActiveDataDbDescriptor()).name,secret:localStorage.getItem("yutori_secret"),foreign:(await indexedDB.databases()).some(d=>d.name==="MITORI_FOREIGN")})),{ready:true,journal:null,active:target,secret:"PRIVATE_CANDIDATE",foreign:true});
+});
+
+for (const operation of ["open-timeout", "open-abort", "delete-abort"]) {
+  test(`queued native ${operation} settles promptly and late requests do not leak connections`, async () => {
+    const result=await page.evaluate(async operation=>{
+      const api=YutoriBackupStorage;api.configure?.({requestTimeoutMs:80});
+      const held=await api.openActiveDataDb();held.onversionchange=()=>{};
+      const pending=indexedDB.deleteDatabase("YUTORI_DB");await new Promise(r=>pending.onblocked=r);
+      const deleted=new Promise(r=>pending.onsuccess=r);
+      const controller=new AbortController();
+      const wait=operation==="delete-abort"?api.deleteDatabase("YUTORI_DB",{signal:controller.signal}):api.openActiveDataDb(undefined,{signal:controller.signal});
+      const outcome=wait.then(db=>{db?.close();return "unexpected-success";},e=>e.name);
+      if(operation.endsWith("abort"))controller.abort();
+      const name=await Promise.race([outcome,new Promise(r=>setTimeout(()=>r("stalled"),350))]);
+      held.close();await deleted;
+      // This native barrier can finish only if the late open was aborted/closed.
+      const clean=await Promise.race([new Promise(resolve=>{const r=indexedDB.deleteDatabase("YUTORI_DB");r.onsuccess=()=>resolve(true);}),new Promise(r=>setTimeout(()=>r(false),500))]);
+      return {name,clean};
+    },operation);
+    assert.deepEqual(result,{name:operation==="open-timeout"?"TimeoutError":"AbortError",clean:true});
+  });
+}
+
 test("crash immediately after finalizing commit resumes target cleanup and refuses stale rollback", async () => {
   const result = await page.evaluate(async () => {
     const candidate = await YutoriBackup.inspectRestoreFile(sourceFile), safety = await YutoriBackup.saveSafetyBackup(candidate);

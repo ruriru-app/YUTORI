@@ -9,6 +9,17 @@
   // future non-prefixed compatibility keys explicitly, never origin-wide.
   const LEGACY_LOCAL_STORAGE_KEYS = new Set();
   const CURSOR_PAGE_SIZE = 32;
+  let requestTimeoutMs = 10000;
+  function configure({ requestTimeoutMs: timeout = requestTimeoutMs } = {}) {
+    if (!Number.isFinite(timeout) || timeout <= 0) throw new TypeError("Invalid database request timeout");
+    requestTimeoutMs = timeout;
+  }
+  function requestDeadline(signal, reject) {
+    const abort = () => reject(signal.reason || new DOMException("Request cancelled", "AbortError"));
+    const timer = global.setTimeout(() => reject(new DOMException("Database request timed out; close other YUTORI tabs/windows and retry", "TimeoutError")), requestTimeoutMs);
+    signal?.addEventListener("abort", abort, { once: true });
+    return () => { global.clearTimeout(timer); signal?.removeEventListener("abort", abort); };
+  }
   const fail = code => { throw new global.YutoriBackupArchive.ArchiveFormatError(code); };
   const isOwnedLocalStorageKey = key => typeof key === "string" && (key.startsWith("yutori_") || LEGACY_LOCAL_STORAGE_KEYS.has(key));
 
@@ -24,10 +35,13 @@
     return entries.sort((a, b) => a.key < b.key ? -1 : a.key > b.key ? 1 : 0);
   }
 
-  function openDatabase(name, version, upgrade) {
+  function openDatabase(name, version, upgrade, { signal } = {}) {
+    if (signal?.aborted) return Promise.reject(signal.reason || new DOMException("Request cancelled", "AbortError"));
     return new Promise((resolve, reject) => {
       const request = global.indexedDB.open(name, version);
       let failure, settled = false;
+      const failRequest = error => { if (!settled) { settled = true; clearDeadline(); reject(error); } };
+      const clearDeadline = requestDeadline(signal, failRequest);
       request.onupgradeneeded = event => {
         if (settled) { request.transaction.abort(); return; }
         try { upgrade?.(request.result, event, request.transaction); }
@@ -37,10 +51,10 @@
         const db = request.result;
         db.onversionchange = () => db.close();
         if (settled) { db.close(); return; }
-        settled = true; resolve(db);
+        settled = true; clearDeadline(); resolve(db);
       };
-      request.onerror = () => { if (!settled) { settled = true; reject(failure || request.error); } };
-      request.onblocked = () => { if (!settled) { settled = true; reject(new DOMException("Database is open in another tab", "InvalidStateError")); } };
+      request.onerror = () => failRequest(failure || request.error);
+      request.onblocked = () => failRequest(new DOMException("Database is open in another tab", "InvalidStateError"));
     });
   }
 
@@ -114,19 +128,19 @@
   function upgradeDefaultSchema(db) {
     for (const name of ["pdfFiles", "pdfPages"]) if (!db.objectStoreNames.contains(name)) db.createObjectStore(name, { keyPath: "id" });
   }
-  async function openActiveDataDb(upgradeCallback = upgradeDefaultSchema) {
+  async function openActiveDataDb(upgradeCallback = upgradeDefaultSchema, requestOptions) {
     const descriptor = await getActiveDataDbDescriptor();
     // Only application opens request a schema migration. Snapshot opens retain
     // the archived version until post-reload journal validation has finished.
     const version = arguments.length ? Math.max(DEFAULT_DATA_DB.version, descriptor.version) : descriptor.version;
     let db;
-    try { db = await openDatabase(descriptor.name, version, upgradeCallback); }
+    try { db = await openDatabase(descriptor.name, version, upgradeCallback, requestOptions); }
     catch (error) {
       if (error.name !== "VersionError") throw error;
       // IndexedDB upgrade is atomic, but metadata is a different database.
       // If a crash happened between those commits, discover the already-upgraded
       // version and repair its pointer before returning any connection.
-      db = await openDatabase(descriptor.name, undefined);
+      db = await openDatabase(descriptor.name, undefined, undefined, requestOptions);
     }
     try {
       if (db.version !== descriptor.version) await saveActiveDataDbDescriptor({ name: db.name, version: db.version });
@@ -274,23 +288,27 @@
   }
 
   const databaseDeletions = new Map();
-  function deleteDatabase(name) {
+  function deleteDatabase(name, { signal } = {}) {
     if (name !== DEFAULT_DATA_DB.name && !STAGE_NAME.test(name)) return Promise.reject(new TypeError("Not a YUTORI data database"));
+    if (signal?.aborted) return Promise.reject(signal.reason || new DOMException("Request cancelled", "AbortError"));
     const existing = databaseDeletions.get(name);
-    if (existing) return existing.blocked ? Promise.reject(new DOMException("Database is open in another tab", "InvalidStateError")) : existing.promise;
-    const deletion = { blocked: false };
+    if (existing) return existing.waitError ? Promise.reject(existing.waitError) : existing.promise;
+    const deletion = { waitError: null };
     deletion.promise = new Promise((resolve, reject) => {
       const request = global.indexedDB.deleteDatabase(name);
-      request.onsuccess = () => { databaseDeletions.delete(name); resolve(); };
-      request.onerror = () => { databaseDeletions.delete(name); reject(request.error); };
-      // A blocked request remains pending in IndexedDB even after our caller
-      // receives an error. Do not queue another deletion behind it indefinitely.
-      request.onblocked = () => { deletion.blocked = true; reject(new DOMException("Database is open in another tab", "InvalidStateError")); };
+      const failRequest = error => { deletion.waitError = error; clearDeadline(); reject(error); };
+      const clearDeadline = requestDeadline(signal, failRequest);
+      request.onsuccess = () => { clearDeadline(); databaseDeletions.delete(name); resolve(); };
+      request.onerror = () => { clearDeadline(); databaseDeletions.delete(name); reject(request.error); };
+      // Native requests cannot be cancelled. Keep timed-out/aborted/blocked
+      // requests tracked until a terminal event; late success only clears this
+      // entry, never resumes a rejected finalization or changes its journal.
+      request.onblocked = () => failRequest(new DOMException("Database is open in another tab", "InvalidStateError"));
     });
     databaseDeletions.set(name, deletion);
     deletion.promise.catch(() => {
       // A synchronous native exception has no request event to clear the entry.
-      if (!deletion.blocked && databaseDeletions.get(name) === deletion) databaseDeletions.delete(name);
+      if (!deletion.waitError && databaseDeletions.get(name) === deletion) databaseDeletions.delete(name);
     });
     return deletion.promise;
   }
@@ -515,6 +533,7 @@
   }
 
   global.YutoriBackupStorage = Object.freeze({
+    configure,
     isOwnedLocalStorageKey, collectLocalStorageEntries, openMetaDb, getDestinationMeta,
     saveDestinationMeta, clearDestinationHandle, getLastBackupMeta, getActiveDataDbDescriptor,
     saveActiveDataDbDescriptor, openActiveDataDb, createSnapshotRecordSource,
