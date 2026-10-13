@@ -559,3 +559,132 @@ for (const denied of [false,true]) {
     }
   });
 }
+
+for (const withHandle of [false, true]) {
+  test(`finalization journal deletion failure keeps validated target with safety handle ${withHandle}`, async () => {
+    const result = await page.evaluate(async withHandle => {
+      const candidate = await YutoriBackup.inspectRestoreFile(sourceFile), safety = await YutoriBackup.saveSafetyBackup(candidate);
+      YutoriBackup.setRestoreConfirmation(true); YutoriBackup.configure({ reload: () => {} });
+      await YutoriBackup.replaceWithCandidate(candidate, safety);
+      let journal = await YutoriBackupStorage.getRestoreJournal();
+      if (!withHandle) { journal.safetyBackup.handle = null; await YutoriBackupStorage.commitJournal(journal); }
+      const remove = IDBObjectStore.prototype.delete, deleteDb = IDBFactory.prototype.deleteDatabase; let failures = 0, oldGoneAtFailure, oldDeletionCompleted = false;
+      IDBFactory.prototype.deleteDatabase = function(name) { const request = deleteDb.call(this,name); if (name === "YUTORI_DB") request.addEventListener("success", () => { oldDeletionCompleted = true; }); return request; };
+      IDBObjectStore.prototype.delete = function(key) {
+        if (this.name === "journals" && key === "restore" && failures++ === 0) {
+          oldGoneAtFailure = oldDeletionCompleted; throw new DOMException("once", "QuotaExceededError");
+        }
+        return remove.call(this,key);
+      };
+      let first; try { first = await YutoriBackup.recoverInterruptedRestore(); } finally { IDBObjectStore.prototype.delete = remove; IDBFactory.prototype.deleteDatabase = deleteDb; }
+      const second = await YutoriBackup.recoverInterruptedRestore();
+      return { first: first.status, second: second.status, injected: oldGoneAtFailure, active: (await YutoriBackupStorage.getActiveDataDbDescriptor()).name === candidate.stageDbName,
+        secret: localStorage.getItem("yutori_secret"), live: localStorage.getItem("yutori_live"), foreign: localStorage.getItem("mitori_fixture"), journal: await YutoriBackupStorage.getRestoreJournal(), oldGone: !(await indexedDB.databases()).some(d => d.name === "YUTORI_DB") };
+    }, withHandle);
+    assert.deepEqual(result, { first: "completed", second: "none", injected: true, active: true, secret: "PRIVATE_CANDIDATE", live: null, foreign: "foreign", journal: null, oldGone: true });
+  });
+}
+
+test("persistent finalization cleanup failure blocks startup with retry guidance and preserves target", async () => {
+  await page.evaluate(async () => {
+    const candidate = await YutoriBackup.inspectRestoreFile(sourceFile), safety = await YutoriBackup.saveSafetyBackup(candidate);
+    YutoriBackup.setRestoreConfirmation(true); YutoriBackup.configure({ reload: () => {} });
+    await YutoriBackup.replaceWithCandidate(candidate,safety);
+  });
+  await page.addInitScript(() => {
+    globalThis.restoreNativeDelete = IDBObjectStore.prototype.delete;
+    IDBObjectStore.prototype.delete = function(key) { if (this.name === "journals") throw new DOMException("cleanup failed", "QuotaExceededError"); return restoreNativeDelete.call(this,key); };
+  });
+  await page.reload(); await page.locator("#startupRecoveryDialog").waitFor();
+  const result = await page.evaluate(async () => {
+    const before = { ready: !!globalThis.yutoriAppReady, inert: document.body.inert, phase: (await YutoriBackupStorage.getRestoreJournal()).phase,
+      secret: localStorage.getItem("yutori_secret"), message: document.getElementById("startupRecoveryDialog").textContent };
+    IDBObjectStore.prototype.delete = restoreNativeDelete;
+    const retry = await YutoriBackup.recoverInterruptedRestore();
+    return { before, retry: retry.status, journal: await YutoriBackupStorage.getRestoreJournal(), secret: localStorage.getItem("yutori_secret") };
+  });
+  assert.deepEqual(result, { before: { ready: false, inert: true, phase: "finalizing", secret: "PRIVATE_CANDIDATE", message: "復元したデータは確認済みです。後片付けを完了できませんでした。他の YUTORI タブを閉じて、画面を再読み込みしてください。" }, retry: "completed", journal: null, secret: "PRIVATE_CANDIDATE" });
+});
+
+test("blocked inactive database deletion never rolls back finalizing and retries after connection closes", async () => {
+  const result = await page.evaluate(async () => {
+    const candidate = await YutoriBackup.inspectRestoreFile(sourceFile), safety = await YutoriBackup.saveSafetyBackup(candidate);
+    YutoriBackup.setRestoreConfirmation(true); YutoriBackup.configure({ reload: () => {} });
+    await YutoriBackup.replaceWithCandidate(candidate,safety);
+    const old = await new Promise(r => { const q=indexedDB.open("YUTORI_DB",2);q.onsuccess=()=>r(q.result); });
+    old.onversionchange = () => {};
+    const recovering = YutoriBackup.recoverInterruptedRestore().then(r => r.status, e => e.name);
+    const error = await Promise.race([recovering, new Promise(r => setTimeout(() => r("stalled"), 250))]);
+    const phase = (await YutoriBackupStorage.getRestoreJournal())?.phase, secret = localStorage.getItem("yutori_secret");
+    const blockedRetry = await Promise.race([YutoriBackup.recoverInterruptedRestore().then(r => r.status,e => e.name),new Promise(r => setTimeout(() => r("stalled"),250))]);
+    old.close();
+    await recovering;
+    const retry = await YutoriBackup.recoverInterruptedRestore();
+    return { error, blockedRetry, phase, secret, retry: retry.status, active: (await YutoriBackupStorage.getActiveDataDbDescriptor()).name === candidate.stageDbName, journal: await YutoriBackupStorage.getRestoreJournal() };
+  });
+  assert.deepEqual(result, { error: "RestoreCleanupError", blockedRetry: "RestoreCleanupError", phase: "finalizing", secret: "PRIVATE_CANDIDATE", retry: "completed", active: true, journal: null });
+});
+
+test("crash immediately after finalizing commit resumes target cleanup and refuses stale rollback", async () => {
+  const result = await page.evaluate(async () => {
+    const candidate = await YutoriBackup.inspectRestoreFile(sourceFile), safety = await YutoriBackup.saveSafetyBackup(candidate);
+    YutoriBackup.setRestoreConfirmation(true); YutoriBackup.configure({ reload: () => {} });
+    await YutoriBackup.replaceWithCandidate(candidate,safety);
+    const stale = await YutoriBackupStorage.getRestoreJournal();
+    await YutoriBackupStorage.setRestorePhase(stale,"finalizing");
+    let rejected=false; try { await YutoriBackupStorage.rollbackRestore(stale); } catch { rejected=true; }
+    let staleWrites=0;
+    try { await YutoriBackupStorage.setRestorePhase(stale,"rolling-back"); } catch { staleWrites++; }
+    try { await YutoriBackupStorage.commitJournal({...stale,phase:"finalizing"},stale.oldDescriptor); } catch { staleWrites++; }
+    return { rejected, staleWrites, phase: (await YutoriBackupStorage.getRestoreJournal())?.phase, secret: localStorage.getItem("yutori_secret") };
+  });
+  assert.deepEqual(result, { rejected: true, staleWrites:2, phase: "finalizing", secret: "PRIVATE_CANDIDATE" });
+  await page.reload(); await page.waitForFunction(() => globalThis.yutoriAppReady);
+  assert.deepEqual(await page.evaluate(async () => ({ secret:localStorage.getItem("yutori_secret"), journal:await YutoriBackupStorage.getRestoreJournal() })), { secret:"PRIVATE_CANDIDATE",journal:null });
+});
+
+test("one-time native database deletion failure retries finalization without poisoning later cleanup", async () => {
+  const result = await page.evaluate(async () => {
+    const candidate = await YutoriBackup.inspectRestoreFile(sourceFile), safety = await YutoriBackup.saveSafetyBackup(candidate);
+    YutoriBackup.setRestoreConfirmation(true); YutoriBackup.configure({ reload: () => {} }); await YutoriBackup.replaceWithCandidate(candidate,safety);
+    const remove = IDBFactory.prototype.deleteDatabase; let failures=0, first;
+    IDBFactory.prototype.deleteDatabase = function(name) { if(name === "YUTORI_DB" && failures++ === 0) throw new DOMException("once","UnknownError"); return remove.call(this,name); };
+    try { first = await YutoriBackup.recoverInterruptedRestore().then(r => r.status,e => e.name); } finally { IDBFactory.prototype.deleteDatabase = remove; }
+    const second = await YutoriBackup.recoverInterruptedRestore().then(r => r.status,e => e.name);
+    return { first, second, secret:localStorage.getItem("yutori_secret"), journal:(await YutoriBackupStorage.getRestoreJournal())?.phase || null };
+  });
+  assert.deepEqual(result,{first:"completed",second:"none",secret:"PRIVATE_CANDIDATE",journal:null});
+});
+
+test("exception after journal removal is completed cleanup and never uses stale safety snapshot", async () => {
+  const result = await page.evaluate(async () => {
+    const candidate = await YutoriBackup.inspectRestoreFile(sourceFile), safety = await YutoriBackup.saveSafetyBackup(candidate);
+    YutoriBackup.setRestoreConfirmation(true); YutoriBackup.configure({reload:()=>{}}); await YutoriBackup.replaceWithCandidate(candidate,safety);
+    const api = YutoriBackupStorage; globalThis.YutoriBackupStorage = {...api,finalizeRestore:async j=>{await api.finalizeRestore(j);throw new Error("after commit");}};
+    const first = await YutoriBackup.recoverInterruptedRestore(); globalThis.YutoriBackupStorage=api;
+    return {status:first.status, secret:localStorage.getItem("yutori_secret"), journal:await api.getRestoreJournal()};
+  });
+  assert.deepEqual(result,{status:"completed",secret:"PRIVATE_CANDIDATE",journal:null});
+});
+
+for (const target of ["active", "foreign", "failed-foreign", "inactive"]) {
+  test(`finalization cleanup protects scoped database target ${target}`, async () => {
+    const result = await page.evaluate(async target => {
+      const candidate=await YutoriBackup.inspectRestoreFile(sourceFile),safety=await YutoriBackup.saveSafetyBackup(candidate);
+      YutoriBackup.setRestoreConfirmation(true);YutoriBackup.configure({reload:()=>{}});await YutoriBackup.replaceWithCandidate(candidate,safety);
+      const foreign=await new Promise(r=>{const q=indexedDB.open("MITORI_FOREIGN");q.onsuccess=()=>r(q.result);});foreign.close();
+      const extra = await YutoriBackupStorage.createStageFromArchive({manifest:fixtureManifest(),records:fixtureRecords()});
+      const untouched = await YutoriBackupStorage.createStageFromArchive({manifest:fixtureManifest(),records:fixtureRecords()});
+      const journal=await YutoriBackupStorage.getRestoreJournal();journal.phase="finalizing";
+      if(target==="active")journal.oldDescriptor=journal.targetDescriptor;
+      if(target==="foreign")journal.oldDescriptor={name:"MITORI_FOREIGN",version:1};
+      if(target==="failed-foreign")journal.failedTarget={name:"MITORI_FOREIGN",version:1};
+      if(target==="inactive")journal.failedTarget={name:extra.stageDbName,version:2};
+      await YutoriBackupStorage.commitJournal(journal);
+      const outcome=await YutoriBackup.recoverInterruptedRestore().then(r=>r.status,e=>e.name);
+      const dbs=await indexedDB.databases();
+      return {outcome,active:dbs.some(d=>d.name===candidate.stageDbName),foreign:dbs.some(d=>d.name==="MITORI_FOREIGN"),extra:dbs.some(d=>d.name===extra.stageDbName),untouched:dbs.some(d=>d.name===untouched.stageDbName),secret:localStorage.getItem("yutori_secret"),phase:(await YutoriBackupStorage.getRestoreJournal())?.phase||null};
+    },target);
+    assert.deepEqual(result,{outcome:target==="inactive"?"completed":"RestoreCleanupError",active:true,foreign:true,extra:target!=="inactive",untouched:true,secret:"PRIVATE_CANDIDATE",phase:target==="inactive"?null:"finalizing"});
+  });
+}

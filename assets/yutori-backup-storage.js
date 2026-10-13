@@ -273,14 +273,26 @@
     return descriptor;
   }
 
+  const databaseDeletions = new Map();
   function deleteDatabase(name) {
     if (name !== DEFAULT_DATA_DB.name && !STAGE_NAME.test(name)) return Promise.reject(new TypeError("Not a YUTORI data database"));
-    return new Promise((resolve, reject) => {
+    const existing = databaseDeletions.get(name);
+    if (existing) return existing.blocked ? Promise.reject(new DOMException("Database is open in another tab", "InvalidStateError")) : existing.promise;
+    const deletion = { blocked: false };
+    deletion.promise = new Promise((resolve, reject) => {
       const request = global.indexedDB.deleteDatabase(name);
-      request.onsuccess = () => resolve();
-      request.onerror = () => reject(request.error);
-      request.onblocked = () => reject(new DOMException("Database is open in another tab", "InvalidStateError"));
+      request.onsuccess = () => { databaseDeletions.delete(name); resolve(); };
+      request.onerror = () => { databaseDeletions.delete(name); reject(request.error); };
+      // A blocked request remains pending in IndexedDB even after our caller
+      // receives an error. Do not queue another deletion behind it indefinitely.
+      request.onblocked = () => { deletion.blocked = true; reject(new DOMException("Database is open in another tab", "InvalidStateError")); };
     });
+    databaseDeletions.set(name, deletion);
+    deletion.promise.catch(() => {
+      // A synchronous native exception has no request event to clear the entry.
+      if (!deletion.blocked && databaseDeletions.get(name) === deletion) databaseDeletions.delete(name);
+    });
+    return deletion.promise;
   }
   async function deleteAllRestoreStagesExcept(name) {
     const active = await getActiveDataDbDescriptor();
@@ -399,11 +411,16 @@
   }
   async function commitJournal(journal, descriptor, remove = false) {
     const db = await openMetaDb();
-    try { return await transactionResult(db, ["settings", "journals"], "readwrite", (tx, result) => {
-      if (descriptor) tx.objectStore("settings").put(validateDescriptor(descriptor), "activeDataDb");
-      if (remove) tx.objectStore("journals").delete("restore");
-      else tx.objectStore("journals").put(journal, "restore");
-      result(journal);
+    try { return await transactionResult(db, ["settings", "journals"], "readwrite", (tx, result, abort) => {
+      const store = tx.objectStore("journals"), request = store.get("restore");
+      request.onsuccess = () => {
+        try {
+          if (request.result?.phase === "finalizing" && (!remove && journal.phase !== "finalizing" || descriptor && descriptor.name !== request.result.targetDescriptor.name)) throw new DOMException("Finalized target is authoritative", "InvalidStateError");
+          if (descriptor) tx.objectStore("settings").put(validateDescriptor(descriptor), "activeDataDb");
+          if (remove) store.delete("restore"); else store.put(journal, "restore");
+          result(journal);
+        } catch (error) { abort(error); }
+      };
     }); } finally { db.close(); }
   }
   const setRestorePhase = (journal, phase) => commitJournal({ ...journal, phase });
@@ -470,6 +487,9 @@
     await deleteDatabase(descriptor.name);
   }
   async function rollbackRestore(journal) {
+    const durable = await getRestoreJournal();
+    if (!durable || durable.id !== journal.id || durable.phase === "finalizing") throw new DOMException("Rollback is no longer permitted", "InvalidStateError");
+    journal = durable;
     // Persist intent first: a crash after restoring localStorage must not resume
     // the target merely because the prior phase said pointer-switched.
     journal = await setRestorePhase(journal, "rolling-back");
@@ -480,11 +500,15 @@
     await commitJournal(journal, null, true);
   }
   async function finalizeRestore(journal) {
+    const durable = await getRestoreJournal();
+    if (!durable) return; // Journal removal already committed: cleanup is done.
+    if (durable.id !== journal.id || !["pointer-switched", "reload-pending", "finalizing"].includes(durable.phase)) throw new DOMException("Target is not ready to finalize", "InvalidStateError");
+    journal = durable;
     await validateRestoreTarget(journal);
     if ((await getActiveDataDbDescriptor()).name !== journal.targetDescriptor.name) fail("CHECKSUM_MISMATCH");
     // Validation completed after reload. Persist this before deleting the only
     // old database so cleanup can be retried after another crash.
-    journal = await setRestorePhase(journal, "finalizing");
+    if (journal.phase !== "finalizing") journal = await setRestorePhase(journal, "finalizing");
     await deleteInactive(journal.oldDescriptor);
     if (journal.failedTarget && journal.failedTarget.name !== journal.targetDescriptor.name && journal.failedTarget.name !== journal.oldDescriptor.name) await deleteInactive(journal.failedTarget);
     await commitJournal(journal, null, true);

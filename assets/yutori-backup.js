@@ -590,7 +590,12 @@
         try {
           // A transaction may have committed immediately before an injected or
           // environmental failure; recover from durable state, not local phase.
-          journal = await storage().getRestoreJournal() || journal;
+          journal = await storage().getRestoreJournal();
+          if (journal?.phase === "finalizing" || !journal && (await storage().getActiveDataDbDescriptor()).name === candidate.stageDbName) {
+            if (journal) await retryFinalization();
+            restorePhase(session, "reload-pending", "復元済みです。画面を再読み込みしてください。", true);
+            return;
+          }
           if (journal) await storage().rollbackRestore(journal);
           else await storage().deleteRestoreStage(candidate.stageDbName);
         } catch { restored = false; }
@@ -600,8 +605,10 @@
           restorePhase(session, "replacement-failed", "復元を中止し、復元前のデータに戻しました。");
           setText("restoreMessage", error.name === "QuotaExceededError" ? "空き容量が足りません。空き容量を増やしてやり直してください。" : "復元前のデータは保持されています。ファイルを選び直してください。");
         } else {
-          restorePhase(session, "needs-safety-file", "復元前バックアップによる回復が必要です。", true);
-          showStartupError(Object.assign(new Error(), { name: "NeedsSafetyFileError" }));
+          const durable = await storage().getRestoreJournal();
+          const cleanup = durable?.phase === "finalizing";
+          restorePhase(session, cleanup ? "reload-pending" : "needs-safety-file", cleanup ? "復元済みデータの後片付けを再試行してください。" : "復元前バックアップによる回復が必要です。", true);
+          showStartupError(Object.assign(new Error(), { name: cleanup ? "RestoreCleanupError" : "NeedsSafetyFileError" }));
         }
         throw error;
       }
@@ -611,6 +618,11 @@
   async function recoverFromSafetyFile(file, { reload = true } = {}) {
     const journal = await storage().getRestoreJournal();
     if (!journal) throw new DOMException("No recovery pending", "InvalidStateError");
+    if (journal.phase === "finalizing") {
+      const result = await retryFinalization();
+      if (reload) options.reload();
+      return result;
+    }
     let writer, staged;
     try {
       const verified = await codec().readArchiveStream(file, {
@@ -642,6 +654,20 @@
     await storage().validateRestoreTarget(journal);
     return storage().setRestorePhase(journal, "reload-pending");
   }
+  async function retryFinalization() {
+    try {
+      const durable = await storage().getRestoreJournal();
+      if (durable) {
+        if (durable.phase !== "finalizing") throw new DOMException("Cleanup phase changed", "InvalidStateError");
+        await storage().finalizeRestore(durable);
+      }
+      return { status: "completed" };
+    } catch (error) {
+      // A failure reported after journal deletion is already-completed cleanup.
+      if (!await storage().getRestoreJournal()) return { status: "completed" };
+      throw Object.assign(new Error("Restore cleanup must be retried", { cause: error }), { name: "RestoreCleanupError" });
+    }
+  }
   async function recoverInterruptedRestore() {
     let journal = await storage().getRestoreJournal();
     if (!journal) return { status: "none" };
@@ -649,11 +675,23 @@
       if (journal.phase === "recovering-safety") journal = await completeSafetyRecovery(journal);
       if (["pointer-switched", "reload-pending", "finalizing"].includes(journal.phase)) {
         try { await storage().finalizeRestore(journal); return { status: "completed" }; }
-        catch (error) { if (journal.phase === "finalizing") throw error; }
+        catch (error) {
+          journal = await storage().getRestoreJournal();
+          if (!journal) return { status: "completed" };
+          if (journal.phase === "finalizing") throw error;
+        }
       }
+      journal = await storage().getRestoreJournal();
+      if (!journal) return { status: "completed" };
+      if (journal.phase === "finalizing") return await retryFinalization();
       await storage().rollbackRestore(journal);
       return { status: "rolled-back" };
     } catch {
+      journal = await storage().getRestoreJournal();
+      if (!journal) return { status: "completed" };
+      // Durable finalization cannot be undone, even when cleanup or validation
+      // on a later attempt fails. Preserve the target and block for retry.
+      if (journal.phase === "finalizing") return retryFinalization();
       // A remembered handle is only an optimization. Never prompt for permission
       // at startup or initialize the app against mixed/incomplete data.
       try {
@@ -662,7 +700,12 @@
         await recoverFromSafetyFile(await handle.getFile(), { reload: false });
         await storage().finalizeRestore(await storage().getRestoreJournal());
         return { status: "rolled-back" };
-      } catch { return { status: "needs-safety-file", message: "復元前バックアップを選んで回復してください。" }; }
+      } catch {
+        journal = await storage().getRestoreJournal();
+        if (!journal) return { status: "completed" };
+        if (journal.phase === "finalizing") return retryFinalization();
+        return { status: "needs-safety-file", message: "復元前バックアップを選んで回復してください。" };
+      }
     }
   }
   let recoveryPromise;
@@ -685,7 +728,7 @@
     if (!dialog) {
       dialog = global.document.createElement("dialog"); dialog.id = "startupRecoveryDialog"; dialog.className = "restore-dialog";
       dialog.setAttribute("aria-label", "データの回復");
-      const message = global.document.createElement("p"); message.textContent = error.name === "NeedsSafetyFileError" ? "データの回復が必要です。復元前に保存したバックアップを選んでください。" : "起動できませんでした。画面を再読み込みしてください。";
+      const message = global.document.createElement("p"); message.textContent = error.name === "RestoreCleanupError" ? "復元したデータは確認済みです。後片付けを完了できませんでした。他の YUTORI タブを閉じて、画面を再読み込みしてください。" : error.name === "NeedsSafetyFileError" ? "データの回復が必要です。復元前に保存したバックアップを選んでください。" : "起動できませんでした。画面を再読み込みしてください。";
       dialog.append(message);
       if (error.name === "NeedsSafetyFileError") {
         const input = global.document.createElement("input"); input.type = "file"; input.accept = ".yutori"; input.hidden = true;
