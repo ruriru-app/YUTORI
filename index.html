@@ -4029,7 +4029,7 @@ const PALETTE_DRAG_KEY="yutori_palette_drag_v024";
 const DEFAULT_GRADES=["1","2","3","4","5","6"];
 const DEFAULT_SUBJECTS=["国語","社会","算数","数学","理科","生活","音楽","図画工作","美術","体育","保健体育","家庭","技術・家庭","外国語","道徳","総合"];
 let currentSavedTestId="";
-let draftSaveTimer=0;
+let draftSaveTimer=null;
 let activeSettingsPanel="class";
 
 function copyTestState(source=state){
@@ -4227,7 +4227,12 @@ function setDraftStatus(text,saving=false){
   status.classList.toggle("saving",saving);
 }
 function saveDraftNow(){
+  if(deferPersistenceWhileExclusive(saveDraftNowUnlocked,"draft-autosave"))return;
+  return saveDraftNowUnlocked();
+}
+function saveDraftNowUnlocked(){
   clearTimeout(draftSaveTimer);
+  draftSaveTimer=null;
   syncState();
   localStorage.setItem(CURRENT_DRAFT_KEY,JSON.stringify({id:currentSavedTestId,state:copyTestState(),updatedAt:Date.now()}));
   localStorage.setItem("yutori_v013a",JSON.stringify(copyTestState()));
@@ -5444,7 +5449,7 @@ async function renderPdfFile(file,fileIndex,sessionId,options={}){
       const blob=await new Promise((resolve,reject)=>canvas.toBlob(value=>value?resolve(value):reject(new Error("答案画像を作成できませんでした。")),"image/jpeg",.9));
       const id=`${options.idPrefix||"f"}${fileIndex}-p${pageNumber}`;
       const metadata={id,fileIndex,fileName:file.name,pageNumber,width:canvas.width,height:canvas.height,...markData};
-      await savePdfPageToIndexedDB(sessionId,metadata,blob);
+      await savePdfPageToIndexedDB(sessionId,metadata,blob,options.operation);
       gradingState.pageImageUrls[id]=URL.createObjectURL(blob);
       rendered.push(metadata);
       page.cleanup();
@@ -5548,7 +5553,8 @@ function pdfPageRecognition(page){
   return {text:`自動認識：${page.detectedAttendanceNo}番${group}${warnings.length?`（${warnings.join("・")}）`:""}`,warning:Boolean(warnings.length)};
 }
 
-async function processPdf(){
+function processPdf(){return runPersistenceOperation(operation=>processPdfUnlocked(operation),"pdf-import")}
+async function processPdfUnlocked(operation){
   gradingState.selectedTestId=gradingTestSet.value;
   gradingState.classes=[...document.querySelectorAll("#classChecks input:checked")].map(x=>x.value);
   const test=currentTest();
@@ -5582,9 +5588,9 @@ async function processPdf(){
   localStorage.setItem("yutori_grades_v021","{}");
   let loadSucceeded=false;
   try{
-    await savePdfFilesToIndexedDB(gradingState.sessionId,gradingState.files);
+    await savePdfFilesToIndexedDB(gradingState.sessionId,gradingState.files,operation);
     for(let fileIndex=0;fileIndex<gradingState.files.length;fileIndex++){
-      const pages=await renderPdfFile(gradingState.files[fileIndex],fileIndex,gradingState.sessionId);
+      const pages=await renderPdfFile(gradingState.files[fileIndex],fileIndex,gradingState.sessionId,{operation});
       gradingState.pdfPages.push(...pages);
     }
     assignPdfPagesToRoster();
@@ -5600,7 +5606,7 @@ async function processPdf(){
   }catch(error){
     console.error(error);
     gradingState.workflowCompleted={};
-    await deleteSessionAssetsFromIndexedDB(gradingState.sessionId);
+    await deleteSessionAssetsFromIndexedDB(gradingState.sessionId,operation);
     pdfSummary.textContent="PDFを読み込めませんでした。";
     alert(`PDFの読み込みに失敗しました。\n${error?.message||error}`);
   }finally{
@@ -6413,7 +6419,12 @@ function serializeSession(){
     workflowCompleted:gradingState.workflowCompleted||{},currentWorkflowStep:gradingState.currentWorkflowStep||1,gradingScope:gradingState.gradingScope||"all",activeLateBatchId:gradingState.activeLateBatchId||"",lastSavedAt:Date.now()
   };
 }
-function saveGradingSessionNow(){if(!gradingState.sessionId)return;setSaveStatus("saving");const sessions=JSON.parse(localStorage.getItem(sessionsKey())||"[]");const data=serializeSession();gradingState.lastSavedAt=data.lastSavedAt;gradingState.gradeColumns=data.gradeColumns;localStorage.setItem(sessionsKey(),JSON.stringify([data,...sessions.filter(s=>s.id!==data.id)]));localStorage.setItem("yutori_grades_v021",JSON.stringify(gradingState.grades));setTimeout(()=>setSaveStatus("saved"),120)}
+function saveGradingSessionNow(){if(deferPersistenceWhileExclusive(saveGradingSessionNowUnlocked,"grading-autosave"))return;return saveGradingSessionNowUnlocked()}
+function saveGradingSessionNowUnlocked(){clearTimeout(autoSaveTimer);autoSaveTimer=null;if(!gradingState.sessionId)return;setSaveStatus("saving");const sessions=JSON.parse(localStorage.getItem(sessionsKey())||"[]");const data=serializeSession();gradingState.lastSavedAt=data.lastSavedAt;gradingState.gradeColumns=data.gradeColumns;localStorage.setItem(sessionsKey(),JSON.stringify([data,...sessions.filter(s=>s.id!==data.id)]));localStorage.setItem("yutori_grades_v021",JSON.stringify(gradingState.grades));setTimeout(()=>setSaveStatus("saved"),120)}
+function flushYutoriAutoSaves(){
+  if(draftSaveTimer!==null)saveDraftNowUnlocked();
+  if(autoSaveTimer!==null)saveGradingSessionNowUnlocked();
+}
 function changeGradeColumns(v){gradingState.gradeColumns=Number(v)||5;localStorage.setItem("yutori_grade_columns_v023",String(gradingState.gradeColumns));renderGradeGrid();scheduleAutoSave()}
 function completedQuestionCount(s){let count=0;for(let q=0;q<(s.questions||[]).length;q++){let total=0,done=0;(s.classes||[]).forEach(c=>(s.answers?.[c]||[]).forEach(p=>{if(p.absent)return;total++;if(s.grades?.[`${c}::${p.no}::${q}`])done++}));if(total&&done===total)count++}return count}
 function formatSavedAt(ts){if(!ts)return"未保存";const d=new Date(ts);return`${d.getMonth()+1}月${d.getDate()}日 ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`}
@@ -6449,7 +6460,8 @@ function openLatePdfModal(sessionId){
 }
 function closeLatePdfModal(){latePdfModal.classList.remove("show");latePdfModal.setAttribute("aria-hidden","true");latePdfContext={sessionId:"",candidates:[]}}
 function handleLatePdfBackdrop(event){if(event.target===event.currentTarget)closeLatePdfModal()}
-async function processLatePdf(){
+function processLatePdf(){return runPersistenceOperation(operation=>processLatePdfUnlocked(operation),"late-pdf-import")}
+async function processLatePdfUnlocked(operation){
   const sessionId=latePdfContext.sessionId,files=[...(document.getElementById("latePdfInput").files||[])],mode=document.querySelector('input[name="lateGradingMode"]:checked')?.value||"late-only";
   const status=document.getElementById("latePdfStatus"),button=document.getElementById("latePdfSubmitButton");
   if(!sessionId)return;
@@ -6462,9 +6474,9 @@ async function processLatePdf(){
     const firstFileIndex=gradingState.files.length,batchId=`late-${Date.now()}`,addedPages=[];
     for(let index=0;index<files.length;index++){
       const file=files[index],fileIndex=firstFileIndex+index;
-      await saveAdditionalPdfFileToIndexedDB(sessionId,file,fileIndex);
+      await saveAdditionalPdfFileToIndexedDB(sessionId,file,fileIndex,operation);
       gradingState.files.push(file);
-      const pages=await renderPdfFile(file,fileIndex,sessionId,{idPrefix:`${batchId}-f`,onProgress:text=>{status.textContent=text}});
+      const pages=await renderPdfFile(file,fileIndex,sessionId,{operation,idPrefix:`${batchId}-f`,onProgress:text=>{status.textContent=text}});
       pages.forEach(page=>{page.lateAdded=true;page.lateBatchId=batchId;page.assignmentStatus="late-unassigned";page.assignmentClass="";page.lateValidationWarning=false});
       addedPages.push(...pages);
     }
@@ -6491,7 +6503,8 @@ function closeDeleteSessionModal(){
   deleteSessionModal.classList.remove("show");
   deleteSessionModal.setAttribute("aria-hidden","true");
 }
-async function confirmDeleteSession(){
+function confirmDeleteSession(){return runPersistenceOperation(operation=>confirmDeleteSessionUnlocked(operation),"delete-session")}
+async function confirmDeleteSessionUnlocked(operation){
   if(!pendingDeleteSessionId){
     closeDeleteSessionModal();
     return;
@@ -6529,7 +6542,7 @@ async function confirmDeleteSession(){
 
   localStorage.setItem("yutori_grades_v021",JSON.stringify(fallbackGrades));
 
-  await deleteSessionAssetsFromIndexedDB(id);
+  await deleteSessionAssetsFromIndexedDB(id,operation);
 
   if(!gradingState.sessionId){
     const pdfInputEl=document.getElementById("pdfInput");
@@ -6548,7 +6561,8 @@ async function confirmDeleteSession(){
   renderOutputSessionCards();
 }
 
-async function deleteSessionAssetsFromIndexedDB(sessionId){
+function deleteSessionAssetsFromIndexedDB(sessionId,operation){return runPersistenceOperation(()=>deleteSessionAssetsFromIndexedDBUnlocked(sessionId),"delete-session-assets",operation)}
+async function deleteSessionAssetsFromIndexedDBUnlocked(sessionId){
   if(!("indexedDB" in window))return;
 
   try{
@@ -6645,7 +6659,8 @@ function resetCurrentQuestion(){
 
 function openYutoriDb(){return new Promise((resolve,reject)=>{const req=indexedDB.open("YUTORI_DB",2);req.onupgradeneeded=()=>{const db=req.result;if(!db.objectStoreNames.contains("pdfFiles"))db.createObjectStore("pdfFiles",{keyPath:"id"});if(!db.objectStoreNames.contains("pdfPages"))db.createObjectStore("pdfPages",{keyPath:"id"})};req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error)})}
 function waitForDbTransaction(tx){return new Promise((resolve,reject)=>{tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error)})}
-async function savePdfFilesToIndexedDB(sessionId,files){
+function savePdfFilesToIndexedDB(sessionId,files,operation){return runPersistenceOperation(()=>savePdfFilesToIndexedDBUnlocked(sessionId,files),"pdf-files",operation)}
+async function savePdfFilesToIndexedDBUnlocked(sessionId,files){
   const db=await openYutoriDb();
   try{
     const tx=db.transaction("pdfFiles","readwrite"),store=tx.objectStore("pdfFiles");
@@ -6653,7 +6668,8 @@ async function savePdfFilesToIndexedDB(sessionId,files){
     await waitForDbTransaction(tx);
   }finally{db.close()}
 }
-async function saveAdditionalPdfFileToIndexedDB(sessionId,file,fileIndex){
+function saveAdditionalPdfFileToIndexedDB(sessionId,file,fileIndex,operation){return runPersistenceOperation(()=>saveAdditionalPdfFileToIndexedDBUnlocked(sessionId,file,fileIndex),"additional-pdf-file",operation)}
+async function saveAdditionalPdfFileToIndexedDBUnlocked(sessionId,file,fileIndex){
   const db=await openYutoriDb();
   try{
     const tx=db.transaction("pdfFiles","readwrite");
@@ -6661,7 +6677,8 @@ async function saveAdditionalPdfFileToIndexedDB(sessionId,file,fileIndex){
     await waitForDbTransaction(tx);
   }finally{db.close()}
 }
-async function savePdfPageToIndexedDB(sessionId,metadata,blob){
+function savePdfPageToIndexedDB(sessionId,metadata,blob,operation){return runPersistenceOperation(()=>savePdfPageToIndexedDBUnlocked(sessionId,metadata,blob),"pdf-page",operation)}
+async function savePdfPageToIndexedDBUnlocked(sessionId,metadata,blob){
   const db=await openYutoriDb();
   try{
     const tx=db.transaction("pdfPages","readwrite");

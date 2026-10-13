@@ -2,8 +2,72 @@
   "use strict";
 
   const DEFAULT_NAME = "YUTORI_全データバックアップ.yutori";
+  const persistence = new Map(), operationQueue = [];
+  let persistenceRevision = 0, operationOwner = null;
+
+  function trackPersistence(promise, label) {
+    const entry = { label: String(label || "persistence") };
+    const tracked = Promise.resolve(promise).then(value => {
+      persistence.delete(entry); return value;
+    }, error => { persistence.delete(entry); throw error; });
+    persistence.set(entry, tracked); persistenceRevision++;
+    // Idle draining observes failures without exposing record contents. The
+    // caller still receives the original rejection from the returned promise.
+    tracked.catch(() => {});
+    return tracked;
+  }
+  async function waitForPersistenceIdle() {
+    global.flushYutoriAutoSaves?.();
+    for (;;) {
+      const revision = persistenceRevision;
+      await Promise.allSettled([...persistence.values()]);
+      await Promise.resolve();
+      if (!persistence.size && revision === persistenceRevision) return;
+    }
+  }
+  function pumpOperations() {
+    if (operationOwner || !operationQueue.length) return;
+    const entry = operationQueue.shift();
+    entry.signal?.removeEventListener("abort", entry.abort);
+    operationOwner = entry;
+    let result;
+    try { result = entry.callback(entry); }
+    catch (error) { result = Promise.reject(error); }
+    const finish = (settle, value) => {
+      operationOwner = null; settle(value); pumpOperations();
+    };
+    Promise.resolve(result).then(value => finish(entry.resolve, value), error => finish(entry.reject, error));
+  }
+  function runExclusiveOperation(kind, callback, { signal } = {}) {
+    if (!["pdf-import", "backup", "restore"].includes(kind)) return Promise.reject(new TypeError("Unknown operation kind"));
+    return new Promise((resolve, reject) => {
+      if (signal?.aborted) { reject(signal.reason); return; }
+      const entry = { kind, callback, resolve, reject, signal };
+      entry.abort = () => {
+        const index = operationQueue.indexOf(entry);
+        if (index < 0) return; // Running callbacks own their safe cancellation boundary.
+        operationQueue.splice(index, 1); signal.removeEventListener("abort", entry.abort); reject(signal.reason);
+      };
+      signal?.addEventListener("abort", entry.abort, { once: true });
+      operationQueue.push(entry); pumpOperations();
+    });
+  }
+  function runPersistenceOperation(callback, label, owner) {
+    // Only the explicit token passed down an import's call graph permits nested
+    // writes. A new unrelated caller must queue even while an import is active.
+    if (owner && owner === operationOwner) return trackPersistence(callback(owner), label);
+    return runExclusiveOperation("pdf-import", token => trackPersistence(callback(token), label));
+  }
+  function deferPersistenceWhileExclusive(callback, label) {
+    if (!operationOwner || operationOwner.kind === "pdf-import") return false;
+    runPersistenceOperation(callback, label).catch(() => {
+      global.console?.warn("YUTORI deferred persistence failed", label);
+    });
+    return true;
+  }
+  Object.assign(global, { trackPersistence, waitForPersistenceIdle, runExclusiveOperation, runPersistenceOperation, deferPersistenceWhileExclusive });
   const options = {
-    appVersion: "v0.3.51", waitForIdle: async () => {}, now: () => new Date(),
+    appVersion: "v0.3.51", waitForIdle: waitForPersistenceIdle, now: () => new Date(),
     pickSaveFile: typeof global.showSaveFilePicker === "function" ? settings => global.showSaveFilePicker(settings) : null,
     pickOpenFile: typeof global.showOpenFilePicker === "function" ? settings => global.showOpenFilePicker(settings) : null,
     openDataDb: () => global.YutoriBackupStorage.openActiveDataDb(), reload: () => global.location.reload(),
@@ -167,7 +231,13 @@
     catch (error) { selected = Promise.reject(error); }
     renderStatus(); progress("準備");
     element("backupProgressDialog")?.showModal();
-    pending = performSave(selected, operation).finally(() => {
+    // Observe the gesture promise immediately, even when the operation queues
+    // behind an import and is cancelled before its callback begins.
+    Promise.resolve(selected).catch(() => {});
+    pending = runExclusiveOperation("backup", () => performSave(selected, operation), { signal: operation.controller.signal }).catch(error => {
+      if (activeOperation === operation) notify(errorMessage(error), error.name !== "AbortError");
+      return { ok: false, reason: error.name };
+    }).finally(() => {
       if (activeOperation !== operation) return;
       pending = null; activeOperation = null; state = { ...state, busy: false, canCancel: false };
       element("backupProgressDialog")?.close(); renderStatus(); operation.previousFocus?.focus();
@@ -218,7 +288,8 @@
   function cancelBackup() { if (state.canCancel) activeOperation?.controller.abort(); }
   function showBackupSettings() { global.showSettingsPanel("backup"); renderStatus(); }
 
-  // Intentionally extensible: later tasks add exclusion and restore orchestration.
+  // Restore orchestration shares the same gate in later tasks; the reusable IO
+  // writer deliberately does not acquire it again inside a restore operation.
   global.YutoriBackup = { configure, initialize, savePrimaryBackup: () => startSave(false),
     changeDestination: () => startSave(true), writeVerifiedArchiveToHandle,
     renderStatus, getOperationState: () => ({ ...state }), cancelBackup };

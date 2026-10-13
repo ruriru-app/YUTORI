@@ -27,6 +27,237 @@ async function setup() {
   });
 }
 
+test("backup waits for registered page persistence with zero bytes and an exclusive gate before idle", async () => {
+  await setup();
+  await page.evaluate(() => {
+    globalThis.releasePageWrite = null;
+    const writing = new Promise(resolve => { releasePageWrite = () => {
+      localStorage.setItem("yutori_completed_write", "committed"); resolve(42);
+    }; });
+    // Compatibility fallback makes RED show the missing behavior, not a missing API exception.
+    if (globalThis.trackPersistence) trackPersistence(writing, "pdf-page");
+    globalThis.firstSave = saveYutoriBackup();
+    globalThis.sharedSave = saveYutoriBackup() === firstSave;
+    globalThis.importStarted = false;
+    globalThis.restoreStarted = false;
+    globalThis.nextImport = globalThis.runExclusiveOperation
+      ? runExclusiveOperation("pdf-import", () => { importStarted = true; })
+      : Promise.resolve().then(() => { importStarted = true; });
+    globalThis.nextRestore = globalThis.runExclusiveOperation
+      ? runExclusiveOperation("restore", () => { restoreStarted = true; })
+      : Promise.resolve().then(() => { restoreStarted = true; });
+  });
+  await page.waitForTimeout(50);
+  const waiting = await page.evaluate(async () => ({ phase: YutoriBackup.getOperationState().phase,
+    bytes: (await backupHandle.getFile()).size, importStarted, restoreStarted, sharedSave }));
+  assert.deepEqual(waiting, { phase: "準備", bytes: 0, importStarted: false, restoreStarted: false, sharedSave: true });
+  const completed = await page.evaluate(async () => {
+    releasePageWrite(); const saved = await firstSave; await nextImport; await nextRestore;
+    const records = [];
+    await YutoriBackupArchive.readArchiveStream(await backupHandle.getFile(), { onRecord: record => records.push(record) });
+    return { ok: saved.ok, importStarted, restoreStarted, value: records.find(record => record.key === "yutori_completed_write")?.value };
+  });
+  assert.deepEqual(completed, { ok: true, importStarted: true, restoreStarted: true, value: "committed" });
+});
+
+test("persistence idle waits for writes registered while draining and preserves values and errors", async () => {
+  await setup();
+  const result = await page.evaluate(async () => {
+    if (!globalThis.trackPersistence) return { available: false };
+    let releaseFirst, releaseSecond, idle = false;
+    const first = trackPersistence(new Promise(resolve => { releaseFirst = resolve; }), "pdf-files");
+    first.then(() => trackPersistence(new Promise(resolve => { releaseSecond = resolve; }), "pdf-page"));
+    const waiting = waitForPersistenceIdle().then(() => { idle = true; });
+    releaseFirst(17);
+    while (!releaseSecond) await new Promise(resolve => setTimeout(resolve, 0));
+    await new Promise(resolve => setTimeout(resolve, 0));
+    const early = idle;
+    releaseSecond(); await waiting;
+    const error = new Error("private fixture error");
+    let sameError;
+    try { await trackPersistence(Promise.reject(error), "pdf-page"); } catch (caught) { sameError = caught === error; }
+    await waitForPersistenceIdle();
+    return { available: true, early, idle, value: await first, sameError };
+  });
+  assert.deepEqual(result, { available: true, early: false, idle: true, value: 17, sameError: true });
+});
+
+test("exclusive operations are FIFO and release after throw and backup cancellation", async () => {
+  await setup();
+  const result = await page.evaluate(async () => {
+    if (!globalThis.runExclusiveOperation) return { available: false };
+    let release, started = false;
+    const order = [];
+    const holding = runExclusiveOperation("pdf-import", () => new Promise(resolve => { release = resolve; }));
+    const throwing = runExclusiveOperation("restore", () => { order.push("restore"); throw new Error("expected"); }).catch(error => error.message);
+    const last = runExclusiveOperation("pdf-import", () => { order.push("pdf"); return 8; });
+    YutoriBackup.configure({ waitForIdle: () => new Promise(() => { started = true; }) });
+    const cancelled = saveYutoriBackup();
+    YutoriBackup.cancelBackup();
+    const cancellation = await Promise.race([cancelled, new Promise(resolve => setTimeout(() => resolve({ reason: "timeout" }), 250))]);
+    release(); await holding;
+    const error = await throwing, value = await last;
+    await new Promise(resolve => setTimeout(resolve, 10));
+    return { available: true, order, error, value, reason: cancellation.reason, started };
+  });
+  assert.deepEqual(result, { available: true, order: ["restore", "pdf"], error: "expected", value: 8, reason: "AbortError", started: false });
+});
+
+test("exclusive backup blocks actual IDB page writes, PDF imports and session deletion until verified close", async () => {
+  await setup();
+  await page.evaluate(async () => {
+    await savePdfFilesToIndexedDB("assets-to-delete", [new File(["original"], "before.pdf", { type: "application/pdf" })]);
+    globalThis.releaseCollection = null;
+    const original = YutoriBackupStorage.createSnapshotRecordSource;
+    globalThis.YutoriBackupStorage = { ...YutoriBackupStorage,
+      createSnapshotRecordSource: async options => {
+        await new Promise(resolve => { releaseCollection = resolve; }); return original(options);
+      } };
+    localStorage.setItem(sessionsKey(), JSON.stringify([{ id: "delete-me" }]));
+    globalThis.saving = saveYutoriBackup();
+  });
+  await page.waitForFunction(() => !!releaseCollection);
+  await page.evaluate(() => {
+    globalThis.pdfWrite = savePdfPageToIndexedDB("later", { id: "p1" }, new Blob(["page"]));
+    globalThis.originalWrite = savePdfFilesToIndexedDB("later", [new File(["original"], "later.pdf", { type: "application/pdf" })]);
+    globalThis.additionalWrite = saveAdditionalPdfFileToIndexedDB("later", new File(["additional"], "additional.pdf", { type: "application/pdf" }), 1);
+    globalThis.assetDeletion = deleteSessionAssetsFromIndexedDB("assets-to-delete");
+    gradingState.selectedTestId = "sentinel";
+    globalThis.alerts = [];
+    globalThis.alert = message => alerts.push(message);
+    globalThis.importing = processPdf();
+    latePdfContext = { sessionId: "delete-me", candidates: [] };
+    document.getElementById("latePdfStatus").textContent = "sentinel";
+    globalThis.lateImporting = processLatePdf();
+    pendingDeleteSessionId = "delete-me";
+    globalThis.deleting = confirmDeleteSession();
+  });
+  const held = await page.evaluate(async () => {
+    const db = await openYutoriDb();
+    const pages = await new Promise(resolve => { const request = db.transaction("pdfPages").objectStore("pdfPages").count(); request.onsuccess = () => resolve(request.result); }); db.close();
+    const filesDb = await openYutoriDb();
+    const files = await new Promise(resolve => { const request = filesDb.transaction("pdfFiles").objectStore("pdfFiles").count(); request.onsuccess = () => resolve(request.result); }); filesDb.close();
+    return { pages, files, alerts, selected: gradingState.selectedTestId, sessions: JSON.parse(localStorage.getItem(sessionsKey())).length,
+      lateStatus: document.getElementById("latePdfStatus").textContent };
+  });
+  assert.deepEqual(held, { pages: 0, files: 1, alerts: [], selected: "sentinel", sessions: 1, lateStatus: "sentinel" });
+  const final = await page.evaluate(async () => {
+    releaseCollection(); const saved = await saving; await pdfWrite; await originalWrite; await additionalWrite; await assetDeletion; await importing; await lateImporting; await deleting;
+    const records = []; await YutoriBackupArchive.readArchiveStream(await backupHandle.getFile(), { onRecord: item => records.push(item) });
+    return { ok: saved.ok, pageInArchive: records.some(item => item.store === "pdfPages"),
+      archivedFiles: records.filter(item => item.store === "pdfFiles").length,
+      archivedSessions: JSON.parse(records.find(item => item.key === sessionsKey()).value).length,
+      sessions: JSON.parse(localStorage.getItem(sessionsKey())).length, alertCount: alerts.length };
+  });
+  assert.deepEqual(final, { ok: true, pageInArchive: false, archivedFiles: 1, archivedSessions: 1, sessions: 0, alertCount: 1 });
+});
+
+test("backup flushes scheduled grading and draft autosaves then defers later timer mutations", async () => {
+  await setup();
+  await page.evaluate(() => {
+    gradingState.sessionId = "autosave-before";
+    scheduleAutoSave(); scheduleDraftSave();
+    const original = YutoriBackupStorage.createSnapshotRecordSource;
+    globalThis.YutoriBackupStorage = { ...YutoriBackupStorage,
+      createSnapshotRecordSource: async options => {
+        globalThis.beforeSnapshot = { sessions: JSON.parse(localStorage.getItem(sessionsKey()) || "[]").length,
+          draft: !!localStorage.getItem(CURRENT_DRAFT_KEY) };
+        await new Promise(resolve => { globalThis.releaseAutosaveCollection = resolve; }); return original(options);
+      } };
+    globalThis.savingAutosave = saveYutoriBackup();
+  });
+  await page.waitForFunction(() => !!globalThis.releaseAutosaveCollection);
+  const before = await page.evaluate(() => beforeSnapshot);
+  assert.deepEqual(before, { sessions: 1, draft: true });
+  await page.evaluate(() => { gradingState.sessionId = "autosave-later"; scheduleAutoSave(); });
+  await page.waitForTimeout(400);
+  const count = await page.evaluate(() => JSON.parse(localStorage.getItem(sessionsKey())).length);
+  assert.equal(count, 1);
+  const final = await page.evaluate(async () => {
+    releaseAutosaveCollection(); const saved = await savingAutosave;
+    await runExclusiveOperation("pdf-import", () => {});
+    const records = []; await YutoriBackupArchive.readArchiveStream(await backupHandle.getFile(), { onRecord: item => records.push(item) });
+    return { ok: saved.ok, archived: JSON.parse(records.find(item => item.key === sessionsKey()).value).map(item => item.id),
+      after: JSON.parse(localStorage.getItem(sessionsKey())).length };
+  });
+  assert.deepEqual(final, { ok: true, archived: ["autosave-before"], after: 2 });
+});
+
+test("idle preparation does not create an unscheduled editor draft", async () => {
+  await setup();
+  const result = await page.evaluate(async () => {
+    // Startup legitimately schedules a draft via updateCounts. Isolate idle
+    // without a pending timer before asserting that it causes no extra save.
+    clearTimeout(draftSaveTimer); draftSaveTimer = null;
+    const before = localStorage.getItem(CURRENT_DRAFT_KEY);
+    await waitForPersistenceIdle();
+    return { before, after: localStorage.getItem(CURRENT_DRAFT_KEY) };
+  });
+  assert.deepEqual(result, { before: null, after: null });
+});
+
+test("exclusive gate remains held during readback verification and cancellation releases a running idle wait", async () => {
+  await setup();
+  await page.evaluate(() => {
+    const readFile = backupHandle.getFile.bind(backupHandle);
+    let reads = 0;
+    backupHandle.getFile = async () => {
+      if (++reads === 2) await new Promise(resolve => { globalThis.releaseVerification = resolve; });
+      return readFile();
+    };
+    globalThis.verifyingSave = saveYutoriBackup();
+  });
+  await page.waitForFunction(() => !!globalThis.releaseVerification);
+  const held = await page.evaluate(async () => {
+    globalThis.duringVerification = false;
+    globalThis.verificationImport = runExclusiveOperation("pdf-import", () => { duringVerification = true; });
+    await new Promise(resolve => setTimeout(resolve, 20));
+    return duringVerification;
+  });
+  assert.equal(held, false);
+  await page.evaluate(async () => { releaseVerification(); await verifyingSave; await verificationImport; });
+  await page.evaluate(() => {
+    YutoriBackup.configure({ waitForIdle: () => new Promise(() => { globalThis.runningIdle = true; }) });
+    globalThis.cancelledIdle = saveYutoriBackup();
+  });
+  await page.waitForFunction(() => !!globalThis.runningIdle);
+  const released = await page.evaluate(async () => {
+    YutoriBackup.cancelBackup();
+    const saved = await cancelledIdle;
+    return { reason: saved.reason, next: await runExclusiveOperation("restore", () => "released") };
+  });
+  assert.deepEqual(released, { reason: "AbortError", next: "released" });
+});
+
+test("real PDF import persists nested original and page writes before a queued backup", async () => {
+  await setup();
+  const result = await page.evaluate(async () => {
+    // A complete, one-page PDF; PDF.js rendering and IndexedDB writes stay real.
+    const objects = ["<< /Type /Catalog /Pages 2 0 R >>", "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+      "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 200] /Contents 4 0 R /Resources << >> >>",
+      "<< /Length 4 >>\nstream\nq\nQ\nendstream"];
+    let pdf = "%PDF-1.4\n", offsets = [0];
+    objects.forEach((object, index) => { offsets.push(pdf.length); pdf += `${index + 1} 0 obj\n${object}\nendobj\n`; });
+    const xref = pdf.length;
+    pdf += `xref\n0 5\n0000000000 65535 f \n${offsets.slice(1).map(offset => `${String(offset).padStart(10, "0")} 00000 n \n`).join("")}trailer\n<< /Size 5 /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
+    gradingState.files = [new File([pdf], "fixture.pdf", { type: "application/pdf" })];
+    gradingState.testSets = [{ id: "fixture", questions: ["one"], answers: ["answer"] }];
+    gradingState.rosters = { "1組": [{ no: 1, name: "Fixture" }] };
+    document.getElementById("classChecks").innerHTML = '<label><input type="checkbox" checked value="1組"></label>';
+    globalThis.importAlerts = []; globalThis.alert = message => importAlerts.push(message);
+    const importing = processPdf();
+    const saving = saveYutoriBackup();
+    const outcome = await Promise.race([Promise.all([importing, saving]), new Promise(resolve => setTimeout(() => resolve(null), 5000))]);
+    if (!outcome) return { timedOut: true };
+    const records = []; await YutoriBackupArchive.readArchiveStream(await backupHandle.getFile(), { onRecord: item => records.push(item) });
+    return { timedOut: false, ok: outcome[1].ok, alerts: importAlerts, pages: gradingState.pdfPages.length,
+      files: records.filter(item => item.store === "pdfFiles").length,
+      archivedPages: records.filter(item => item.store === "pdfPages").length,
+      sessions: JSON.parse(records.find(item => item.key === sessionsKey()).value).length };
+  });
+  assert.deepEqual(result, { timedOut: false, ok: true, alerts: [], pages: 1, files: 1, archivedPages: 1, sessions: 1 });
+});
+
 test("header and touch settings expose accessible backup status and destination guidance", async () => {
   const button = page.getByRole("button", { name: "バックアップ保存", exact: true });
   assert.equal(await button.count(), 1);
@@ -69,7 +300,9 @@ test("first save verifies actual OPFS bytes and repeat save reuses the remembere
 test("picker is invoked synchronously before idle/snapshot work and rapid clicks share one save", async () => {
   await setup();
   const result = await page.evaluate(async () => {
-    let picked = false, release;
+    let picked = false, release, writes = 0;
+    const createWritable = backupHandle.createWritable.bind(backupHandle);
+    backupHandle.createWritable = () => { writes++; return createWritable(); };
     YutoriBackup.configure({ pickSaveFile: () => { picked = true; return Promise.resolve(backupHandle); }, waitForIdle: () => new Promise(resolve => { release = resolve; }) });
     const first = YutoriBackup.savePrimaryBackup();
     const synchronous = picked;
@@ -77,9 +310,9 @@ test("picker is invoked synchronously before idle/snapshot work and rapid clicks
     await new Promise(resolve => setTimeout(resolve, 20));
     const phase = YutoriBackup.getOperationState().phase;
     release();
-    return { synchronous, shared: first === second, phase, success: (await first).ok };
+    return { synchronous, shared: first === second, phase, success: (await first).ok, writes };
   });
-  assert.deepEqual(result, { synchronous: true, shared: true, phase: "準備", success: true });
+  assert.deepEqual(result, { synchronous: true, shared: true, phase: "準備", success: true, writes: 1 });
 });
 
 test("remembered handle requests permission synchronously before idle work", async () => {
