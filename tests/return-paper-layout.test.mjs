@@ -8,6 +8,7 @@ import { createRequire } from "node:module";
 import test, { before, beforeEach, after } from "node:test";
 
 const { chromium } = createRequire(import.meta.url)("playwright");
+const { PDFDocument } = createRequire(import.meta.url)("pdf-lib");
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 let server, browser, page, origin;
 
@@ -191,6 +192,29 @@ test("A4 landscape answer and A4 portrait practice are paired on one duplex shee
   assert.deepEqual(result.rotations, ["landscape", "portrait"]);
   assert.equal(result.practiceCount, "15");
 });
+
+for (const [sessionId, shortSideMm, longSideMm] of [["a5-portrait", 148, 210], ["b5-landscape", 182, 257], ["a4-landscape", 210, 297]]) {
+test(`${sessionId} mixed orientations create physical PDF pages at the selected paper size`, async () => {
+  await page.evaluate(async sessionId => {
+    await changeReturnOutputSession(sessionId);
+    document.querySelector('input[name="returnAnswerOrientation"][value="landscape"]').click();
+    document.querySelector('input[name="returnPracticeOrientation"][value="portrait"]').click();
+    window.print = () => {};
+    await printReturnPdfs();
+    await new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 100)));
+  }, sessionId);
+  const pdf = await PDFDocument.load(await page.pdf({ printBackground: true, preferCSSPageSize: true }));
+  const pages = pdf.getPages().map(pdfPage => pdfPage.getSize());
+  const pointsPerMm = 72 / 25.4;
+  assert.equal(pages.length, 2);
+  assert.ok(pages[0].width > pages[0].height, JSON.stringify(pages));
+  assert.ok(Math.abs(pages[0].width - longSideMm * pointsPerMm) < 1, JSON.stringify(pages));
+  assert.ok(Math.abs(pages[0].height - shortSideMm * pointsPerMm) < 1, JSON.stringify(pages));
+  assert.ok(pages[1].height > pages[1].width, JSON.stringify(pages));
+  assert.ok(Math.abs(pages[1].width - shortSideMm * pointsPerMm) < 1, JSON.stringify(pages));
+  assert.ok(Math.abs(pages[1].height - longSideMm * pointsPerMm) < 1, JSON.stringify(pages));
+});
+}
 
 test("mini previews visibly follow the selected front and back orientations", async () => {
   const result = await page.evaluate(async () => {

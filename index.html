@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="YUTORI">
-<title>YUTORI v0.3.49</title>
+<title>YUTORI v0.3.50</title>
 <link rel="icon" type="image/svg+xml" href="assets/yutori-symbol.svg">
 <link rel="apple-touch-icon" href="assets/yutori-192.png">
 <link rel="manifest" href="manifest.webmanifest">
@@ -141,6 +141,7 @@ input,select{height:36px;padding:0 10px}
   width:100%;
 }
 .sheet-grid.flow-row{grid-auto-flow:row}
+.sheet-grid.word-single-column{width:50%}
 .problem-cell{
   position:relative;
   display:flex;
@@ -3242,11 +3243,12 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
     print-color-adjust:exact!important;
   }
   body.return-printing .app-shell{display:none!important}
-  body.return-printing #returnPrintRoot{display:block!important;width:var(--return-paper-width,210mm)!important;margin:0!important;padding:0!important}
-  body.return-printing #returnPrintRoot .return-print-page{display:block!important;width:var(--return-paper-width,210mm)!important;height:var(--return-paper-height,297mm)!important;margin:0!important;break-after:page!important;page-break-after:always!important;break-inside:avoid-page!important;page-break-inside:avoid!important}
+  body.return-printing #returnPrintRoot{display:block!important;width:auto!important;margin:0!important;padding:0!important}
+  body.return-printing #returnPrintRoot .return-print-page{display:block!important;margin:0!important;break-after:page!important;page-break-after:always!important;break-inside:avoid-page!important;page-break-inside:avoid!important}
+  body.return-printing #returnPrintRoot .return-print-page[data-orientation="portrait"]{page:return-portrait;width:var(--return-portrait-width,210mm)!important;height:var(--return-portrait-height,297mm)!important}
+  body.return-printing #returnPrintRoot .return-print-page[data-orientation="landscape"]{page:return-landscape;width:var(--return-landscape-width,297mm)!important;height:var(--return-landscape-height,210mm)!important}
   body.return-printing #returnPrintRoot .return-print-page:last-child{break-after:auto!important;page-break-after:auto!important}
-  body.return-printing #returnPrintRoot .return-print-side[data-orientation="portrait"]{width:var(--return-paper-width,210mm)!important;height:var(--return-paper-height,297mm)!important}
-  body.return-printing #returnPrintRoot .return-print-side[data-orientation="landscape"]{width:var(--return-paper-height,297mm)!important;height:var(--return-paper-width,210mm)!important;inset:auto!important;left:0!important;top:0!important;transform:translateX(var(--return-paper-width,210mm)) rotate(90deg)!important;transform-origin:top left!important}
+  body.return-printing #returnPrintRoot .return-print-side{width:100%!important;height:100%!important;inset:0!important;transform:none!important}
   body.return-printing #returnPrintRoot .return-sheet{display:grid!important;max-width:none!important;margin:0!important;box-shadow:none!important;break-inside:avoid-page!important;page-break-inside:avoid!important}
 }
 </style>
@@ -3254,10 +3256,10 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
 <body>
 <div class="app-shell">
 <header class="app-header no-print">
-  <div class="brand" aria-label="YUTORI v0.3.49">
+  <div class="brand" aria-label="YUTORI v0.3.50">
     <div class="brand-copy">
       <img class="brand-logo-image" src="assets/yutori-logo.svg" alt="YUTORI つくる・つける・つなげる">
-      <span class="brand-version">v0.3.49</span>
+      <span class="brand-version">v0.3.50</span>
     </div>
   </div>
   <nav aria-label="主要メニュー">
@@ -3556,6 +3558,12 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
         <div class="step-line">
           <h2 class="step-title">問題入力</h2>
         </div>
+        <fieldset class="question-mode-options">
+          <legend>解答の種類</legend>
+          <label><input type="radio" name="answerFormat" value="word" checked onchange="changeAnswerFormat()"><span>単語（1列のときは用紙の左半分を解答欄にする）</span></label>
+          <label><input type="radio" name="answerFormat" value="extended" onchange="changeAnswerFormat()"><span>英作文・和訳（用紙幅いっぱいの解答欄にする）</span></label>
+          <p id="answerFormatHint" class="question-mode-hint">10問1列は半幅、20問2列は半幅の解答欄を2列で表示します。</p>
+        </fieldset>
         <fieldset class="question-mode-options">
           <legend>問題の載せ方・読み取り範囲</legend>
           <label><input type="radio" name="questionMode" value="inline" checked onchange="changeQuestionMode()"><span>問題を解答欄の一部に載せる</span></label>
@@ -3959,7 +3967,7 @@ const state = {
   grade:"", subject:"", unit:"", testName:"",
   titleVisibility:{grade:true,subject:true,unit:true,testName:true},
   paperSize:"a4", orientation:"portrait",
-  rows:10, cols:3, flow:"column", answerLine:"fourline", fourLineHeight:"auto", questionMode:"inline",
+  rows:10, cols:3, flow:"column", answerLine:"fourline", fourLineHeight:"auto", answerFormat:"word", questionMode:"inline",
   questions:[], answers:[]
 };
 
@@ -3996,11 +4004,14 @@ function copyTestState(source=state){
     flow:source.flow==="row"?"row":"column",
     answerLine:["fourline","third","none"].includes(source.answerLine)?source.answerLine:"fourline",
     fourLineHeight:["auto","large","medium","compact"].includes(source.fourLineHeight)?source.fourLineHeight:"auto",
+    answerFormat:normalizeAnswerFormat(source),
     questionMode:source.questionMode==="separate"?"separate":"inline",
     questions:Array.isArray(source.questions)?source.questions.map(value=>String(value??"")):[],
     answers:Array.isArray(source.answers)?source.answers.map(value=>String(value??"")):[]
   };
 }
+function normalizeAnswerFormat(source={}){return source.answerFormat==="word"?"word":"extended"}
+function isSingleColumnWordLayout(source={}){return normalizeAnswerFormat(source)==="word"&&Math.max(1,Number(source.cols)||1)===1}
 function readSavedTests(){
   try{
     const list=JSON.parse(localStorage.getItem(SAVED_TESTS_KEY)||"[]");
@@ -4520,6 +4531,7 @@ function syncState(){
   state.flow=checked("flow");
   state.answerLine=checked("answerLine");
   state.fourLineHeight=document.getElementById("fourLineHeight")?.value||"auto";
+  state.answerFormat=checked("answerFormat");
   state.questionMode=checked("questionMode");
 }
 function updateFourLineHeightControl(){
@@ -4592,6 +4604,18 @@ function changeQuestionMode(){
   updateQuestionModeControls();
   if(refreshPaste)pasteArea.value=questionPasteText();
   renderQuestionRows();updateCounts();
+}
+function updateAnswerFormatControls(){
+  const format=normalizeAnswerFormat(state);
+  const radio=document.querySelector(`input[name="answerFormat"][value="${format}"]`);
+  if(radio)radio.checked=true;
+  const hint=document.getElementById("answerFormatHint");
+  if(hint)hint.textContent=format==="word"?"10問1列は半幅、20問2列は半幅の解答欄を2列で表示します。":"英作文や和訳を書けるよう、1列でも用紙幅いっぱいの解答欄を表示します。";
+}
+function changeAnswerFormat(){
+  state.answerFormat=checked("answerFormat");
+  updateAnswerFormatControls();
+  updateCounts();
 }
 function questionDisplayText(source,q,question=source.questions?.[q]){
   return source.questionMode==="separate"?"別紙参照":question||"未登録";
@@ -4753,6 +4777,7 @@ function applyTestToEditor(source,id=""){
   document.querySelector(`input[name="flow"][value="${state.flow}"]`).checked=true;
   document.querySelector(`input[name="answerLine"][value="${state.answerLine}"]`).checked=true;
   document.getElementById("fourLineHeight").value=state.fourLineHeight||"auto";
+  updateAnswerFormatControls();
   updateQuestionModeControls();
   document.getElementById("rows").innerHTML="";
   document.getElementById("cols").innerHTML="";
@@ -4778,7 +4803,7 @@ function duplicateSavedTest(id){
 function createNewTest(){
   const hasContent=Boolean(state.subject||state.unit||state.testName||state.questions.some(Boolean)||state.answers.some(Boolean));
   if(hasContent&&!confirm("現在作成中の内容から新しいテストへ切り替えますか？ 必要な場合は先に「保存」を押してください。"))return;
-  applyTestToEditor({grade:"",subject:"",unit:"",testName:"",paperSize:"a4",orientation:"portrait",rows:10,cols:3,flow:"column",answerLine:"fourline",fourLineHeight:"auto",questions:[],answers:[]});
+  applyTestToEditor({grade:"",subject:"",unit:"",testName:"",paperSize:"a4",orientation:"portrait",rows:10,cols:3,flow:"column",answerLine:"fourline",fourLineHeight:"auto",answerFormat:"word",questions:[],answers:[]});
   document.getElementById("subject").focus();
 }
 function deleteSavedTest(id){
@@ -4803,6 +4828,7 @@ function renderPaper(){
   paper.className=`paper ${state.paperSize} ${state.orientation}`;
   const cap=state.rows*state.cols;
   const flowClass=state.flow==="row"?"flow-row":"";
+  const answerWidthClass=isSingleColumnWordLayout(state)?"word-single-column":"";
   const items=state.questions.slice(0,cap).map((q,i)=>{
     const col=state.flow==="row"?(i%state.cols):Math.floor(i/state.rows);
     const row=state.flow==="row"?Math.floor(i/state.cols):(i%state.rows);
@@ -4821,7 +4847,7 @@ function renderPaper(){
   paper.innerHTML=`
     <div class="paper-header"><img src="assets/test-mark-name-header.svg" alt="組、出席番号、名前、点数の記入欄"></div>
     <div class="paper-title">${escapeHtml(testDisplayTitle(state))}</div>
-    <div class="sheet-grid ${flowClass}" style="
+    <div class="sheet-grid ${flowClass} ${answerWidthClass}" data-answer-format="${state.answerFormat}" style="
       grid-template-columns:repeat(${state.cols},minmax(0,1fr));
       grid-template-rows:repeat(${state.rows},minmax(0,1fr));
       height:calc(100% - 31mm);">${items}</div>
@@ -4977,12 +5003,13 @@ function refreshGradeUi(){
     flow:item.flow==="row"?"row":"column",
     answerLine:["fourline","third","none"].includes(item.answerLine)?item.answerLine:"fourline",
     fourLineHeight:["auto","large","medium","compact"].includes(item.fourLineHeight)?item.fourLineHeight:"auto",
+    answerFormat:normalizeAnswerFormat(item),
     questionMode:item.questionMode==="separate"?"separate":"inline",
     questions:[...(item.questions||[])],
     answers:[...(item.answers||[])]
   }));
   if(!gradingState.testSets.length){
-    gradingState.testSets=[{id:"current",name:testTileTitle(state,"現在作成中のテスト"),displayTitle:testDisplayTitle(state),testName:String(state.testName||""),grade:state.grade||"",subject:state.subject||"",unit:state.unit||"",titleVisibility:normalizeTitleVisibility(state.titleVisibility),paperSize:state.paperSize||"a4",orientation:state.orientation==="landscape"?"landscape":"portrait",rows:Number(state.rows)||10,cols:Number(state.cols)||3,flow:state.flow==="row"?"row":"column",answerLine:state.answerLine||"fourline",fourLineHeight:state.fourLineHeight||"auto",questionMode:state.questionMode==="separate"?"separate":"inline",questions:[...state.questions],answers:[...state.answers]}];
+    gradingState.testSets=[{id:"current",name:testTileTitle(state,"現在作成中のテスト"),displayTitle:testDisplayTitle(state),testName:String(state.testName||""),grade:state.grade||"",subject:state.subject||"",unit:state.unit||"",titleVisibility:normalizeTitleVisibility(state.titleVisibility),paperSize:state.paperSize||"a4",orientation:state.orientation==="landscape"?"landscape":"portrait",rows:Number(state.rows)||10,cols:Number(state.cols)||3,flow:state.flow==="row"?"row":"column",answerLine:state.answerLine||"fourline",fourLineHeight:state.fourLineHeight||"auto",answerFormat:normalizeAnswerFormat(state),questionMode:state.questionMode==="separate"?"separate":"inline",questions:[...state.questions],answers:[...state.answers]}];
   }
   gradingState.selectedTestId=gradingState.testSets.some(item=>item.id===previousTestId)?previousTestId:gradingState.testSets[0].id;
   const testSelect=document.getElementById("gradingTestSet");
@@ -5871,16 +5898,17 @@ function paperDimensionsMm(test={},image=null){
 }
 function expectedAnswerGridBounds(image,test={}){
   const paper=paperDimensionsMm(test,image),width=Number(image.naturalWidth)||1,height=Number(image.naturalHeight)||1;
+  const left=width*ANSWER_SHEET_GRID_MM.side/paper.width,fullRight=width*(paper.width-ANSWER_SHEET_GRID_MM.side)/paper.width;
   return {
-    left:width*ANSWER_SHEET_GRID_MM.side/paper.width,
+    left,
     top:height*ANSWER_SHEET_GRID_MM.top/paper.height,
-    right:width*(paper.width-ANSWER_SHEET_GRID_MM.side)/paper.width,
+    right:isSingleColumnWordLayout(test)?left+(fullRight-left)/2:fullRight,
     bottom:height*(paper.height-ANSWER_SHEET_GRID_MM.bottom)/paper.height,
     paper
   };
 }
 function answerGridCacheKey(test={}){
-  return [test.paperSize||"",test.orientation||"",Number(test.rows)||10,Number(test.cols)||3].join("|");
+  return [test.paperSize||"",test.orientation||"",Number(test.rows)||10,Number(test.cols)||3,normalizeAnswerFormat(test)].join("|");
 }
 function refineAnswerGridBounds(image,test,expected){
   if(typeof document==="undefined"||!image?.naturalWidth||!image?.naturalHeight)return expected;
@@ -5926,7 +5954,8 @@ function refineAnswerGridBounds(image,test,expected){
     const radiusX=Math.max(6,width*.018),radiusY=Math.max(6,height*.024);
     const left=findEdge(ex.left,radiusX,verticalScore,.34),right=findEdge(ex.right,radiusX,verticalScore,.34);
     const top=findEdge(ex.top,radiusY,horizontalScore,.3),bottom=findEdge(ex.bottom,radiusY,horizontalScore,.3);
-    const refined=right-left>width*.5&&bottom-top>height*.45?{
+    const minimumGridWidth=isSingleColumnWordLayout(test)?width*.25:width*.5;
+    const refined=right-left>minimumGridWidth&&bottom-top>height*.45?{
       left:left/scale,top:top/scale,right:right/scale,bottom:bottom/scale,paper:expected.paper
     }:expected;
     cache.set(cacheKey,refined);
@@ -6002,7 +6031,8 @@ function answerCropRect(image,test,q){
   const expected=expectedAnswerGridBounds(image,test),grid=refineAnswerGridBounds(image,test,expected);
   const cellWidth=(grid.right-grid.left)/cols,cellHeight=(grid.bottom-grid.top)/rows;
   const cell={x:grid.left+column*cellWidth,y:grid.top+row*cellHeight,width:cellWidth,height:cellHeight};
-  const pxPerMmX=(grid.right-grid.left)/Math.max(1,grid.paper.width-ANSWER_SHEET_GRID_MM.side*2);
+  const printableWidthMm=(grid.paper.width-ANSWER_SHEET_GRID_MM.side*2)*(isSingleColumnWordLayout(test)?.5:1);
+  const pxPerMmX=(grid.right-grid.left)/Math.max(1,printableWidthMm);
   const separate=test.questionMode==="separate";
   const horizontalInset=Math.min(cellWidth*.08,pxPerMmX*(separate?.5:1.5));
   let vertical;
@@ -6328,6 +6358,7 @@ function serializeSession(){
     paperSize:["a4","b5","a5"].includes(t.paperSize)?t.paperSize:"a4",orientation:t.orientation==="landscape"?"landscape":"portrait",
     rows:Number(t.rows)||10,cols:Number(t.cols)||3,flow:t.flow==="row"?"row":"column",
     answerLine:["fourline","third","none"].includes(t.answerLine)?t.answerLine:"fourline",fourLineHeight:["auto","large","medium","compact"].includes(t.fourLineHeight)?t.fourLineHeight:"auto",
+    answerFormat:normalizeAnswerFormat(t),
     questionMode:t.questionMode==="separate"?"separate":"inline",
     questions:t.questions||[],modelAnswers:t.answers||[],
     classes:[...gradingState.classes],files:gradingState.files.map(f=>({name:f.name,type:f.type,size:f.size,lastModified:f.lastModified})),
@@ -6512,6 +6543,7 @@ async function resumeGradingSession(id){
   const answerLine=["fourline","third","none"].includes(s.answerLine)?s.answerLine:["fourline","third","none"].includes(savedTest.answerLine)?savedTest.answerLine:"fourline";
   const fourLineHeight=["auto","large","medium","compact"].includes(s.fourLineHeight)?s.fourLineHeight:["auto","large","medium","compact"].includes(savedTest.fourLineHeight)?savedTest.fourLineHeight:"auto";
   // Older grading sessions keep their original crop, even if the saved test was edited later.
+  const answerFormat=normalizeAnswerFormat(s);
   const questionMode=s.questionMode==="separate"?"separate":"inline";
   Object.assign(gradingState,{sessionId:s.id,selectedTestId:s.selectedTestId||"current",classes:s.classes||[],files:s.files||[],issues:s.issues||[],answers:s.answers||{},grades:s.grades||{},q:Number(s.q||0),selectedPen:s.selectedPen||"ok",gradeColumns:Number(s.gradeColumns||localStorage.getItem("yutori_grade_columns_v023")||5),status:s.status||"in-progress",workflowCompleted:s.workflowCompleted||{},currentWorkflowStep:s.currentWorkflowStep||1,questionScores:s.questionScores||[],lastSavedAt:s.lastSavedAt||0,pdfPages:s.pdfPages||[],ignoredPageIds:s.ignoredPageIds||[],answerPreview:null,dragPageId:"",gradeHistory:s.gradeHistory||[],gradingScope:s.gradingScope||"all",activeLateBatchId:s.activeLateBatchId||""});
   gradingState.classes.forEach(className=>(gradingState.answers[className]||[]).forEach(person=>{
@@ -6520,7 +6552,7 @@ async function resumeGradingSession(id){
     const page=gradingState.pdfPages.find(item=>item.id===person.pageId);
     if(page?.manualAssignment)page.lateValidationWarning=false;
   }));
-  gradingState.testSets=[{id:s.selectedTestId||"current",name:testTileTitle(s,"保存済みテスト"),displayTitle:testDisplayTitle(s)||String(s.displayTitle||"").trim(),testName:String(s.testName||""),grade:s.grade||"",subject:s.subject||"",unit:s.unit||"",titleVisibility:normalizeTitleVisibility(s.titleVisibility),paperSize,orientation,rows:Number(s.rows)||10,cols:Number(s.cols)||3,flow:s.flow==="row"?"row":"column",answerLine,fourLineHeight,questionMode,questions:s.questions||[],answers:s.modelAnswers||[]}];
+  gradingState.testSets=[{id:s.selectedTestId||"current",name:testTileTitle(s,"保存済みテスト"),displayTitle:testDisplayTitle(s)||String(s.displayTitle||"").trim(),testName:String(s.testName||""),grade:s.grade||"",subject:s.subject||"",unit:s.unit||"",titleVisibility:normalizeTitleVisibility(s.titleVisibility),paperSize,orientation,rows:Number(s.rows)||10,cols:Number(s.cols)||3,flow:s.flow==="row"?"row":"column",answerLine,fourLineHeight,answerFormat,questionMode,questions:s.questions||[],answers:s.modelAnswers||[]}];
   if(gradingState.pdfPages.length){
     try{await restorePdfPagesFromIndexedDB(id)}catch(error){console.warn("答案画像の復元に失敗しました",error)}
   }else{revokePdfPageUrls()}
@@ -6623,6 +6655,7 @@ function loadLatestSessionForResults(){
       flow:currentTest()?.flow==="row"?"row":"column",
       answerLine:currentTest()?.answerLine||state.answerLine||"fourline",
       fourLineHeight:currentTest()?.fourLineHeight||state.fourLineHeight||"auto",
+      answerFormat:normalizeAnswerFormat(currentTest()||state),
       questionMode:(currentTest()||state).questionMode==="separate"?"separate":"inline",
       questions:currentTest()?.questions||[],
       modelAnswers:currentTest()?.answers||[],
@@ -7261,10 +7294,10 @@ function returnPracticePagesHtml(session,className,person,options){
   return chunks.map((chunk,index)=>returnPracticeSheetHtml(session,className,person,chunk,index,chunks.length,rowHeight,options));
 }
 function returnPagesForPerson(session,className,person,options){return [returnAnswerPageHtml(session,className,person,options),...returnPracticePagesHtml(session,className,person,options)]}
-function returnPrintSideHtml(html,side,orientation){return `<div class="return-print-page" data-side="${side}"><div class="return-print-side" data-orientation="${orientation}">${html}</div></div>`}
+function returnPrintSideHtml(html,side,orientation){return `<div class="return-print-page" data-side="${side}" data-orientation="${orientation}"><div class="return-print-side" data-orientation="${orientation}">${html}</div></div>`}
 function returnPrintPagesForPerson(session,className,person,options){
-  const answer=returnAnswerPageHtml(session,className,person,options),practice=returnPracticePagesHtml(session,className,person,options),pages=[returnPrintSideHtml(answer,"answer",returnOutputPaperSpec(session,"answer",options).orientation),...practice.map(html=>returnPrintSideHtml(html,"practice",returnOutputPaperSpec(session,"practice",options).orientation))];
-  if(pages.length%2)pages.push('<div class="return-print-page" data-side="blank"><div class="return-print-side" data-orientation="portrait"><div class="return-print-blank" aria-label="両面印刷調整用の白紙"></div></div></div>');
+  const answer=returnAnswerPageHtml(session,className,person,options),practice=returnPracticePagesHtml(session,className,person,options),answerOrientation=returnOutputPaperSpec(session,"answer",options).orientation,practiceOrientation=returnOutputPaperSpec(session,"practice",options).orientation,pages=[returnPrintSideHtml(answer,"answer",answerOrientation),...practice.map(html=>returnPrintSideHtml(html,"practice",practiceOrientation))];
+  if(pages.length%2)pages.push(returnPrintSideHtml('<div class="return-print-blank" aria-label="両面印刷調整用の白紙"></div>',"blank",practiceOrientation));
   return pages;
 }
 function selectedReturnPeople(){
@@ -7304,11 +7337,13 @@ async function printReturnPdfs(){
   if(document.fonts){
     await document.fonts.ready;
   }
-  const paper=returnPhysicalPaperSpec(session,options);
-  root.style.setProperty("--return-paper-width",`${paper.width}mm`);
-  root.style.setProperty("--return-paper-height",`${paper.height}mm`);
+  const paperSize=returnOutputPaperSpec(session,"answer",options).paperSize,base=PAPER_DIMENSIONS_MM[paperSize];
+  root.style.setProperty("--return-portrait-width",`${base[0]}mm`);
+  root.style.setProperty("--return-portrait-height",`${base[1]}mm`);
+  root.style.setProperty("--return-landscape-width",`${base[1]}mm`);
+  root.style.setProperty("--return-landscape-height",`${base[0]}mm`);
   let style=document.getElementById("dynamicPrintStyle");if(!style){style=document.createElement("style");style.id="dynamicPrintStyle";document.head.appendChild(style)}
-  style.textContent=`@page { size:${paper.width}mm ${paper.height}mm; margin:0; }`;
+  style.textContent=`@page return-portrait { size:${base[0]}mm ${base[1]}mm; margin:0; } @page return-landscape { size:${base[1]}mm ${base[0]}mm; margin:0; }`;
   document.body.classList.add("return-printing");
   setPrintDocumentTitle(gradingResultBaseName(session,className));
   requestAnimationFrame(()=>setTimeout(()=>window.print(),60));
@@ -7411,6 +7446,7 @@ if(initialSaved){
 populateGradeControls(state.grade);
 document.getElementById("grade").value=state.grade||"";
 applyTitleVisibilityToControls(state);
+updateAnswerFormatControls();
 updateQuestionModeControls();
 document.getElementById("pasteArea").value=questionPasteText();
 loadHistory();

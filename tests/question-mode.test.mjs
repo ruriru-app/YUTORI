@@ -89,6 +89,65 @@ test("copying an old test defaults to inline while a separate test keeps its mod
   assert.deepEqual(modes, ["inline", "separate"]);
 });
 
+test("new tests default to word answers while legacy tests reopen at full width", async () => {
+  assert.equal(await page.locator('input[name="answerFormat"]').count(), 2);
+  assert.equal(await page.locator('input[name="answerFormat"][value="word"]').isChecked(), true);
+  const legacy = await page.evaluate(() => {
+    applyTestToEditor({ paperSize: "a5", orientation: "portrait", rows: 10, cols: 1, questions: ["りんご"], answers: ["apple"] });
+    return { format: state.answerFormat, checked: document.querySelector('input[name="answerFormat"]:checked')?.value || "" };
+  });
+  assert.deepEqual(legacy, { format: "extended", checked: "extended" });
+});
+
+test("A5 word answers use a half-width field and crop while extended answers keep the full width", async () => {
+  const result = await page.evaluate(async () => {
+    const renderAndMeasure = answerFormat => {
+      applyTestToEditor({ paperSize: "a5", orientation: "portrait", rows: 10, cols: 1, answerFormat, questions: ["りんご"], answers: ["apple"] });
+      renderPaper();
+      const paper = document.getElementById("paper"), style = getComputedStyle(paper);
+      const printableWidth = paper.getBoundingClientRect().width - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+      const grid = document.querySelector("#paper .sheet-grid").getBoundingClientRect();
+      return { gridRatio: grid.width / printableWidth };
+    };
+    const canvas = document.createElement("canvas");
+    canvas.width = 740;
+    canvas.height = 1050;
+    const context = canvas.getContext("2d");
+    context.fillStyle = "white";
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    const image = new Image();
+    image.src = canvas.toDataURL();
+    await image.decode();
+    const base = { paperSize: "a5", orientation: "portrait", rows: 10, flow: "column", answerLine: "fourline", questionMode: "inline", questions: ["りんご"], answers: ["apple"] };
+    const wordOne = answerCropRect(image, { ...base, cols: 1, answerFormat: "word" }, 0);
+    const wordTwo = answerCropRect(image, { ...base, cols: 2, answerFormat: "word" }, 0);
+    const extendedOne = answerCropRect(image, { ...base, cols: 1, answerFormat: "extended" }, 0);
+    return {
+      word: renderAndMeasure("word"),
+      extended: renderAndMeasure("extended"),
+      cropWidths: { wordOne: wordOne.width, wordTwo: wordTwo.width, extendedOne: extendedOne.width }
+    };
+  });
+  assert.ok(result.word.gridRatio > .46 && result.word.gridRatio < .54, JSON.stringify(result));
+  assert.ok(result.extended.gridRatio > .96, JSON.stringify(result));
+  assert.ok(Math.abs(result.cropWidths.wordOne - 305) < 2, JSON.stringify(result));
+  assert.ok(Math.abs(result.cropWidths.wordOne / result.cropWidths.wordTwo - 1) < .04, JSON.stringify(result));
+  assert.ok(result.cropWidths.wordOne / result.cropWidths.extendedOne > .46, JSON.stringify(result));
+  assert.ok(result.cropWidths.wordOne / result.cropWidths.extendedOne < .54, JSON.stringify(result));
+});
+
+test("the selected answer format survives saving, grading, and session serialization", async () => {
+  const result = await page.evaluate(() => {
+    applyTestToEditor({ answerFormat: "word", questions: ["りんご"], answers: ["apple"] });
+    const id = saveCurrentTest();
+    const saved = readSavedTests().find(item => item.id === id);
+    refreshGradeUi();
+    gradingState.selectedTestId = id;
+    return { saved: saved.answerFormat, grading: currentTest().answerFormat, session: serializeSession().answerFormat };
+  });
+  assert.deepEqual(result, { saved: "word", grading: "word", session: "word" });
+});
+
 async function selectMode(mode) {
   const radio = page.locator(`input[name="questionMode"][value="${mode}"]`);
   assert.equal(await radio.count(), 1, `${mode} must be available as an input choice`);
@@ -168,8 +227,10 @@ test("a draft reload restores separate mode while a legacy draft defaults to inl
   await page.locator("#applyPasteButton").click();
   const persisted = await page.evaluate(() => { saveDraftNow(); return JSON.parse(localStorage.getItem(CURRENT_DRAFT_KEY)); });
   assert.equal(persisted.state.questionMode, "separate");
+  assert.equal(persisted.state.answerFormat, "word");
   await page.reload({ waitUntil: "domcontentloaded" });
   assert.equal(await page.locator('input[name="questionMode"][value="separate"]').isChecked(), true);
+  assert.equal(await page.locator('input[name="answerFormat"][value="word"]').isChecked(), true);
   assert.deepEqual(await page.evaluate(() => ({ mode: state.questionMode, answers: state.answers })), { mode: "separate", answers: ["apple", "dog"] });
   await page.evaluate(() => {
     clearTimeout(draftSaveTimer);
@@ -177,7 +238,9 @@ test("a draft reload restores separate mode while a legacy draft defaults to inl
   });
   await page.reload({ waitUntil: "domcontentloaded" });
   assert.equal(await page.locator('input[name="questionMode"][value="inline"]').isChecked(), true);
+  assert.equal(await page.locator('input[name="answerFormat"][value="extended"]').isChecked(), true);
   assert.equal(await page.evaluate(() => state.questionMode), "inline");
+  assert.equal(await page.evaluate(() => state.answerFormat), "extended");
 });
 
 test("grading uses the current unsaved mode and serializes it", async () => {
@@ -210,15 +273,20 @@ test("resuming sessions uses each snapshot's mode and treats missing mode as inl
     localStorage.setItem(sessionsKey(), JSON.stringify([
       { id: "legacy-session", selectedTestId: "test-changed", questions: ["りんご"], modelAnswers: ["apple"], classes: [] },
       { id: "separate-session", selectedTestId: "test-changed", questionMode: "separate", questions: [""], modelAnswers: ["apple"], classes: [] },
+      { id: "word-session", selectedTestId: "test-changed", answerFormat: "word", questions: ["りんご"], modelAnswers: ["apple"], classes: [] },
     ]));
     const values = [];
-    for (const id of ["legacy-session", "separate-session"]) {
+    for (const id of ["legacy-session", "separate-session", "word-session"]) {
       await resumeGradingSession(id);
-      values.push({ mode: currentTest().questionMode, serialized: serializeSession().questionMode });
+      values.push({ mode: currentTest().questionMode, format: currentTest().answerFormat, serializedMode: serializeSession().questionMode, serializedFormat: serializeSession().answerFormat });
     }
     return values;
   });
-  assert.deepEqual(modes, [{ mode: "inline", serialized: "inline" }, { mode: "separate", serialized: "separate" }]);
+  assert.deepEqual(modes, [
+    { mode: "inline", format: "extended", serializedMode: "inline", serializedFormat: "extended" },
+    { mode: "separate", format: "extended", serializedMode: "separate", serializedFormat: "extended" },
+    { mode: "inline", format: "word", serializedMode: "inline", serializedFormat: "word" }
+  ]);
 });
 
 // These image dimensions and cell bounds come from A4 at 10 pixels/mm:
