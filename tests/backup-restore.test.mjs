@@ -102,7 +102,7 @@ test("verified safety export snapshots current data, holds gate and requires exp
       saved: { fileName: saved.fileName, verifiedAt: saved.verifiedAt, hash: /^[a-f0-9]{64}$/.test(saved.manifestHash) }, picker: pickerNames, meta: await YutoriBackupStorage.getDestinationMeta(), mutationStarted, replacementDisabled: document.getElementById("restoreReplaceButton").disabled };
   });
   assert.deepEqual(result, { before: false, after: true, liveArchived: "CURRENT_PRIVATE", candidateArchived: false,
-    saved: { fileName: "safety.yutori", verifiedAt: "2026-10-13T12:34:56.000Z", hash: true }, picker: ["YUTORI_復元前バックアップ_20261013_2134.yutori"], meta: { fileName: "primary.yutori", size: 77, lastSuccessfulAt: "before" }, mutationStarted: false, replacementDisabled: true });
+    saved: { fileName: "safety.yutori", verifiedAt: "2026-10-13T12:34:56.000Z", hash: true }, picker: ["YUTORI_復元前バックアップ_20261013_2134.yutori"], meta: { fileName: "primary.yutori", size: 77, lastSuccessfulAt: "before" }, mutationStarted: false, replacementDisabled: false });
   await page.locator("#restoreConfirm").uncheck();
   assert.equal(await page.evaluate(() => YutoriBackup.getRestoreUiState().canReplace), false);
   const cancelled = await page.evaluate(async () => { await YutoriBackup.cancelRestore(); await queuedMutation; return { phase: YutoriBackup.getRestoreUiState().phase, live: localStorage.getItem("yutori_live"), foreign: localStorage.getItem("mitori_fixture"), stages: (await indexedDB.databases()).filter(db => db.name.startsWith("YUTORI_RESTORE_STAGE_")).length }; });
@@ -327,4 +327,235 @@ test("restore is settings-only, opens picker in the gesture and stays keyboard u
   assert.equal(await page.locator("#restoreOpenButton").evaluate(node => node === document.activeElement), true);
 });
 
-test.todo("Task 6 successful replacement retains owner through reload and discards stale pre-restore autosaves");
+test("successful replacement preserves foreign data and destination, reloads validated PDFs and discards stale autosaves", async () => {
+  assert.equal(await page.evaluate(() => typeof YutoriBackup.replaceWithCandidate), "function");
+  const result = await page.evaluate(async () => {
+    localStorage.setItem("unrelated_fixture", "keep");
+    await YutoriBackupStorage.saveDestinationMeta({ fileName: "primary.yutori", size: 77 });
+    const candidate = await YutoriBackup.inspectRestoreFile(sourceFile), safety = await YutoriBackup.saveSafetyBackup(candidate);
+    YutoriBackup.setRestoreConfirmation(true);
+    let stale = false, reloads = 0;
+    const queued = runPersistenceOperation(() => { stale = true; localStorage.setItem("yutori_stale", "bad"); }, "stale").catch(e => e.name);
+    scheduleDraftSave(); scheduleAutoSave();
+    YutoriBackup.configure({ reload: () => { reloads++; } });
+    const first = YutoriBackup.replaceWithCandidate(candidate, safety);
+    const second = YutoriBackup.replaceWithCandidate(candidate, safety).catch(e => e.name);
+    await first; await second; await queued; await new Promise(r => setTimeout(r, 400));
+    const db = await openYutoriDb();
+    const pdf = await new Promise(r => { const q = db.transaction("pdfFiles").objectStore("pdfFiles").get("p1"); q.onsuccess = () => r(q.result); }); db.close();
+    const journal = await YutoriBackupStorage.getRestoreJournal();
+    return { stale, reloads, live: localStorage.getItem("yutori_live"), secret: localStorage.getItem("yutori_secret"), foreign: localStorage.getItem("mitori_fixture"), unrelated: localStorage.getItem("unrelated_fixture"), pdf: await pdf.blob.text(), db: db.name === candidate.stageDbName, phase: journal.phase, oldKept: (await indexedDB.databases()).some(d => d.name === "YUTORI_DB"), destination: await YutoriBackupStorage.getDestinationMeta(), keys: YutoriBackupStorage.collectLocalStorageEntries().map(e => e.key) };
+  });
+  assert.deepEqual(result, { stale: false, reloads: 1, live: null, secret: "PRIVATE_CANDIDATE", foreign: "foreign", unrelated: "keep", pdf: "pdfFiles", db: true, phase: "reload-pending", oldKept: true, destination: { fileName: "primary.yutori", size: 77 }, keys: ["yutori_grading_sessions_v023", "yutori_rosters", "yutori_saved_tests_v1", "yutori_secret"] });
+  assert.equal(await page.locator("#restoreCancelButton").isDisabled(), true, "reload-pending cannot be cancelled");
+  await page.reload();
+  await page.waitForFunction(() => globalThis.yutoriAppReady === true);
+  assert.deepEqual(await page.evaluate(async () => ({ journal: await YutoriBackupStorage.getRestoreJournal(), old: (await indexedDB.databases()).some(d => d.name === "YUTORI_DB"), secret: localStorage.getItem("yutori_secret") })), { journal: null, old: false, secret: "PRIVATE_CANDIDATE" });
+});
+
+for (const phase of ["staged", "local-storage-applied", "pointer-switched", "reload-pending"]) {
+  test(`interrupted replacement at ${phase} recovers before application reads`, async () => {
+    assert.equal(await page.evaluate(() => typeof YutoriBackupStorage.beginRestoreJournal), "function");
+    await page.evaluate(async phase => {
+      const candidate = await YutoriBackup.inspectRestoreFile(sourceFile), safetyBackup = await YutoriBackup.saveSafetyBackup(candidate);
+      let journal = await YutoriBackupStorage.beginRestoreJournal({ candidate, safetyBackup, oldLocalStorage: YutoriBackupStorage.collectLocalStorageEntries() });
+      if (phase !== "staged") { YutoriBackupStorage.applyOwnedLocalStorage(candidate.localStorageEntries); journal = await YutoriBackupStorage.setRestorePhase(journal, "local-storage-applied"); }
+      if (["pointer-switched", "reload-pending"].includes(phase)) journal = await YutoriBackupStorage.switchActiveDataDb(journal.targetDescriptor, journal);
+      if (phase === "reload-pending") await YutoriBackupStorage.setRestorePhase(journal, phase);
+    }, phase);
+    await page.addInitScript(() => { globalThis.earlyReads = []; const get = Storage.prototype.getItem; Storage.prototype.getItem = function(key) { if (!globalThis.yutoriRecoveryFinished && /readOutputShelvedSessionIds|initializeYutoriApp|readSavedTests/.test(new Error().stack)) earlyReads.push(key); return get.call(this, key); }; });
+    await page.reload(); await page.waitForFunction(() => globalThis.yutoriAppReady === true);
+    const result = await page.evaluate(async () => ({ live: localStorage.getItem("yutori_live"), secret: localStorage.getItem("yutori_secret"), journal: await YutoriBackupStorage.getRestoreJournal(), foreign: localStorage.getItem("mitori_fixture"), early: earlyReads }));
+    assert.deepEqual(result, { live: ["staged", "local-storage-applied"].includes(phase) ? "CURRENT_PRIVATE" : null, secret: ["staged", "local-storage-applied"].includes(phase) ? null : "PRIVATE_CANDIDATE", journal: null, foreign: "foreign", early: [] });
+  });
+}
+
+test("replacement localStorage quota rolls back old pointer and owned keys without losing foreign keys", async () => {
+  assert.equal(await page.evaluate(() => typeof YutoriBackup.replaceWithCandidate), "function");
+  const result = await page.evaluate(async () => {
+    const candidate = await YutoriBackup.inspectRestoreFile(sourceFile), safety = await YutoriBackup.saveSafetyBackup(candidate);
+    YutoriBackup.setRestoreConfirmation(true);
+    const set = Storage.prototype.setItem; Storage.prototype.setItem = function(k,v) { if (k === "yutori_secret") throw new DOMException("quota", "QuotaExceededError"); return set.call(this,k,v); };
+    let error; try { await YutoriBackup.replaceWithCandidate(candidate, safety); } catch(e) { error = e.name; } finally { Storage.prototype.setItem = set; }
+    return { error, active: (await YutoriBackupStorage.getActiveDataDbDescriptor()).name, live: localStorage.getItem("yutori_live"), foreign: localStorage.getItem("mitori_fixture"), journal: await YutoriBackupStorage.getRestoreJournal(), stage: (await indexedDB.databases()).some(d => d.name === candidate.stageDbName) };
+  });
+  assert.deepEqual(result, { error: "QuotaExceededError", active: "YUTORI_DB", live: "CURRENT_PRIVATE", foreign: "foreign", journal: null, stage: false });
+});
+
+test("needs-safety-file blocks startup and accepts only recorded verified safety identity", async () => {
+  assert.equal(await page.evaluate(() => typeof YutoriBackup.recoverFromSafetyFile), "function");
+  await page.evaluate(async () => {
+    const candidate = await YutoriBackup.inspectRestoreFile(sourceFile), safetyBackup = await YutoriBackup.saveSafetyBackup(candidate);
+    const journal = await YutoriBackupStorage.beginRestoreJournal({ candidate, safetyBackup, oldLocalStorage: YutoriBackupStorage.collectLocalStorageEntries() });
+    journal.safetyBackup.handle = null;
+    await YutoriBackupStorage.commitJournal(journal);
+    await YutoriBackupStorage.deleteDatabase("YUTORI_DB");
+  });
+  await page.reload();
+  await page.getByRole("button", { name: "復元前バックアップを選んで回復" }).waitFor();
+  assert.deepEqual(await page.evaluate(() => ({ ready: !!globalThis.yutoriAppReady, inert: document.body.inert })), { ready: false, inert: true });
+  assert.deepEqual(await page.evaluate(async () => {
+    const calls = [], originals = [syncState, renderPaper, positionFloatingPalette];
+    syncState = () => calls.push("sync"); renderPaper = () => calls.push("render"); positionFloatingPalette = () => calls.push("palette");
+    dispatchEvent(new Event("resize")); dispatchEvent(new Event("beforeprint")); dispatchEvent(new Event("afterprint"));
+    await new Promise(r => setTimeout(r, 40));
+    [syncState, renderPaper, positionFloatingPalette] = originals;
+    return calls;
+  }), [], "browser events must not render or collect app state during blocked recovery");
+  const result = await page.evaluate(async () => {
+    const handle = await (await navigator.storage.getDirectory()).getFileHandle("safety.yutori");
+    const file = await handle.getFile();
+    const records = []; const archive = await YutoriBackupArchive.readArchiveStream(file, { onRecord: r => records.push(r) });
+    const changed = records.map(r => r.key === "yutori_live" ? { ...r, value: "wrong" } : r);
+    const wrong = await new Response(YutoriBackupArchive.createArchiveStream(archive.manifest, changed)).blob();
+    let rejected = false; try { await YutoriBackup.recoverFromSafetyFile(wrong); } catch { rejected = true; }
+    let reloads = 0; YutoriBackup.configure({ reload: () => reloads++ });
+    await YutoriBackup.recoverFromSafetyFile(file);
+    return { rejected, reloads, live: localStorage.getItem("yutori_live"), foreign: localStorage.getItem("mitori_fixture"), phase: (await YutoriBackupStorage.getRestoreJournal()).phase };
+  });
+  assert.deepEqual(result, { rejected: true, reloads: 1, live: "CURRENT_PRIVATE", foreign: "foreign", phase: "reload-pending" });
+  await page.reload(); await page.waitForFunction(() => globalThis.yutoriAppReady === true);
+  assert.equal(await page.evaluate(() => YutoriBackupStorage.getRestoreJournal()), null);
+});
+
+for (const phase of ["staged", "local-storage-applied", "pointer-switched", "reload-pending"]) {
+  test(`replacement failure after durable ${phase} rolls back and never reloads`, async () => {
+    const result = await page.evaluate(async phase => {
+      const candidate = await YutoriBackup.inspectRestoreFile(sourceFile), safety = await YutoriBackup.saveSafetyBackup(candidate);
+      YutoriBackup.setRestoreConfirmation(true);
+      const api = YutoriBackupStorage;
+      const failAfter = async promise => { const journal = await promise; if (journal.phase === phase) throw new Error("injected"); return journal; };
+      globalThis.YutoriBackupStorage = { ...api,
+        beginRestoreJournal: args => failAfter(api.beginRestoreJournal(args)),
+        setRestorePhase: (...args) => failAfter(api.setRestorePhase(...args)),
+        switchActiveDataDb: (...args) => failAfter(api.switchActiveDataDb(...args)) };
+      let reloads = 0; YutoriBackup.configure({ reload: () => reloads++ });
+      let failed = false; try { await YutoriBackup.replaceWithCandidate(candidate,safety); } catch { failed = true; }
+      globalThis.YutoriBackupStorage = api;
+      return { failed, reloads, live: localStorage.getItem("yutori_live"), secret: localStorage.getItem("yutori_secret"), active: (await api.getActiveDataDbDescriptor()).name, journal: await api.getRestoreJournal(), message: document.getElementById("restorePhase").textContent };
+    }, phase);
+    assert.deepEqual(result, { failed: true, reloads: 0, live: "CURRENT_PRIVATE", secret: null, active: "YUTORI_DB", journal: null, message: "復元を中止し、復元前のデータに戻しました。" });
+  });
+}
+
+test("replacement rejects changed stage bytes and changed live safety snapshot before switching", async () => {
+  const result = await page.evaluate(async () => {
+    const outcomes = [];
+    for (const mutateStage of [true, false]) {
+      const candidate = await YutoriBackup.inspectRestoreFile(sourceFile), safety = await YutoriBackup.saveSafetyBackup(candidate);
+      YutoriBackup.setRestoreConfirmation(true);
+      if (mutateStage) {
+        const db = await new Promise(r => { const q = indexedDB.open(candidate.stageDbName); q.onsuccess = () => r(q.result); });
+        await new Promise(r => { const tx = db.transaction("pdfFiles","readwrite"); tx.objectStore("pdfFiles").put({ id: "p1", blob: new Blob(["CORRUPT"]) }); tx.oncomplete = r; }); db.close();
+      } else localStorage.setItem("yutori_live", "CHANGED_AFTER_SAFETY");
+      let failed = false; try { await YutoriBackup.replaceWithCandidate(candidate,safety); } catch { failed = true; }
+      outcomes.push({ failed, active: (await YutoriBackupStorage.getActiveDataDbDescriptor()).name, live: localStorage.getItem("yutori_live") });
+      await YutoriBackup.cancelRestore();
+    }
+    return outcomes;
+  });
+  assert.deepEqual(result, [{ failed: true, active: "YUTORI_DB", live: "CURRENT_PRIVATE" }, { failed: true, active: "YUTORI_DB", live: "CHANGED_AFTER_SAFETY" }]);
+});
+
+test("post-switch byte corruption rolls back old data before normal startup", async () => {
+  await page.evaluate(async () => {
+    const candidate = await YutoriBackup.inspectRestoreFile(sourceFile), safetyBackup = await YutoriBackup.saveSafetyBackup(candidate);
+    const journal = await YutoriBackupStorage.beginRestoreJournal({ candidate, safetyBackup, oldLocalStorage: YutoriBackupStorage.collectLocalStorageEntries() });
+    YutoriBackupStorage.applyOwnedLocalStorage(candidate.localStorageEntries);
+    await YutoriBackupStorage.switchActiveDataDb(journal.targetDescriptor,journal);
+    const db = await openYutoriDb();
+    await new Promise(r => { const tx = db.transaction("pdfPages","readwrite"); tx.objectStore("pdfPages").put({ id: "p1", blob: new Blob(["wrong"]) }); tx.oncomplete = r; }); db.close();
+  });
+  await page.reload(); await page.waitForFunction(() => globalThis.yutoriAppReady);
+  assert.deepEqual(await page.evaluate(async () => ({ live: localStorage.getItem("yutori_live"), active: (await YutoriBackupStorage.getActiveDataDbDescriptor()).name, journal: await YutoriBackupStorage.getRestoreJournal() })), { live: "CURRENT_PRIVATE", active: "YUTORI_DB", journal: null });
+});
+
+test("replacement preserves exact PDF bytes page metadata grading and native primary destination without copying binary records", async () => {
+  const result = await page.evaluate(async () => {
+    const records = fixtureRecords();
+    const bytes = new Uint8Array(1024 * 1024 + 7); bytes[0] = 37; bytes[1000] = 255; bytes[bytes.length-1] = 9;
+    records.find(r => r.store === "pdfFiles").value = { id: "p1", name: "答案.pdf", blob: new Blob([bytes], { type: "application/pdf" }) };
+    records.find(r => r.store === "pdfPages").value = { id: "p1", blob: new Blob([new Uint8Array([0,13,255,42])], { type: "image/png" }), page: 3, rotation: 90, width: 1240, height: 1754, studentNo: 12, className: "一組" };
+    const grading = '[{"id":"session","grades":{"一組::12::0":"ok"},"q":3,"status":"in-progress","lastSavedAt":1791894896000}]';
+    records.find(r => r.key === "yutori_grading_sessions_v023").value = grading;
+    const primary = await (await navigator.storage.getDirectory()).getFileHandle("primary.yutori", { create: true });
+    await YutoriBackupStorage.saveDestinationMeta({ handle: primary, fileName: "primary.yutori", size: 777, lastSuccessfulAt: "before" });
+    await YutoriBackup.initialize();
+    const candidate = await YutoriBackup.inspectRestoreFile(await archiveFile(fixtureManifest(), records));
+    const safety = await YutoriBackup.saveSafetyBackup(candidate);
+    YutoriBackup.setRestoreConfirmation(true); YutoriBackup.configure({ reload: () => {} });
+    let importRan = false;
+    const queued = runExclusiveOperation("pdf-import", () => { importRan = true; }).catch(e => e.name);
+    const add = IDBObjectStore.prototype.add, put = IDBObjectStore.prototype.put;
+    IDBObjectStore.prototype.add = function(...args) { if (["pdfFiles","pdfPages"].includes(this.name)) throw new Error("Unexpected binary copy"); return add.apply(this,args); };
+    IDBObjectStore.prototype.put = function(...args) { if (["pdfFiles","pdfPages"].includes(this.name)) throw new Error("Unexpected binary copy"); return put.apply(this,args); };
+    try { await YutoriBackup.replaceWithCandidate(candidate,safety); } finally { IDBObjectStore.prototype.add = add; IDBObjectStore.prototype.put = put; }
+    const cancelled = await queued;
+    const db = await openYutoriDb();
+    const read = store => new Promise(r => { const q = db.transaction(store).objectStore(store).get("p1"); q.onsuccess = () => r(q.result); });
+    const pdf = await read("pdfFiles"), page = await read("pdfPages"); db.close();
+    const output = new Uint8Array(await pdf.blob.arrayBuffer()), pageBytes = [...new Uint8Array(await page.blob.arrayBuffer())]; delete page.blob;
+    const destination = await YutoriBackupStorage.getDestinationMeta();
+    return { exact: output.length === bytes.length && output.every((b,i) => b === bytes[i]), mime: pdf.blob.type, page, pageBytes,
+      grading: localStorage.getItem("yutori_grading_sessions_v023"), importRan, cancelled, destination: { same: await destination.handle.isSameEntry(primary), size: destination.size, date: destination.lastSuccessfulAt } };
+  });
+  assert.deepEqual(result, { exact: true, mime: "application/pdf", page: { id: "p1", page: 3, rotation: 90, width: 1240, height: 1754, studentNo: 12, className: "一組" }, pageBytes: [0,13,255,42],
+    grading: '[{"id":"session","grades":{"一組::12::0":"ok"},"q":3,"status":"in-progress","lastSavedAt":1791894896000}]', importRan: false, cancelled: "AbortError", destination: { same: true, size: 777, date: "before" } });
+});
+
+test("replacement refuses unconfirmed copied or stale proof without creating a journal", async () => {
+  const result = await page.evaluate(async () => {
+    const candidate = await YutoriBackup.inspectRestoreFile(sourceFile), safety = await YutoriBackup.saveSafetyBackup(candidate);
+    const results = [];
+    try { await YutoriBackup.replaceWithCandidate(candidate,safety); } catch(e) { results.push(e.name); }
+    YutoriBackup.setRestoreConfirmation(true);
+    for (const [c,s] of [[{...candidate},safety], [candidate,{...safety}]]) {
+      try { await YutoriBackup.replaceWithCandidate(c,s); } catch(e) { results.push(e.name); }
+    }
+    await YutoriBackup.cancelRestore();
+    try { await YutoriBackup.replaceWithCandidate(candidate,safety); } catch(e) { results.push(e.name); }
+    return { results, journal: await YutoriBackupStorage.getRestoreJournal(), live: localStorage.getItem("yutori_live") };
+  });
+  assert.deepEqual(result, { results: Array(4).fill("InvalidStateError"), journal: null, live: "CURRENT_PRIVATE" });
+});
+
+test("inspection hashing failure and cancellation delete finalized inactive stages promptly", async () => {
+  const result = await page.evaluate(async () => {
+    const api = YutoriBackupStorage;
+    globalThis.YutoriBackupStorage = { ...api, dataIdentity: async () => { throw new Error("hash IO failed"); } };
+    try { await YutoriBackup.inspectRestoreFile(sourceFile); } catch {}
+    const leaked = (await indexedDB.databases()).filter(d => d.name.startsWith("YUTORI_RESTORE_STAGE_")).length;
+    let release, entered;
+    const ready = new Promise(r => entered = r);
+    globalThis.YutoriBackupStorage = { ...api, dataIdentity: async (...args) => { entered(); await new Promise(r => release = r); return api.dataIdentity(...args); } };
+    const inspect = YutoriBackup.inspectRestoreFile(sourceFile).catch(e => e.name);
+    await ready;
+    const cancelling = YutoriBackup.cancelRestore();
+    const prompt = await Promise.race([cancelling.then(() => true), new Promise(r => setTimeout(() => r(false),250))]);
+    release(); await inspect; await cancelling;
+    globalThis.YutoriBackupStorage = api;
+    return { leaked, prompt, remaining: (await indexedDB.databases()).filter(d => d.name.startsWith("YUTORI_RESTORE_STAGE_")).length };
+  });
+  assert.deepEqual(result, { leaked: 0, prompt: true, remaining: 0 });
+});
+
+for (const denied of [false,true]) {
+  test(`missing old database with ${denied ? "denied" : "available"} safety handle recovers truthfully`, async () => {
+    await page.evaluate(async () => {
+      const candidate = await YutoriBackup.inspectRestoreFile(sourceFile), safetyBackup = await YutoriBackup.saveSafetyBackup(candidate);
+      const journal = await YutoriBackupStorage.beginRestoreJournal({ candidate, safetyBackup, oldLocalStorage: YutoriBackupStorage.collectLocalStorageEntries() });
+      if (!await journal.safetyBackup.handle.isSameEntry(safetyHandle)) throw new Error("Handle lost");
+      await YutoriBackupStorage.deleteDatabase("YUTORI_DB");
+    });
+    if (denied) await page.addInitScript(() => { FileSystemHandle.prototype.queryPermission = async () => "denied"; });
+    await page.reload();
+    if (denied) {
+      await page.getByRole("button", { name: "復元前バックアップを選んで回復" }).waitFor();
+      assert.equal(await page.evaluate(() => !!globalThis.yutoriAppReady), false);
+    } else {
+      await page.waitForFunction(() => globalThis.yutoriAppReady);
+      assert.equal(await page.evaluate(() => localStorage.getItem("yutori_live")), "CURRENT_PRIVATE");
+      assert.equal(await page.evaluate(() => YutoriBackupStorage.getRestoreJournal()), null);
+    }
+  });
+}

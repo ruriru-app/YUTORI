@@ -47,7 +47,7 @@
   function transactionResult(db, stores, mode, execute) {
     return new Promise((resolve, reject) => {
       let tx, result, failure;
-      try { tx = db.transaction(stores, mode); } catch (error) { reject(error); return; }
+      try { tx = db.transaction(stores, mode, { durability: db.name === META_DB && mode === "readwrite" ? "strict" : "default" }); } catch (error) { reject(error); return; }
       tx.oncomplete = () => resolve(result);
       tx.onerror = () => {};
       tx.onabort = () => reject(failure || tx.error || new DOMException("Transaction aborted", "AbortError"));
@@ -116,7 +116,22 @@
   }
   async function openActiveDataDb(upgradeCallback = upgradeDefaultSchema) {
     const descriptor = await getActiveDataDbDescriptor();
-    return openDatabase(descriptor.name, descriptor.version, upgradeCallback);
+    // Only application opens request a schema migration. Snapshot opens retain
+    // the archived version until post-reload journal validation has finished.
+    const version = arguments.length ? Math.max(DEFAULT_DATA_DB.version, descriptor.version) : descriptor.version;
+    let db;
+    try { db = await openDatabase(descriptor.name, version, upgradeCallback); }
+    catch (error) {
+      if (error.name !== "VersionError") throw error;
+      // IndexedDB upgrade is atomic, but metadata is a different database.
+      // If a crash happened between those commits, discover the already-upgraded
+      // version and repair its pointer before returning any connection.
+      db = await openDatabase(descriptor.name, undefined);
+    }
+    try {
+      if (db.version !== descriptor.version) await saveActiveDataDbDescriptor({ name: db.name, version: db.version });
+      return db;
+    } catch (error) { db.close(); throw error; }
   }
 
   async function readSchema(db) {
@@ -361,10 +376,126 @@
     catch (error) { await writer.abort(); throw error; }
   }
 
+  const sortedEntries = entries => entries.slice().sort((a, b) => a.key < b.key ? -1 : a.key > b.key ? 1 : 0);
+  const hashJson = async value => [...new Uint8Array(await global.crypto.subtle.digest("SHA-256", new TextEncoder().encode(JSON.stringify(value))))].map(n => n.toString(16).padStart(2, "0")).join("");
+  function validateEntries(entries) {
+    const keys = new Set();
+    for (const entry of entries) {
+      if (!isOwnedLocalStorageKey(entry.key) || typeof entry.value !== "string" || keys.has(entry.key)) fail("CHECKSUM_MISMATCH");
+      keys.add(entry.key);
+    }
+  }
+  function applyOwnedLocalStorage(entries) {
+    validateEntries(entries);
+    for (const { key } of collectLocalStorageEntries()) global.localStorage.removeItem(key);
+    for (const { key, value } of entries) global.localStorage.setItem(key, value);
+    if (JSON.stringify(collectLocalStorageEntries()) !== JSON.stringify(sortedEntries(entries))) fail("CHECKSUM_MISMATCH");
+  }
+  async function getRestoreJournal() {
+    const db = await openMetaDb();
+    try { return await transactionResult(db, "journals", "readonly", (tx, result) => {
+      const request = tx.objectStore("journals").get("restore"); request.onsuccess = () => result(request.result || null);
+    }); } finally { db.close(); }
+  }
+  async function commitJournal(journal, descriptor, remove = false) {
+    const db = await openMetaDb();
+    try { return await transactionResult(db, ["settings", "journals"], "readwrite", (tx, result) => {
+      if (descriptor) tx.objectStore("settings").put(validateDescriptor(descriptor), "activeDataDb");
+      if (remove) tx.objectStore("journals").delete("restore");
+      else tx.objectStore("journals").put(journal, "restore");
+      result(journal);
+    }); } finally { db.close(); }
+  }
+  const setRestorePhase = (journal, phase) => commitJournal({ ...journal, phase });
+  function switchActiveDataDb(descriptor, journal) {
+    if (!journal || descriptor.name !== journal.targetDescriptor.name || descriptor.version !== journal.targetDescriptor.version) throw new TypeError("Journal target required");
+    return commitJournal({ ...journal, phase: "pointer-switched" }, descriptor);
+  }
+  async function dataIdentity(descriptor, manifest, entries) {
+    validateDescriptor(descriptor); validateManifest(manifest); validateEntries(entries);
+    if (JSON.stringify(entries.map(e => e.key).sort()) !== JSON.stringify(manifest.localStorageKeys.slice().sort())) fail("CHECKSUM_MISMATCH");
+    // Opening a vanished DB must never silently recreate it as a valid empty DB.
+    const db = await openDatabase(descriptor.name, descriptor.version, () => fail("CHECKSUM_MISMATCH"));
+    try {
+      const normalize = schemas => schemas.map(s => ({ name: s.name, keyPath: s.keyPath, autoIncrement: s.autoIncrement, count: s.count,
+        indexes: s.indexes.map(i => ({ name: i.name, keyPath: i.keyPath, unique: i.unique, multiEntry: i.multiEntry })).sort((a,b) => a.name.localeCompare(b.name)) })).sort((a,b) => a.name.localeCompare(b.name));
+      if (JSON.stringify(normalize(await readSchema(db))) !== JSON.stringify(normalize(manifest.indexedDB.stores))) fail("CHECKSUM_MISMATCH");
+    } finally { db.close(); }
+    // Re-hash all logical values and Blob chunks using bounded streaming IO.
+    // No data is copied between databases; the stage itself becomes active.
+    const records = (async function* () {
+      for (const entry of sortedEntries(entries)) yield { type: "localStorage", source: "localStorage", ...entry };
+      yield* dataRecords(descriptor, manifest.indexedDB.stores.slice().sort((a,b) => a.name.localeCompare(b.name)));
+    })();
+    const digests = [await hashJson(manifest)];
+    for await (const record of records) {
+      const encoded = await global.YutoriBackupArchive.serializeStructuredValue(record);
+      digests.push(await hashJson(encoded.jsonValue));
+      for (const { blob } of encoded.attachments) {
+        for (let offset = 0; offset < blob.size; offset += 1024 * 1024) {
+          digests.push([...new Uint8Array(await global.crypto.subtle.digest("SHA-256", await blob.slice(offset, offset + 1024 * 1024).arrayBuffer()))].map(n => n.toString(16).padStart(2, "0")).join(""));
+        }
+      }
+    }
+    return hashJson(digests);
+  }
+  async function beginRestoreJournal({ candidate, safetyBackup, oldLocalStorage }) {
+    if (await getRestoreJournal()) throw new DOMException("Recovery pending", "InvalidStateError");
+    if (!safetyBackup?.verifiedAt || !/^[a-f0-9]{64}$/.test(safetyBackup.archiveHash) || !/^[a-f0-9]{64}$/.test(safetyBackup.manifestHash)) throw new TypeError("Verified safety proof required");
+    const oldDescriptor = await getActiveDataDbDescriptor();
+    const targetDescriptor = validateDescriptor({ name: candidate.stageDbName, version: candidate.manifest.indexedDB.version });
+    if (targetDescriptor.name === oldDescriptor.name) throw new TypeError("Inactive stage required");
+    const oldManifest = safetyBackup.manifest;
+    const oldHash = await dataIdentity(oldDescriptor, oldManifest, oldLocalStorage);
+    if (oldHash !== safetyBackup.dataHash) fail("CHECKSUM_MISMATCH");
+    const targetHash = await dataIdentity(targetDescriptor, candidate.manifest, candidate.localStorageEntries);
+    const journal = { id: global.crypto.randomUUID(), phase: "staged", oldDescriptor, targetDescriptor,
+      oldLocalStorage: structuredClone(oldLocalStorage), oldManifest, oldHash,
+      targetManifest: candidate.manifest, targetManifestHash: await hashJson(candidate.manifest), targetHash,
+      targetLocalStorage: candidate.localStorageEntries, safetyBackup: { ...safetyBackup } };
+    // Native FileSystemHandles are structured-cloneable; fallback test/UI handles
+    // may not be. Keep the verified identity even when a handle cannot be saved.
+    try { structuredClone(journal.safetyBackup); }
+    catch (error) { if (error.name !== "DataCloneError") throw error; journal.safetyBackup.handle = null; }
+    return commitJournal(journal);
+  }
+  async function validateRestoreTarget(journal) {
+    if (await hashJson(journal.targetManifest) !== journal.targetManifestHash ||
+        await dataIdentity(journal.targetDescriptor, journal.targetManifest, journal.targetLocalStorage) !== journal.targetHash ||
+        JSON.stringify(collectLocalStorageEntries()) !== JSON.stringify(sortedEntries(journal.targetLocalStorage))) fail("CHECKSUM_MISMATCH");
+  }
+  async function deleteInactive(descriptor) {
+    validateDescriptor(descriptor);
+    if ((await getActiveDataDbDescriptor()).name === descriptor.name) throw new DOMException("Database is active", "InvalidStateError");
+    await deleteDatabase(descriptor.name);
+  }
+  async function rollbackRestore(journal) {
+    // Persist intent first: a crash after restoring localStorage must not resume
+    // the target merely because the prior phase said pointer-switched.
+    journal = await setRestorePhase(journal, "rolling-back");
+    if (await dataIdentity(journal.oldDescriptor, journal.oldManifest, journal.oldLocalStorage) !== journal.oldHash) fail("CHECKSUM_MISMATCH");
+    applyOwnedLocalStorage(journal.oldLocalStorage);
+    journal = await commitJournal({ ...journal, phase: "rolled-back" }, journal.oldDescriptor);
+    await deleteInactive(journal.targetDescriptor);
+    await commitJournal(journal, null, true);
+  }
+  async function finalizeRestore(journal) {
+    await validateRestoreTarget(journal);
+    if ((await getActiveDataDbDescriptor()).name !== journal.targetDescriptor.name) fail("CHECKSUM_MISMATCH");
+    // Validation completed after reload. Persist this before deleting the only
+    // old database so cleanup can be retried after another crash.
+    journal = await setRestorePhase(journal, "finalizing");
+    await deleteInactive(journal.oldDescriptor);
+    if (journal.failedTarget && journal.failedTarget.name !== journal.targetDescriptor.name && journal.failedTarget.name !== journal.oldDescriptor.name) await deleteInactive(journal.failedTarget);
+    await commitJournal(journal, null, true);
+  }
+
   global.YutoriBackupStorage = Object.freeze({
     isOwnedLocalStorageKey, collectLocalStorageEntries, openMetaDb, getDestinationMeta,
     saveDestinationMeta, clearDestinationHandle, getLastBackupMeta, getActiveDataDbDescriptor,
     saveActiveDataDbDescriptor, openActiveDataDb, createSnapshotRecordSource,
     createStageWriter, createStageFromArchive, deleteDatabase, deleteAllRestoreStagesExcept, deleteRestoreStage,
+    beginRestoreJournal, getRestoreJournal, setRestorePhase, switchActiveDataDb, applyOwnedLocalStorage,
+    rollbackRestore, finalizeRestore, validateRestoreTarget, dataIdentity, commitJournal,
   });
 })(globalThis);

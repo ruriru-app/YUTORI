@@ -45,6 +45,7 @@ export async function createYutoriBrowser() {
       const context = await browser.newContext({ ...contextOptions, serviceWorkers: "block" });
       const page = await context.newPage();
       await page.goto(`${origin}${pathname}`, { waitUntil: "domcontentloaded", timeout: 15_000 });
+      if (pathname !== "/__test_blank__") await page.evaluate(() => globalThis.yutoriAppInitialization);
       for (const script of scripts) await page.addScriptTag({ url: `${origin}/${script}` });
       return page;
     },

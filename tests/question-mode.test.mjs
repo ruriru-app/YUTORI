@@ -38,6 +38,7 @@ beforeEach(async () => {
   page = await context.newPage();
   page.setDefaultTimeout(1_500);
   await page.goto(`${origin}/index.html`, { waitUntil: "domcontentloaded", timeout: 15_000 });
+  await page.evaluate(() => globalThis.yutoriAppInitialization);
   await page.evaluate(() => {
     createNewTest();
     setEditorAccordion(3, true);

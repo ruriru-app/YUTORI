@@ -57,6 +57,53 @@ afterEach(async () => {
 });
 after(async () => { await harness?.close(); });
 
+test("journal pointer and phase commit atomically and survive a failed phase write", async () => {
+  const result = await page.evaluate(async () => {
+    const stage = await YutoriBackupStorage.createStageFromArchive({ manifest: fixtureManifest(), records: fixtureRecords() });
+    const journal = { id: "atomic", phase: "local-storage-applied", targetDescriptor: { name: stage.stageDbName, version: 2 } };
+    await YutoriBackupStorage.commitJournal(journal);
+    const put = IDBObjectStore.prototype.put;
+    IDBObjectStore.prototype.put = function(value, key) {
+      if (this.name === "journals" && value.phase === "pointer-switched") throw new DOMException("quota", "QuotaExceededError");
+      return put.call(this,value,key);
+    };
+    let error; try { await YutoriBackupStorage.switchActiveDataDb(journal.targetDescriptor, journal); } catch(e) { error = e.name; } finally { IDBObjectStore.prototype.put = put; }
+    const before = { active: (await YutoriBackupStorage.getActiveDataDbDescriptor()).name, phase: (await YutoriBackupStorage.getRestoreJournal()).phase };
+    await YutoriBackupStorage.switchActiveDataDb(journal.targetDescriptor, journal);
+    return { error, before, switched: (await YutoriBackupStorage.getActiveDataDbDescriptor()).name === stage.stageDbName, phase: (await YutoriBackupStorage.getRestoreJournal()).phase };
+  });
+  assert.deepEqual(result, { error: "QuotaExceededError", before: { active: "YUTORI_DB", phase: "local-storage-applied" }, switched: true, phase: "pointer-switched" });
+});
+
+test("older active database upgrades safely and repairs descriptor after interrupted metadata update on repeated opens", async () => {
+  const result = await page.evaluate(async () => {
+    const name = `YUTORI_RESTORE_STAGE_${crypto.randomUUID()}`;
+    await makeDb(name, 1, db => db.createObjectStore("pdfFiles", { keyPath: "id" }), tx => tx.objectStore("pdfFiles").put({ id: "old", data: "keep" }));
+    await YutoriBackupStorage.saveActiveDataDbDescriptor({ name, version: 1 });
+    const upgrade = db => { if (!db.objectStoreNames.contains("pdfPages")) db.createObjectStore("pdfPages", { keyPath: "id" }); };
+    const put = IDBObjectStore.prototype.put;
+    IDBObjectStore.prototype.put = function(value,key) { if (this.name === "settings" && key === "activeDataDb") throw new DOMException("metadata unavailable", "QuotaExceededError"); return put.call(this,value,key); };
+    let failure;
+    try { const db = await YutoriBackupStorage.openActiveDataDb(upgrade); db.close(); } catch(e) { failure = e.name; } finally { IDBObjectStore.prototype.put = put; }
+    const db = await YutoriBackupStorage.openActiveDataDb(upgrade);
+    const record = await requestResult(db.transaction("pdfFiles").objectStore("pdfFiles").get("old"));
+    const version = db.version, stores = [...db.objectStoreNames]; db.close();
+    const reopened = await YutoriBackupStorage.openActiveDataDb(); const repeated = reopened.version; reopened.close();
+    return { failure, version, stores, record, repeated, descriptor: (await YutoriBackupStorage.getActiveDataDbDescriptor()).version };
+  });
+  assert.deepEqual(result, { failure: "QuotaExceededError", version: 2, stores: ["pdfFiles", "pdfPages"], record: { id: "old", data: "keep" }, repeated: 2, descriptor: 2 });
+});
+
+test("restore journal commits request strict disk durability", async () => {
+  const durability = await page.evaluate(async () => {
+    const transaction = IDBDatabase.prototype.transaction; let durability;
+    IDBDatabase.prototype.transaction = function(...args) { const tx = transaction.apply(this,args); if (this.name === "YUTORI_BACKUP_META" && tx.mode === "readwrite") durability = tx.durability; return tx; };
+    try { await YutoriBackupStorage.commitJournal({ phase: "staged" }); } finally { IDBDatabase.prototype.transaction = transaction; }
+    return durability;
+  });
+  assert.equal(durability, "strict");
+});
+
 test("ownership collects only YUTORI keys in deterministic order", async () => {
   const result = await page.evaluate(() => {
     for (const [key, value] of [["yutori_saved_tests_v1", "答案"], ["yutori_a", "日本語"], ["mitori_grades", "秘密"], ["unrelated", "other"], ["YUTORI_BACKUP_META", "meta"]]) localStorage.setItem(key, value);

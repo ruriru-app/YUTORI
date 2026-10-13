@@ -4,6 +4,7 @@
   const DEFAULT_NAME = "YUTORI_全データバックアップ.yutori";
   const persistence = new Map(), operationQueue = [];
   let persistenceRevision = 0, operationOwner = null;
+  let persistenceBlocked = false;
 
   function trackPersistence(promise, label) {
     const entry = { label: String(label || "persistence") };
@@ -43,7 +44,8 @@
   }
   function runExclusiveOperation(kind, callback, { signal } = {}) {
     if (!["pdf-import", "backup", "restore"].includes(kind)) return Promise.reject(new TypeError("Unknown operation kind"));
-    return new Promise((resolve, reject) => {
+    const pending = new Promise((resolve, reject) => {
+      if (persistenceBlocked) { reject(new DOMException("Reload required", "AbortError")); return; }
       if (signal?.aborted) { reject(signal.reason); return; }
       const entry = { kind, callback, resolve, reject, signal };
       entry.abort = () => {
@@ -54,6 +56,16 @@
       signal?.addEventListener("abort", entry.abort, { once: true });
       operationQueue.push(entry); pumpOperations();
     });
+    pending.catch(() => {});
+    return pending;
+  }
+  function invalidateOldPersistence() {
+    persistenceBlocked = true;
+    global.cancelYutoriAutoSaves?.();
+    for (const entry of operationQueue.splice(0)) {
+      entry.signal?.removeEventListener("abort", entry.abort);
+      entry.reject(new DOMException("Restore discarded old pending work", "AbortError"));
+    }
   }
   function runPersistenceOperation(callback, label, owner) {
     // Only the explicit token passed down an import's call graph permits nested
@@ -62,6 +74,7 @@
     return runExclusiveOperation("pdf-import", token => trackPersistence(callback(token), label));
   }
   function deferPersistenceWhileExclusive(callback, label) {
+    if (persistenceBlocked) return true;
     if (!operationOwner || operationOwner.kind === "pdf-import") return false;
     runPersistenceOperation(callback, label).catch(() => {
       global.console?.warn("YUTORI deferred persistence failed", label);
@@ -335,11 +348,9 @@
     const reselect = element("restoreSafetyReselect");
     if (reselect) { reselect.hidden = !session?.awaitingDownload; reselect.disabled = !!session?.busy; }
     const cancel = element("restoreCancelButton");
-    if (cancel) cancel.disabled = !!session?.writing || session?.phase === "replacing";
-    // Task 6 installs replacement. The gate can be ready, but this task never
-    // runs a destructive action from the UI.
+    if (cancel) cancel.disabled = !!session?.writing || ["replacing", "reload-pending", "needs-safety-file"].includes(session?.phase);
     const replace = element("restoreReplaceButton");
-    if (replace) replace.disabled = true;
+    if (replace) replace.disabled = !getRestoreUiState().canReplace;
     renderStatus();
   }
   function restorePhase(session, phase, label, busy = false) {
@@ -371,7 +382,7 @@
     const session = selectedSession || newRestoreSession("inspecting", "バックアップの内容を確認");
     Object.assign(session, { sourceHandle, phase: "inspecting", phaseLabel: "バックアップの内容を確認", busy: true });
     restoreSession = session; setText("restoreMessage", ""); renderRestore(); element("restoreDialog")?.showModal();
-    let writer;
+    let writer, staged;
     session.inspection = (async () => {
       try {
         const signal = session.controller.signal;
@@ -386,16 +397,18 @@
         // A hook can continue after cancellation. Observe it and clean any late
         // stage, while the session itself stops awaiting it immediately.
         parsing.catch(async () => { await writer?.abort(); }).catch(() => {});
-        await restoreWait(parsing, session);
+        const verified = await restoreWait(parsing, session);
         restoreActive(session);
-        const staged = await writer.finalize();
-        const candidate = deepFreeze({ ...staged, size: file.size }); candidates.add(candidate);
+        staged = await writer.finalize();
+        const dataHash = await restoreWait(storage().dataIdentity({ name: staged.stageDbName, version: staged.manifest.indexedDB.version }, staged.manifest, staged.localStorageEntries), session);
+        const candidate = deepFreeze({ ...staged, size: file.size, archiveHash: verified.archiveHash,
+          dataHash }); candidates.add(candidate);
         session.candidate = candidate;
         restoreActive(session); restorePhase(session, "inspected", "内容を確認しました。復元前バックアップを保存してください。");
         return candidate;
       } catch (error) {
         await writer?.abort();
-        if (session.candidate) await storage().deleteRestoreStage(session.candidate.stageDbName);
+        if (staged) await storage().deleteRestoreStage(staged.stageDbName);
         if (restoreSession === session) { session.candidate = null; restorePhase(session, "inspection-failed", "バックアップの確認を中止しました。"); setText("restoreMessage", restoreError(error)); }
         throw error;
       }
@@ -411,7 +424,7 @@
   async function cancelRestore() {
     const session = restoreSession;
     if (!session) return true;
-    if (session.writing || session.phase === "replacing") return false;
+    if (session.writing || ["replacing", "reload-pending", "needs-safety-file"].includes(session.phase)) return false;
     restoreSession = null; session.controller.abort(); session.release?.(null);
     element("restoreDialog")?.close(); renderRestore(); session.previousFocus?.focus();
     await Promise.allSettled([session.inspection, session.selection, session.gate]);
@@ -452,6 +465,7 @@
   }
   async function safetyProof(result) {
     return Object.freeze({ handle: result.handle || null, fileName: result.fileName,
+      manifest: result.manifest, dataHash: await storage().dataIdentity(await storage().getActiveDataDbDescriptor(), result.manifest, storage().collectLocalStorageEntries()),
       manifestHash: await sha(new TextEncoder().encode(JSON.stringify(result.manifest))), archiveHash: result.archiveHash, verifiedAt: options.now().toISOString() });
   }
   function setRestoreConfirmation(checked) { if (restoreSession) { restoreSession.confirmed = !!checked && !!restoreSession.safetyBackup; renderRestore(); } }
@@ -504,7 +518,7 @@
         if (callback) { restoreActive(session); return await callback(owner); }
       } catch (error) {
         rejectSaved(error);
-        if (restoreSession === session) {
+        if (restoreSession === session && !session.replacementStarted) {
           session.safetyBackup = null; session.awaitingDownload = null; session.confirmed = false; session.writing = false;
           restorePhase(session, "safety-failed", "復元前バックアップを確認できませんでした。"); setText("restoreMessage", restoreError(error));
         }
@@ -554,13 +568,149 @@
     return session.gate;
   }
 
+  function replaceWithCandidate(candidate, safetyBackup) {
+    const session = restoreSession;
+    return withRestoreSession(candidate, safetyBackup, async () => {
+      session.replacementStarted = true;
+      let journal;
+      try {
+        invalidateOldPersistence();
+        await options.waitForIdle();
+        if (await storage().dataIdentity({ name: candidate.stageDbName, version: candidate.manifest.indexedDB.version }, candidate.manifest, candidate.localStorageEntries) !== candidate.dataHash) throw new Error("Stage changed");
+        journal = await storage().beginRestoreJournal({ candidate, safetyBackup, oldLocalStorage: storage().collectLocalStorageEntries() });
+        storage().applyOwnedLocalStorage(candidate.localStorageEntries);
+        journal = await storage().setRestorePhase(journal, "local-storage-applied");
+        journal = await storage().switchActiveDataDb(journal.targetDescriptor, journal);
+        await storage().validateRestoreTarget(journal);
+        journal = await storage().setRestorePhase(journal, "reload-pending");
+        restorePhase(session, "reload-pending", "復元を確認しました。再読み込みしています。", true);
+        options.reload();
+      } catch (error) {
+        let restored = true;
+        try {
+          // A transaction may have committed immediately before an injected or
+          // environmental failure; recover from durable state, not local phase.
+          journal = await storage().getRestoreJournal() || journal;
+          if (journal) await storage().rollbackRestore(journal);
+          else await storage().deleteRestoreStage(candidate.stageDbName);
+        } catch { restored = false; }
+        candidates.delete(candidate); session.candidate = null;
+        if (restored) {
+          persistenceBlocked = false;
+          restorePhase(session, "replacement-failed", "復元を中止し、復元前のデータに戻しました。");
+          setText("restoreMessage", error.name === "QuotaExceededError" ? "空き容量が足りません。空き容量を増やしてやり直してください。" : "復元前のデータは保持されています。ファイルを選び直してください。");
+        } else {
+          restorePhase(session, "needs-safety-file", "復元前バックアップによる回復が必要です。", true);
+          showStartupError(Object.assign(new Error(), { name: "NeedsSafetyFileError" }));
+        }
+        throw error;
+      }
+    });
+  }
+
+  async function recoverFromSafetyFile(file, { reload = true } = {}) {
+    const journal = await storage().getRestoreJournal();
+    if (!journal) throw new DOMException("No recovery pending", "InvalidStateError");
+    let writer, staged;
+    try {
+      const verified = await codec().readArchiveStream(file, {
+        async onManifest(manifest) { writer = await storage().createStageWriter(manifest); },
+        async onRecord(record) { await writer.onRecord(record); },
+      });
+      if (verified.archiveHash !== journal.safetyBackup.archiveHash || await sha(new TextEncoder().encode(JSON.stringify(verified.manifest))) !== journal.safetyBackup.manifestHash) throw new Error("Wrong safety identity");
+      staged = await writer.finalize();
+      const targetDescriptor = { name: staged.stageDbName, version: staged.manifest.indexedDB.version };
+      const recovered = { ...journal, phase: "recovering-safety", failedTarget: journal.targetDescriptor, targetDescriptor,
+        targetManifest: staged.manifest, targetManifestHash: await sha(new TextEncoder().encode(JSON.stringify(staged.manifest))),
+        targetLocalStorage: staged.localStorageEntries, targetHash: await storage().dataIdentity(targetDescriptor, staged.manifest, staged.localStorageEntries) };
+      await storage().commitJournal(recovered);
+      await completeSafetyRecovery(recovered);
+      if (reload) options.reload();
+      return { status: "completed" };
+    } catch (error) {
+      await writer?.abort();
+      // Once journaled, the stage belongs to crash recovery and must survive.
+      const durable = await storage().getRestoreJournal();
+      if (staged && durable?.targetDescriptor.name !== staged.stageDbName) await storage().deleteRestoreStage(staged.stageDbName);
+      throw error;
+    }
+  }
+  async function completeSafetyRecovery(journal) {
+    if (await storage().dataIdentity(journal.targetDescriptor, journal.targetManifest, journal.targetLocalStorage) !== journal.targetHash) throw new Error("Recovery stage changed");
+    storage().applyOwnedLocalStorage(journal.targetLocalStorage);
+    journal = await storage().switchActiveDataDb(journal.targetDescriptor, journal);
+    await storage().validateRestoreTarget(journal);
+    return storage().setRestorePhase(journal, "reload-pending");
+  }
+  async function recoverInterruptedRestore() {
+    let journal = await storage().getRestoreJournal();
+    if (!journal) return { status: "none" };
+    try {
+      if (journal.phase === "recovering-safety") journal = await completeSafetyRecovery(journal);
+      if (["pointer-switched", "reload-pending", "finalizing"].includes(journal.phase)) {
+        try { await storage().finalizeRestore(journal); return { status: "completed" }; }
+        catch (error) { if (journal.phase === "finalizing") throw error; }
+      }
+      await storage().rollbackRestore(journal);
+      return { status: "rolled-back" };
+    } catch {
+      // A remembered handle is only an optimization. Never prompt for permission
+      // at startup or initialize the app against mixed/incomplete data.
+      try {
+        const handle = journal.safetyBackup?.handle;
+        if (!handle || (handle.queryPermission && await handle.queryPermission({ mode: "read" }) !== "granted")) throw new Error("Safety file unavailable");
+        await recoverFromSafetyFile(await handle.getFile(), { reload: false });
+        await storage().finalizeRestore(await storage().getRestoreJournal());
+        return { status: "rolled-back" };
+      } catch { return { status: "needs-safety-file", message: "復元前バックアップを選んで回復してください。" }; }
+    }
+  }
+  let recoveryPromise;
+  function recoverBeforeAppStart() {
+    if (!recoveryPromise) recoveryPromise = (async () => {
+      if (global.document?.body) global.document.body.inert = true;
+      const result = await recoverInterruptedRestore();
+      if (result.status === "needs-safety-file") throw Object.assign(new Error(result.message), { name: "NeedsSafetyFileError" });
+      global.yutoriRecoveryFinished = true;
+      return result;
+    })();
+    return recoveryPromise;
+  }
+  function showStartupError(error) {
+    invalidateOldPersistence();
+    global.yutoriAppReady = false;
+    global.document.body.inert = true;
+    element("restoreDialog")?.close();
+    let dialog = element("startupRecoveryDialog");
+    if (!dialog) {
+      dialog = global.document.createElement("dialog"); dialog.id = "startupRecoveryDialog"; dialog.className = "restore-dialog";
+      dialog.setAttribute("aria-label", "データの回復");
+      const message = global.document.createElement("p"); message.textContent = error.name === "NeedsSafetyFileError" ? "データの回復が必要です。復元前に保存したバックアップを選んでください。" : "起動できませんでした。画面を再読み込みしてください。";
+      dialog.append(message);
+      if (error.name === "NeedsSafetyFileError") {
+        const input = global.document.createElement("input"); input.type = "file"; input.accept = ".yutori"; input.hidden = true;
+        const button = global.document.createElement("button"); button.type = "button"; button.textContent = "復元前バックアップを選んで回復";
+        button.onclick = () => { input.value = ""; input.click(); };
+        input.onchange = async () => {
+          if (!input.files[0]) return; button.disabled = true;
+          try { await recoverFromSafetyFile(input.files[0]); }
+          catch { message.textContent = "必要な復元前バックアップを確認できませんでした。保存したファイルを選び直してください。"; button.disabled = false; }
+        };
+        dialog.append(button, input);
+      }
+      dialog.addEventListener("cancel", event => event.preventDefault()); global.document.body.append(dialog);
+    }
+    if (!dialog.open) dialog.showModal();
+  }
+
   // Restore orchestration shares the same gate in later tasks; the reusable IO
   // writer deliberately does not acquire it again inside a restore operation.
   global.YutoriBackup = { configure, initialize, savePrimaryBackup: () => startSave(false),
     changeDestination: () => startSave(true), writeVerifiedArchiveToHandle,
     renderStatus, getOperationState: () => ({ ...state }), cancelBackup,
     inspectRestoreFile, discardRestoreCandidate, saveSafetyBackup, getRestoreUiState, setRestoreConfirmation,
-    selectRestoreFile, verifyDownloadedSafetyFile, cancelRestore, withRestoreSession };
+    selectRestoreFile, verifyDownloadedSafetyFile, cancelRestore, withRestoreSession,
+    replaceWithCandidate, recoverInterruptedRestore, recoverBeforeAppStart, recoverFromSafetyFile, showStartupError };
   global.saveYutoriBackup = () => global.YutoriBackup.savePrimaryBackup();
   global.changeYutoriBackupDestination = () => global.YutoriBackup.changeDestination();
   global.showBackupSettings = showBackupSettings;
@@ -569,6 +719,6 @@
     element("restoreDialog")?.addEventListener("cancel", event => { event.preventDefault(); cancelRestore().catch(() => {}); });
     element("restoreSourceInput")?.addEventListener("change", event => { const file = event.target.files[0]; if (file) inspectRestoreFile(file).catch(() => {}); });
     element("restoreSafetyInput")?.addEventListener("change", event => { const file = event.target.files[0]; if (file) verifyDownloadedSafetyFile(file).catch(() => {}); });
-    initialize().catch(() => notify("バックアップ設定を読み込めませんでした。画面を再読み込みしてください。", true));
+    recoverBeforeAppStart().then(initialize).catch(showStartupError);
   });
 })(globalThis);

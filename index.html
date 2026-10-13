@@ -1780,7 +1780,7 @@ body{
 .restore-summary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;padding:16px 0;margin:0}
 .restore-summary[hidden]{display:none}.restore-summary dt{font-size:12px;color:var(--muted)}.restore-summary dd{margin:5px 0 0;overflow-wrap:anywhere;font-weight:800;font-size:14px}
 .restore-confirm{display:flex;align-items:flex-start;gap:10px;margin:18px 0;font-size:13px;line-height:1.7}.restore-confirm input{flex:none;width:18px;height:18px;margin-top:3px}
-.restore-actions{display:flex;flex-wrap:wrap;gap:10px}.restore-actions button{white-space:normal;overflow-wrap:anywhere;max-width:100%}
+.restore-actions{display:flex;flex-wrap:wrap;justify-content:center;gap:10px}.restore-actions button{white-space:normal;overflow-wrap:anywhere;max-width:100%}
 @media(max-width:480px){.restore-dialog{padding:20px}.restore-summary{grid-template-columns:1fr}.restore-actions{flex-direction:column}.restore-actions button{width:100%}}
 @media(max-width:820px){.backup-status-grid{grid-template-columns:1fr;gap:16px}.backup-tooltip{width:min(290px,calc(100vw - 30px))}}
 
@@ -3281,7 +3281,7 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
 }
 </style>
 </head>
-<body>
+<body inert>
 <div class="app-shell">
 <header class="app-header no-print">
   <div class="brand" aria-label="YUTORI v0.3.50">
@@ -4566,7 +4566,7 @@ function positionFloatingPalette(){
   palette.style.setProperty("--floating-palette-left","12px");
   palette.style.setProperty("--floating-palette-bottom","12px");
 }
-window.addEventListener("resize",()=>requestAnimationFrame(positionFloatingPalette));
+window.addEventListener("resize",()=>{if(globalThis.yutoriAppReady)requestAnimationFrame(()=>{if(globalThis.yutoriAppReady)positionFloatingPalette()})});
 function checked(name){return document.querySelector(`input[name="${name}"]:checked`).value}
 function syncState(){
   state.grade=document.getElementById("grade").value;
@@ -4981,6 +4981,7 @@ document.getElementById("rows").addEventListener("change",updateCounts);
 document.getElementById("cols").addEventListener("change",updateCounts);
 
 window.addEventListener("beforeprint",()=>{
+  if(!globalThis.yutoriAppReady)return;
   if(document.body.classList.contains("return-printing"))return;
   syncState();
   mountPaperForScreen("previewScreen");
@@ -4989,6 +4990,7 @@ window.addEventListener("beforeprint",()=>{
   setPrintDocumentTitle(testPdfBaseName());
 });
 window.addEventListener("afterprint",()=>{
+  if(!globalThis.yutoriAppReady)return;
   document.body.classList.remove("return-printing");
   const root=document.getElementById("returnPrintRoot");if(root)root.setAttribute("aria-hidden","true");
   restoreDocumentTitle();
@@ -6432,6 +6434,7 @@ function flushYutoriAutoSaves(){
   if(draftSaveTimer!==null)saveDraftNowUnlocked();
   if(autoSaveTimer!==null)saveGradingSessionNowUnlocked();
 }
+function cancelYutoriAutoSaves(){clearTimeout(draftSaveTimer);clearTimeout(autoSaveTimer);draftSaveTimer=null;autoSaveTimer=null}
 function changeGradeColumns(v){gradingState.gradeColumns=Number(v)||5;localStorage.setItem("yutori_grade_columns_v023",String(gradingState.gradeColumns));renderGradeGrid();scheduleAutoSave()}
 function completedQuestionCount(s){let count=0;for(let q=0;q<(s.questions||[]).length;q++){let total=0,done=0;(s.classes||[]).forEach(c=>(s.answers?.[c]||[]).forEach(p=>{if(p.absent)return;total++;if(s.grades?.[`${c}::${p.no}::${q}`])done++}));if(total&&done===total)count++}return count}
 function formatSavedAt(ts){if(!ts)return"未保存";const d=new Date(ts);return`${d.getMonth()+1}月${d.getDate()}日 ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`}
@@ -6664,7 +6667,8 @@ function resetCurrentQuestion(){
   scheduleAutoSave();renderTabs();renderGradeGrid();
 }
 
-function openYutoriDb(){return new Promise((resolve,reject)=>{const req=indexedDB.open("YUTORI_DB",2);req.onupgradeneeded=()=>{const db=req.result;if(!db.objectStoreNames.contains("pdfFiles"))db.createObjectStore("pdfFiles",{keyPath:"id"});if(!db.objectStoreNames.contains("pdfPages"))db.createObjectStore("pdfPages",{keyPath:"id"})};req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error)})}
+function upgradeYutoriDbSchema(db){if(!db.objectStoreNames.contains("pdfFiles"))db.createObjectStore("pdfFiles",{keyPath:"id"});if(!db.objectStoreNames.contains("pdfPages"))db.createObjectStore("pdfPages",{keyPath:"id"})}
+function openYutoriDb(){return YutoriBackupStorage.openActiveDataDb(upgradeYutoriDbSchema)}
 function waitForDbTransaction(tx){return new Promise((resolve,reject)=>{tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error)})}
 function savePdfFilesToIndexedDB(sessionId,files,operation){return runPersistenceOperation(()=>savePdfFilesToIndexedDBUnlocked(sessionId,files),"pdf-files",operation)}
 async function savePdfFilesToIndexedDBUnlocked(sessionId,files){
@@ -6954,7 +6958,7 @@ function readOutputShelvedSessionIds(){
     return new Set(Array.isArray(stored)?stored.map(String):[]);
   }catch(error){return new Set()}
 }
-const outputLibraryState={shelvedIds:readOutputShelvedSessionIds()};
+const outputLibraryState={shelvedIds:new Set()};
 function saveOutputShelvedSessionIds(){
   localStorage.setItem(OUTPUT_SHELVED_SESSIONS_KEY,JSON.stringify([...outputLibraryState.shelvedIds]));
 }
@@ -7480,6 +7484,9 @@ async function registerYutoriServiceWorker(){
 }
 window.addEventListener("load",registerYutoriServiceWorker);
 
+async function initializeYutoriApp(){
+await YutoriBackup.recoverBeforeAppStart();
+outputLibraryState.shelvedIds=readOutputShelvedSessionIds();
 configureEditorWorkspace();
 ensureRosters();
 gradingState.gradeColumns=Number(localStorage.getItem("yutori_grade_columns_v023")||5);
@@ -7527,6 +7534,11 @@ updateCounts();
 bindLivePreviewControls();
 bindSidebarDragHandle();
 showScreen("testListScreen");
+document.body.inert=false;
+globalThis.yutoriAppReady=true;
+}
+function showYutoriStartupError(error){YutoriBackup.showStartupError(error)}
+globalThis.yutoriAppInitialization=initializeYutoriApp().catch(showYutoriStartupError);
 </script>
 
 <div id="classModal" class="yutori-modal-backdrop" aria-hidden="true" onclick="handleClassModalBackdrop(event)">
@@ -7667,8 +7679,8 @@ showScreen("testListScreen");
   <div class="restore-actions"><button id="restoreSafetyButton" type="button" class="primary" onclick="YutoriBackup.saveSafetyBackup(YutoriBackup.getRestoreUiState().candidate).catch(()=>{})" disabled>復元前バックアップを保存</button><button id="restoreSafetyReselect" type="button" class="secondary" onclick="document.getElementById('restoreSafetyInput').value='';document.getElementById('restoreSafetyInput').click()" hidden>ダウンロードした安全用ファイルを確認</button></div>
   <input id="restoreSafetyInput" type="file" accept=".yutori" aria-label="保存した復元前バックアップ" hidden>
   <label class="restore-confirm"><input id="restoreConfirm" type="checkbox" onchange="YutoriBackup.setRestoreConfirmation(this.checked)" disabled><span>現在のデータがすべて置き換わることを確認しました</span></label>
-  <p>全データの置き換えは準備中です。現在は内容の確認と復元前バックアップの保存まで利用できます。</p>
-  <div class="restore-actions"><button id="restoreReplaceButton" type="button" class="danger" disabled>全データを置き換えて復元</button><button id="restoreCancelButton" type="button" class="secondary" onclick="YutoriBackup.cancelRestore().catch(()=>{})">キャンセル</button></div>
+  <p>置き換え開始後はキャンセルできません。確認が完了すると自動で再読み込みします。</p>
+  <div class="restore-actions"><button id="restoreReplaceButton" type="button" class="danger" onclick="YutoriBackup.replaceWithCandidate(YutoriBackup.getRestoreUiState().candidate,YutoriBackup.getRestoreUiState().safetyBackup).catch(()=>{})" disabled>全データを置き換えて復元</button><button id="restoreCancelButton" type="button" class="secondary" onclick="YutoriBackup.cancelRestore().catch(()=>{})">キャンセル</button></div>
 </dialog>
 <dialog id="backupProgressDialog" class="backup-progress-dialog" aria-labelledby="backupProgressTitle" aria-describedby="backupProgressHelp">
   <h3 id="backupProgressTitle">全データをバックアップ</h3>
