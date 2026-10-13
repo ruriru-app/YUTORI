@@ -4123,10 +4123,16 @@ function renderGradeSettings(){
   const host=document.getElementById("gradeSettingsList");
   if(!host)return;
   const values=readGradeSettings();
-  host.innerHTML=values.length?values.map(value=>{
-    const encoded=encodeURIComponent(value);
-    return `<div class="settings-list-item"><span>${escapeHtml(value)}</span><button type="button" class="settings-list-delete" onclick="removeGradeSetting(decodeURIComponent('${encoded}'))">削除</button></div>`;
-  }).join(""):'<div class="settings-choice-empty">学年はまだ登録されていません。上の入力欄から追加できます。</div>';
+  renderSettingChoices(host,values,removeGradeSetting,"学年はまだ登録されていません。上の入力欄から追加できます。");
+}
+function renderSettingChoices(host,values,remove,emptyText){
+  host.replaceChildren();
+  if(!values.length){const empty=document.createElement("div");empty.className="settings-choice-empty";empty.textContent=emptyText;host.append(empty);return}
+  for(const value of values){
+    const row=document.createElement("div"),label=document.createElement("span"),button=document.createElement("button");
+    row.className="settings-list-item";label.textContent=value;button.type="button";button.className="settings-list-delete";button.textContent="削除";
+    button.addEventListener("click",()=>remove(value));row.append(label,button);host.append(row);
+  }
 }
 function addGradeSetting(){
   const input=document.getElementById("gradeSettingInput");
@@ -4149,10 +4155,7 @@ function renderSubjectSettings(){
   const host=document.getElementById("subjectSettingsList");
   if(!host)return;
   const values=readSubjectSettings();
-  host.innerHTML=values.length?values.map(value=>{
-    const encoded=encodeURIComponent(value);
-    return `<div class="settings-list-item"><span>${escapeHtml(value)}</span><button type="button" class="settings-list-delete" onclick="removeSubjectSetting(decodeURIComponent('${encoded}'))">削除</button></div>`;
-  }).join(""):'<div class="settings-choice-empty">教科はまだ登録されていません。上の入力欄から自由に追加できます。</div>';
+  renderSettingChoices(host,values,removeSubjectSetting,"教科はまだ登録されていません。上の入力欄から自由に追加できます。");
 }
 function addSubjectSetting(){
   const input=document.getElementById("subjectSettingInput");
@@ -4752,7 +4755,6 @@ function saveCurrentTest(){
 }
 function savedTestCardHtml(item){
   const sizeLabel={a4:"A4",b5:"B5",a5:"A5"};
-  const safeId=String(item.id||"").replace(/[^a-zA-Z0-9_-]/g,"");
   const title=escapeHtml(testTileTitle(item));
   const subtitle=escapeHtml([item.subject,item.unit].filter(Boolean).join(" ／ ")||"教科・単元名は未設定です");
   const paper=`${sizeLabel[item.paperSize]||"A4"}・${item.orientation==="landscape"?"横":"縦"}`;
@@ -4764,9 +4766,9 @@ function savedTestCardHtml(item){
     <div class="saved-test-meta"><span>${escapeHtml(gradeLabel(item.grade))}</span><span>${count}問</span><span>${paper}</span></div>
     <p class="saved-test-updated">更新：${escapeHtml(updated)}</p>
     <div class="saved-test-actions">
-      <button class="primary" type="button" onclick="openSavedTest('${safeId}')">選んで開く</button>
-      <button class="secondary" type="button" onclick="duplicateSavedTest('${safeId}')">複製</button>
-      <button class="secondary saved-test-delete" type="button" onclick="deleteSavedTest('${safeId}')">削除</button>
+      <button class="primary" type="button" ${uiEvent("click",()=>openSavedTest(item.id))}>選んで開く</button>
+      <button class="secondary" type="button" ${uiEvent("click",()=>duplicateSavedTest(item.id))}>複製</button>
+      <button class="secondary saved-test-delete" type="button" ${uiEvent("click",()=>deleteSavedTest(item.id))}>削除</button>
     </div>
   </article>`;
 }
@@ -4774,6 +4776,7 @@ function renderTestStartList(){
   const host=document.getElementById("testStartSavedList");if(!host)return;
   const tests=readSavedTests().sort((a,b)=>(Number(b.updatedAt)||0)-(Number(a.updatedAt)||0)).slice(0,6);
   host.innerHTML=tests.length?tests.map(savedTestCardHtml).join(""):'<div class="saved-test-empty"><strong>保存したテストはまだありません</strong>「＋新しくテストを作る」から作成を始められます。</div>';
+  bindUiEvents(host);
 }
 function openTestStart(){showScreen("testListScreen")}
 function renderSavedTestList(){
@@ -4808,6 +4811,7 @@ function renderSavedTestList(){
     return;
   }
   host.innerHTML=tests.map(savedTestCardHtml).join("");
+  bindUiEvents(host);
 }
 function resetTestListFilters(){
   const grade=document.getElementById("testGradeFilter");
@@ -4974,6 +4978,17 @@ function printDocument(){
   window.print();
 }
 function escapeHtml(v){return String(v??"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]))}
+// Event code never contains imported values. Templates carry only generated
+// numeric tokens; binding transfers closures to DOM listeners and drops tokens.
+const pendingUiEvents=new Map();let uiEventSequence=0;
+function uiEvent(type,listener){const id=String(++uiEventSequence);pendingUiEvents.set(id,{type,listener});return `data-ui-${type}="${id}"`}
+function bindUiEvents(host){
+  for(const node of host.querySelectorAll("*"))for(const attribute of [...node.attributes]){
+    if(!attribute.name.startsWith("data-ui-"))continue;
+    const binding=pendingUiEvents.get(attribute.value);node.removeAttribute(attribute.name);
+    if(binding){node.addEventListener(binding.type,binding.listener);pendingUiEvents.delete(attribute.value)}
+  }
+}
 
 document.getElementById("paperSize").addEventListener("change",applyLimits);
 document.querySelectorAll('input[name="orientation"]').forEach(el=>el.addEventListener("change",applyLimits));
@@ -5635,26 +5650,25 @@ function renderIssues(){
   const recognizedCount=gradingState.pdfPages.filter(page=>page.detectedAttendanceNo!=null).length;
   if(gradingState.dragPageId&&!unassigned.some(page=>page.id===gradingState.dragPageId))gradingState.dragPageId="";
   const studentCards=gradingState.classes.flatMap(className=>(gradingState.answers[className]||[]).map(person=>{
-    const encodedClass=encodeURIComponent(className);
     const page=gradingState.pdfPages.find(item=>item.id===person.pageId);
     const duplicate=person.pageId&&assigned.filter(id=>id===person.pageId).length>1;
     const recognition=pdfPageRecognition(page);
     const problem=!person.absent&&(!person.pageId||duplicate||recognition.warning);
-    const nameCrop=page?`<div class="pdf-name-crop" title="答案全体を開く" onclick="event.stopPropagation();openAnswerPreview(decodeURIComponent('${encodedClass}'),${person.no})"><canvas class="name-crop-canvas answer-card-loading" data-page-id="${escapeHtml(page.id)}"></canvas></div>`:'<div class="pdf-name-crop pdf-empty-name">ここへPDFをドロップ</div>';
+    const nameCrop=page?`<div class="pdf-name-crop" title="答案全体を開く" ${uiEvent("click",event=>{event.stopPropagation();openAnswerPreview(className,person.no)})}><canvas class="name-crop-canvas answer-card-loading" data-page-id="${escapeHtml(page.id)}"></canvas></div>`:'<div class="pdf-name-crop pdf-empty-name">ここへPDFをドロップ</div>';
     const lateClass=person.lateAdded?"late-added":"";
     const statusLabel=person.absent?"欠席":person.lateAdded?"個別追加・割当済":page?"割当済":"要確認";
-    return `<div class="pdf-student-card ${problem?"problem":""} ${lateClass}" data-class="${escapeHtml(className)}" data-no="${person.no}" ondragover="allowPdfDrop(event)" ondragleave="leavePdfDrop(event)" ondrop="dropPdfOnStudent(event,decodeURIComponent('${encodedClass}'),${person.no})" onclick="handleReviewStudentCardClick(event,decodeURIComponent('${encodedClass}'),${person.no})">
-      <div class="pdf-student-head"><div>${String(person.no).padStart(2,"0")} ${escapeHtml(person.name)}<small>${escapeHtml(classFullDisplayName(className))}</small></div><span>${statusLabel}</span></div>
+    return `<div class="pdf-student-card ${problem?"problem":""} ${lateClass}" data-class="${escapeHtml(className)}" data-no="${escapeHtml(person.no)}" ondragover="allowPdfDrop(event)" ondragleave="leavePdfDrop(event)" ${uiEvent("drop",event=>dropPdfOnStudent(event,className,person.no))} ${uiEvent("click",event=>handleReviewStudentCardClick(event,className,person.no))}>
+      <div class="pdf-student-head"><div>${escapeHtml(String(person.no).padStart(2,"0"))} ${escapeHtml(person.name)}<small>${escapeHtml(classFullDisplayName(className))}</small></div><span>${statusLabel}</span></div>
       ${nameCrop}
       ${page?`<div class="pdf-mark-read ${recognition.warning?"warning":""}">${escapeHtml(recognition.text)}</div>`:'<div class="pdf-mark-read warning">答案が割り当てられていません</div>'}
-      <div class="pdf-student-actions"><span class="pdf-student-choice-actions"><label class="pdf-absent-toggle" onclick="event.stopPropagation()"><input type="checkbox" ${person.absent?"checked":""} onchange="setStudentAbsent(decodeURIComponent('${encodedClass}'),${person.no},this.checked)">欠席</label></span><span>${page?`<button class="secondary" type="button" onclick="event.stopPropagation();openAnswerPreview(decodeURIComponent('${encodedClass}'),${person.no})">全体</button> <button class="secondary" type="button" onclick="event.stopPropagation();clearStudentPage(decodeURIComponent('${encodedClass}'),${person.no})">外す</button>`:""}</span></div>
+      <div class="pdf-student-actions"><span class="pdf-student-choice-actions"><label class="pdf-absent-toggle" onclick="event.stopPropagation()"><input type="checkbox" ${person.absent?"checked":""} ${uiEvent("change",event=>setStudentAbsent(className,person.no,event.currentTarget.checked))}>欠席</label></span><span>${page?`<button class="secondary" type="button" ${uiEvent("click",event=>{event.stopPropagation();openAnswerPreview(className,person.no)})}>全体</button> <button class="secondary" type="button" ${uiEvent("click",event=>{event.stopPropagation();clearStudentPage(className,person.no)})}>外す</button>`:""}</span></div>
     </div>`;
   })).join("");
   const unassignedCards=unassigned.map(page=>{
     const recognition=pdfPageRecognition(page);
     const selected=gradingState.dragPageId===page.id;
-    return `<div class="pdf-unassigned-card ${selected?"selected":""}" draggable="true" data-page-id="${escapeHtml(page.id)}" ondragstart="startPdfPageDrag(event,'${escapeHtml(page.id)}')" onclick="togglePdfPageSelection('${escapeHtml(page.id)}')">
-      <div class="pdf-unassigned-card-head"><span>${page.pageNumber}ページ</span><button class="secondary" type="button" onclick="event.stopPropagation();ignorePdfPage('${escapeHtml(page.id)}',true)">除外</button></div>
+    return `<div class="pdf-unassigned-card ${selected?"selected":""}" draggable="true" data-page-id="${escapeHtml(page.id)}" ${uiEvent("dragstart",event=>startPdfPageDrag(event,page.id))} ${uiEvent("click",()=>togglePdfPageSelection(page.id))}>
+      <div class="pdf-unassigned-card-head"><span>${escapeHtml(page.pageNumber)}ページ</span><button class="secondary" type="button" ${uiEvent("click",event=>{event.stopPropagation();ignorePdfPage(page.id,true)})}>除外</button></div>
       <div class="pdf-name-crop"><canvas class="name-crop-canvas answer-card-loading" data-page-id="${escapeHtml(page.id)}"></canvas></div>
       <div class="pdf-unassigned-card-meta">${escapeHtml(recognition.text)}</div>
     </div>`;
@@ -5666,7 +5680,8 @@ function renderIssues(){
       ${unassigned.length?`<section class="pdf-unassigned-pool"><h3>要確認のPDF ${unassigned.length}ページ</h3><p>名前欄の画像を名簿カードへドラッグ＆ドロップしてください。タッチ操作ではPDFを一度タップし、割り当てる名簿カードをタップします。</p><div class="pdf-unassigned-grid">${unassignedCards}</div></section>`:""}
       <div class="pdf-student-grid">${studentCards}</div>
     </div>
-    ${ignored.length?`<div class="pdf-extra-pages"><h3>除外したページ</h3><div class="pdf-extra-page-list">${ignored.map(page=>{const recognition=pdfPageRecognition(page);return `<div class="pdf-extra-page"><span>${escapeHtml(page.fileName)}・${page.pageNumber}ページ<br>${escapeHtml(recognition.text)}</span><button class="secondary" type="button" onclick="ignorePdfPage('${escapeHtml(page.id)}',false)">除外を戻す</button></div>`}).join("")}</div></div>`:""}`;
+    ${ignored.length?`<div class="pdf-extra-pages"><h3>除外したページ</h3><div class="pdf-extra-page-list">${ignored.map(page=>{const recognition=pdfPageRecognition(page);return `<div class="pdf-extra-page"><span>${escapeHtml(page.fileName)}・${escapeHtml(page.pageNumber)}ページ<br>${escapeHtml(recognition.text)}</span><button class="secondary" type="button" ${uiEvent("click",()=>ignorePdfPage(page.id,false))}>除外を戻す</button></div>`}).join("")}</div></div>`:""}`;
+  bindUiEvents(issueList);
   document.getElementById("openGradeButton")?.classList.toggle("show",workflowDone(2)&&!gradingState.issues.length);
   renderNameCrops();
 }
@@ -5901,6 +5916,7 @@ function renderGradeGrid(){
   applyQuestionScoreInputs();
   const sections=gradingState.classes.map(c=>({className:c,people:visibleGradingPeople(c)})).filter(group=>group.people.length);
   gradeAnswers.innerHTML=sections.length?sections.map(group=>`<section><div class="class-title"><span>${escapeHtml(classFullDisplayName(group.className))}</span><span>${isClassDone(group.className,q)?"採点済":"採点中"}</span></div><div class="answer-grid" style="grid-template-columns:repeat(${cols},minmax(0,1fr))">${group.people.map(p=>card(group.className,p,q)).join("")}</div></section>`).join(""):'<div class="pdf-review-ok">今回追加した答案はありません。採点対象を「全員の答案」へ切り替えてください。</div>';
+  bindUiEvents(gradeAnswers);
   renderAnswerCrops(q,test);
 }
 function renderIndividualGradeGrid(test,cols){
@@ -5908,30 +5924,30 @@ function renderIndividualGradeGrid(test,cols){
   const totalPeople=groups.reduce((sum,group)=>sum+group.people.length,0);
   const sections=groups.flatMap(group=>group.people.map(person=>{
     const completed=(test.questions||[]).filter((_,q)=>gradingState.grades[key(group.className,person.no,q)]).length;
-    return `<section class="individual-student-section"><div class="class-title"><span>${escapeHtml(classFullDisplayName(group.className))}　${String(person.no).padStart(2,"0")} ${escapeHtml(person.name)}</span><span>${completed} / ${(test.questions||[]).length}問</span></div><div class="individual-question-grid" style="grid-template-columns:repeat(${cols},minmax(0,1fr))">${(test.questions||[]).map((_,q)=>individualQuestionCard(group.className,person,q,test)).join("")}</div></section>`;
+    return `<section class="individual-student-section"><div class="class-title"><span>${escapeHtml(classFullDisplayName(group.className))}　${escapeHtml(String(person.no).padStart(2,"0"))} ${escapeHtml(person.name)}</span><span>${completed} / ${(test.questions||[]).length}問</span></div><div class="individual-question-grid" style="grid-template-columns:repeat(${cols},minmax(0,1fr))">${(test.questions||[]).map((_,q)=>individualQuestionCard(group.className,person,q,test)).join("")}</div></section>`;
   })).join("");
   gradeAnswers.innerHTML=sections?`<div class="individual-grading-note">追加した${totalPeople}名を個人別に表示しています。採点パレットで○・×・△を選び、各問題タイルをタップしてください。</div>${sections}`:'<div class="pdf-review-ok">今回追加した答案がありません。「確認と修正」で個別答案を名前へ割り当ててください。</div>';
+  bindUiEvents(gradeAnswers);
   renderAnswerCrops(gradingState.q,test);
 }
 function individualQuestionCard(className,person,q,test){
   const grade=gradingState.grades[key(className,person.no,q)]||{},mark=grade.mark||"";
   const markLabel=mark==="ok"?"○":mark==="ng"?"×":mark==="partial"?"△":"";
-  const encodedClass=encodeURIComponent(className),realPdf=person.pageId&&gradingState.pageImageUrls[person.pageId];
+  const realPdf=person.pageId&&gradingState.pageImageUrls[person.pageId];
   const answer=realPdf?`<canvas class="answer-crop-canvas answer-card-loading" data-page-id="${escapeHtml(person.pageId)}" data-question-index="${q}"></canvas>`:`<div class="answer-image-placeholder">答案画像なし</div>`;
-  const zoom=realPdf?`<button class="answer-zoom-button" type="button" title="答案用紙を表示" aria-label="${escapeHtml(person.name)}の問題${q+1}を拡大表示" onpointerdown="event.stopPropagation()" onclick="event.stopPropagation();openAnswerPreview(decodeURIComponent('${encodedClass}'),${person.no},${q})"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="10.5" cy="10.5" r="6.5"></circle><path d="m15.5 15.5 5 5"></path></svg></button>`:"";
-  return `<article class="individual-question-card ${mark}" tabindex="0" aria-label="${escapeHtml(person.name)}の問題${q+1}を採点" onclick="applySelectedPenToQuestion(decodeURIComponent('${encodedClass}'),${person.no},${q})" onkeydown="if(event.target===event.currentTarget&&(event.key==='Enter'||event.key===' ')){event.preventDefault();applySelectedPenToQuestion(decodeURIComponent('${encodedClass}'),${person.no},${q})}"><div class="individual-question-head"><span class="individual-question-number">${String(q+1).padStart(2,"0")}</span><div class="individual-question-copy"><span><small>問題</small>${escapeHtml(questionDisplayText(test,q))}</span><span><small>模範解答</small>${escapeHtml(test.answers[q]||"未登録")}</span></div><div class="individual-question-actions"><span class="individual-question-mark">${markLabel}</span>${zoom}</div></div><div class="individual-answer-image">${answer}</div><div class="individual-question-score">${mark?`${Number(grade.score||0)}点`:"未採点"}</div></article>`;
+  const zoom=realPdf?`<button class="answer-zoom-button" type="button" title="答案用紙を表示" aria-label="${escapeHtml(person.name)}の問題${q+1}を拡大表示" onpointerdown="event.stopPropagation()" ${uiEvent("click",event=>{event.stopPropagation();openAnswerPreview(className,person.no,q)})}><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="10.5" cy="10.5" r="6.5"></circle><path d="m15.5 15.5 5 5"></path></svg></button>`:"";
+  return `<article class="individual-question-card ${escapeHtml(mark)}" tabindex="0" aria-label="${escapeHtml(person.name)}の問題${q+1}を採点" ${uiEvent("click",()=>applySelectedPenToQuestion(className,person.no,q))} ${uiEvent("keydown",event=>{if(event.target===event.currentTarget&&(event.key==='Enter'||event.key===' ')){event.preventDefault();applySelectedPenToQuestion(className,person.no,q)}})}><div class="individual-question-head"><span class="individual-question-number">${String(q+1).padStart(2,"0")}</span><div class="individual-question-copy"><span><small>問題</small>${escapeHtml(questionDisplayText(test,q))}</span><span><small>模範解答</small>${escapeHtml(test.answers[q]||"未登録")}</span></div><div class="individual-question-actions"><span class="individual-question-mark">${markLabel}</span>${zoom}</div></div><div class="individual-answer-image">${answer}</div><div class="individual-question-score">${mark?`${Number(grade.score||0)}点`:"未採点"}</div></article>`;
 }
 function isClassDone(c,q){const active=(gradingState.answers[c]||[]).filter(person=>!person.absent);return active.length&&active.every(person=>gradingState.grades[key(c,person.no,q)])}
 function card(c,p,q){
   const m=gradingState.grades[key(c,p.no,q)]?.mark||"";
   const markLabel=m==="ok"?"○":m==="ng"?"×":m==="partial"?"△":"";
-  const encodedClass=encodeURIComponent(c);
-  if(p.absent)return `<article class="answer-card pdf-answer absent"><div class="answer-card-head"><div class="answer-person">${String(p.no).padStart(2,"0")} ${escapeHtml(p.name)}</div></div><div class="answer-image"><div class="answer-image-placeholder">欠席</div></div></article>`;
+  if(p.absent)return `<article class="answer-card pdf-answer absent"><div class="answer-card-head"><div class="answer-person">${escapeHtml(String(p.no).padStart(2,"0"))} ${escapeHtml(p.name)}</div></div><div class="answer-image"><div class="answer-image-placeholder">欠席</div></div></article>`;
   const realPdf=p.pageId&&gradingState.pageImageUrls[p.pageId];
   const answer=realPdf?`<canvas class="answer-crop-canvas answer-card-loading" data-page-id="${escapeHtml(p.pageId)}"></canvas>`:`<div class="answer-image-placeholder">${escapeHtml(p.snippets?.[q]||"答案画像なし")}</div>`;
-  const zoom=realPdf?`<button class="answer-zoom-button" type="button" title="答案用紙を表示" aria-label="${escapeHtml(p.name)}の答案用紙を表示" onpointerdown="event.stopPropagation()" onclick="event.stopPropagation();openAnswerPreview(decodeURIComponent('${encodedClass}'),${p.no})"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="10.5" cy="10.5" r="6.5"></circle><path d="m15.5 15.5 5 5"></path></svg></button>`:"";
+  const zoom=realPdf?`<button class="answer-zoom-button" type="button" title="答案用紙を表示" aria-label="${escapeHtml(p.name)}の答案用紙を表示" onpointerdown="event.stopPropagation()" ${uiEvent("click",event=>{event.stopPropagation();openAnswerPreview(c,p.no)})}><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="10.5" cy="10.5" r="6.5"></circle><path d="m15.5 15.5 5 5"></path></svg></button>`:"";
   const mark=markLabel?`<div class="answer-mark-label">${markLabel}</div>`:"";
-  return `<article class="answer-card pdf-answer ${m}" tabindex="0" aria-label="${escapeHtml(p.name)}を採点" onclick="applySelectedPen(decodeURIComponent('${encodedClass}'),${p.no})" onkeydown="if(event.target===event.currentTarget&&(event.key==='Enter'||event.key===' ')){event.preventDefault();applySelectedPen(decodeURIComponent('${encodedClass}'),${p.no})}"><div class="answer-card-head"><div class="answer-person">${String(p.no).padStart(2,"0")} ${escapeHtml(p.name)}</div><div class="answer-card-head-actions">${mark}${zoom}</div></div><div class="answer-image">${answer}</div></article>`;
+  return `<article class="answer-card pdf-answer ${escapeHtml(m)}" tabindex="0" aria-label="${escapeHtml(p.name)}を採点" ${uiEvent("click",()=>applySelectedPen(c,p.no))} ${uiEvent("keydown",event=>{if(event.target===event.currentTarget&&(event.key==='Enter'||event.key===' ')){event.preventDefault();applySelectedPen(c,p.no)}})}><div class="answer-card-head"><div class="answer-person">${escapeHtml(String(p.no).padStart(2,"0"))} ${escapeHtml(p.name)}</div><div class="answer-card-head-actions">${mark}${zoom}</div></div><div class="answer-image">${answer}</div></article>`;
 }
 function loadPageImage(pageId){
   if(gradingState.pageImageCache[pageId])return gradingState.pageImageCache[pageId];
@@ -6250,13 +6266,13 @@ function renderClassSettings(){
     const roster=gradingState.rosters[className]||[];
     const profile=gradingState.classProfiles[className]||{};
     const studentCount=Number(profile.studentCount)||roster.length;
-    const encoded=encodeURIComponent(className);
     const group=classGroupNumber(className);
     return `<article class="class-settings-card" style="--class-color:${yutoriClassColorValue(profile.color)}">
       <div class="class-settings-card-copy"><div class="class-settings-school">${escapeHtml(profile.schoolName||"学校名未設定")}</div><h3>${escapeHtml(classDisplayName(className))}</h3><p>組 ${group?`${group}組`:"未設定"}・人数 ${studentCount}名・名簿 ${roster.length}名</p></div>
-      <button class="secondary class-settings-edit" type="button" onclick="openClassModal(decodeURIComponent('${encoded}'))">編集</button>
+      <button class="secondary class-settings-edit" type="button" ${uiEvent("click",()=>openClassModal(className))}>編集</button>
     </article>`;
   }).join("");
+  bindUiEvents(host);
 }
 function suggestClassGroupFromName(){
   const input=document.getElementById("classGroupInput");if(!input||input.value)return;
@@ -6451,8 +6467,9 @@ function renderResumeList(){
     const missing=sessionMissingStudents(session);
     const missingNames=missing.map(person=>`${classFullDisplayName(person.className)} ${String(person.no).padStart(2,"0")} ${person.name}`).join("、");
     const missingHtml=`<div class="resume-missing-simple"><strong>未受験・答案なし ${missing.length}名</strong>${missingNames?`<span class="resume-missing-names" title="${escapeHtml(missingNames)}">${escapeHtml(missingNames)}</span>`:""}</div>`;
-    return `<div class="resume-item"><button class="resume-delete" type="button" title="削除" onclick="openDeleteSessionModal('${escapeHtml(session.id)}','${escapeHtml(title)}')">×</button><div class="resume-heading"><span class="resume-title">${escapeHtml(title)}</span><span class="resume-classes">${escapeHtml(classes)}</span></div><div class="resume-meta-row"><span>採点途中：${completed} / ${total}問</span><span>最終保存：${formatSavedAt(session.lastSavedAt)}</span></div>${missingHtml}<div class="resume-actions">${missing.length?`<button class="resume-late-button" type="button" onclick="openLatePdfModal('${escapeHtml(session.id)}')">個別のPDF読込</button>`:""}<button class="primary" onclick="resumeGradingSession('${escapeHtml(session.id)}')">採点を再開</button></div></div>`;
+    return `<div class="resume-item"><button class="resume-delete" type="button" title="削除" ${uiEvent("click",()=>openDeleteSessionModal(session.id,title))}>×</button><div class="resume-heading"><span class="resume-title">${escapeHtml(title)}</span><span class="resume-classes">${escapeHtml(classes)}</span></div><div class="resume-meta-row"><span>採点途中：${completed} / ${total}問</span><span>最終保存：${formatSavedAt(session.lastSavedAt)}</span></div>${missingHtml}<div class="resume-actions">${missing.length?`<button class="resume-late-button" type="button" ${uiEvent("click",()=>openLatePdfModal(session.id))}>個別のPDF読込</button>`:""}<button class="primary" ${uiEvent("click",()=>resumeGradingSession(session.id))}>採点を再開</button></div></div>`;
   }).join("");
+  bindUiEvents(box);
 }
 
 let latePdfContext={sessionId:"",candidates:[]};
@@ -6462,7 +6479,7 @@ function openLatePdfModal(sessionId){
   latePdfContext={sessionId,candidates};
   const title=[session.subject,session.unit,session.testName].filter(Boolean).join(" ")||"名称未設定";
   document.getElementById("latePdfSessionTitle").textContent=`「${title}」へ後日受験した答案を追加します。`;
-  document.getElementById("latePdfCandidates").innerHTML=candidates.map(person=>`<span class="late-pdf-candidate">${escapeHtml(classFullDisplayName(person.className))} ${String(person.no).padStart(2,"0")} ${escapeHtml(person.name)}</span>`).join("");
+  document.getElementById("latePdfCandidates").innerHTML=candidates.map(person=>`<span class="late-pdf-candidate">${escapeHtml(classFullDisplayName(person.className))} ${escapeHtml(String(person.no).padStart(2,"0"))} ${escapeHtml(person.name)}</span>`).join("");
   document.getElementById("latePdfInput").value="";
   document.querySelector('input[name="lateGradingMode"][value="late-only"]').checked=true;
   const status=document.getElementById("latePdfStatus");status.className="late-pdf-status";status.textContent="読み込み後、「要確認のPDF」を該当する生徒のタイルへ割り当てます。";
@@ -6919,12 +6936,12 @@ function renderSelectedResultClass(){
           <tbody>
             ${sortedRows.map(row=>`
               <tr class="${row.absent?"absent-row":""}">
-                <td class="col-no">${String(row.no).padStart(2,"0")}</td>
+                <td class="col-no">${escapeHtml(String(row.no).padStart(2,"0"))}</td>
                 <td class="col-name" title="${escapeHtml(row.name)}">${escapeHtml(row.name)}</td>
                 <td class="col-score">${row.absent?"欠席":formatScore(row.score)}</td>
                 ${row.marks.map(mark=>{
                   const label=mark==="ok"?"○":mark==="ng"?"×":mark==="partial"?"△":"—";
-                  const cls=mark||"blank";
+                  const cls=escapeHtml(mark||"blank");
                   return `<td class="qcol"><span class="result-mark ${cls}">${label}</span></td>`;
                 }).join("")}
               </tr>
@@ -6983,13 +7000,12 @@ function sortedOutputSessions(sessions){
     return collator.compare(String(outputSessionSortValue(a,mode)),String(outputSessionSortValue(b,mode)))||(Number(b.lastSavedAt)||0)-(Number(a.lastSavedAt)||0);
   });
 }
-function outputInlineValue(value){return encodeURIComponent(String(value||"")).replace(/'/g,"%27")}
 function outputSessionCard(session){
-  const encodedId=outputInlineValue(session.id),title=testTileTitle(session,"名称未設定"),encodedTitle=outputInlineValue(title);
+  const title=testTileTitle(session,"名称未設定");
   const classes=(session.classes||[]).map(className=>classFullDisplayName(className)).join("・")||"クラス未設定";
   const completed=completedQuestionCount(session),total=(session.questions||[]).length;
   const detail=[gradeLabel(session.grade),session.subject,session.unit].filter(Boolean).join(" ／ ");
-  return `<article class="output-session-card"><h3>${escapeHtml(title)}</h3><p>${detail?escapeHtml(detail):"&nbsp;"}</p><div class="output-session-meta"><span>${escapeHtml(classes)}</span><span>採点済み ${completed}/${total}問</span><span>最終保存 ${escapeHtml(formatSavedAt(session.lastSavedAt))}</span></div><div class="output-session-actions"><button class="secondary" type="button" onclick="moveOutputSessionToList(decodeURIComponent('${encodedId}'))">本棚へ収納</button><button class="danger" type="button" onclick="openDeleteSessionModal(decodeURIComponent('${encodedId}'),decodeURIComponent('${encodedTitle}'))">削除</button><button class="primary" type="button" onclick="openReturnOutputSession(decodeURIComponent('${encodedId}'))">返却資料を作る</button></div></article>`;
+  return `<article class="output-session-card"><h3>${escapeHtml(title)}</h3><p>${detail?escapeHtml(detail):"&nbsp;"}</p><div class="output-session-meta"><span>${escapeHtml(classes)}</span><span>採点済み ${completed}/${total}問</span><span>最終保存 ${escapeHtml(formatSavedAt(session.lastSavedAt))}</span></div><div class="output-session-actions"><button class="secondary" type="button" ${uiEvent("click",()=>moveOutputSessionToList(session.id))}>本棚へ収納</button><button class="danger" type="button" ${uiEvent("click",()=>openDeleteSessionModal(session.id,title))}>削除</button><button class="primary" type="button" ${uiEvent("click",()=>openReturnOutputSession(session.id))}>返却資料を作る</button></div></article>`;
 }
 function renderOutputSessionCards(){
   const host=document.getElementById("outputSessionCards"),catalog=document.getElementById("outputSessionCatalog");if(!host||!catalog)return;
@@ -6999,12 +7015,13 @@ function renderOutputSessionCards(){
   const shelved=sortedOutputSessions(sessions.filter(session=>outputLibraryState.shelvedIds.has(String(session.id))));
   const desk=sortedOutputSessions(sessions.filter(session=>!outputLibraryState.shelvedIds.has(String(session.id))));
   catalog.innerHTML=shelved.length?shelved.map(session=>{
-    const encodedId=outputInlineValue(session.id),title=testTileTitle(session,"名称未設定"),encodedTitle=outputInlineValue(title);
+    const title=testTileTitle(session,"名称未設定");
     const classes=(session.classes||[]).map(className=>classFullDisplayName(className)).join("・")||"クラス未設定";
     const meta=[gradeLabel(session.grade),classes,`最終保存 ${formatSavedAt(session.lastSavedAt)}`].filter(Boolean).join(" ／ ");
-    return `<article class="output-catalog-row"><div class="output-catalog-copy"><strong title="${escapeHtml(title)}">${escapeHtml(title)}</strong><span title="${escapeHtml(meta)}">${escapeHtml(meta)}</span></div><div class="output-catalog-actions"><button class="secondary" type="button" onclick="selectOutputSession(decodeURIComponent('${encodedId}'))">机に戻す</button><button class="danger" type="button" onclick="openDeleteSessionModal(decodeURIComponent('${encodedId}'),decodeURIComponent('${encodedTitle}'))">削除</button></div></article>`;
+    return `<article class="output-catalog-row"><div class="output-catalog-copy"><strong title="${escapeHtml(title)}">${escapeHtml(title)}</strong><span title="${escapeHtml(meta)}">${escapeHtml(meta)}</span></div><div class="output-catalog-actions"><button class="secondary" type="button" ${uiEvent("click",()=>selectOutputSession(session.id))}>机に戻す</button><button class="danger" type="button" ${uiEvent("click",()=>openDeleteSessionModal(session.id,title))}>削除</button></div></article>`;
   }).join(""):'<div class="output-library-empty">本棚に収納した採点済みデータはありません。</div>';
   host.innerHTML=desk.length?desk.map(outputSessionCard).join(""):'<div class="output-library-empty">机上の採点済みデータはありません。<br>新しい採点済みデータは自動でここに表示されます。</div>';
+  bindUiEvents(catalog);bindUiEvents(host);
 }
 function selectOutputSession(sessionId){outputLibraryState.shelvedIds.delete(String(sessionId));saveOutputShelvedSessionIds();renderOutputSessionCards()}
 function moveOutputSessionToList(sessionId){outputLibraryState.shelvedIds.add(String(sessionId));saveOutputShelvedSessionIds();renderOutputSessionCards()}
@@ -7106,8 +7123,9 @@ function renderReturnStudentList(){
   host.innerHTML=people.length?people.map(person=>{
     const result=calculateStudentResult(session,className,person),available=Boolean(person.pageId&&!person.absent),checked=available&&returnOutputState.selectedNos.has(Number(person.no));
     const status=person.absent?"欠席":!person.pageId?"答案なし":result.complete?"採点済":"採点途中";
-    return `<label class="return-student-row ${available?"":"disabled"}"><input type="checkbox" ${checked?"checked":""} ${available?"":"disabled"} onchange="toggleReturnStudent(${person.no},this.checked)"><span>${String(person.no).padStart(2,"0")} ${escapeHtml(person.name)}</span><small>${status}</small></label>`;
+    return `<label class="return-student-row ${available?"":"disabled"}"><input type="checkbox" ${checked?"checked":""} ${available?"":"disabled"} ${uiEvent("change",event=>toggleReturnStudent(person.no,event.currentTarget.checked))}><span>${escapeHtml(String(person.no).padStart(2,"0"))} ${escapeHtml(person.name)}</span><small>${status}</small></label>`;
   }).join(""):'<div class="empty-resume">名簿がありません。</div>';
+  bindUiEvents(host);
 }
 function selectAllReturnStudents(selected){
   const values=returnOutputPeople().filter(person=>person.pageId&&!person.absent).map(person=>Number(person.no));
@@ -7123,7 +7141,7 @@ function toggleReturnStudent(no,selected){
 function refreshReturnPreviewStudents(){
   const select=document.getElementById("returnPreviewStudentSelect"),people=returnOutputPeople().filter(person=>returnOutputState.selectedNos.has(Number(person.no)));
   if(!people.some(person=>Number(person.no)===Number(returnOutputState.previewNo)))returnOutputState.previewNo=people[0]?Number(people[0].no):null;
-  select.innerHTML=people.length?people.map(person=>`<option value="${person.no}">${String(person.no).padStart(2,"0")} ${escapeHtml(person.name)}</option>`).join(""):'<option value="">生徒を選択してください</option>';
+  select.innerHTML=people.length?people.map(person=>`<option value="${escapeHtml(person.no)}">${escapeHtml(String(person.no).padStart(2,"0"))} ${escapeHtml(person.name)}</option>`).join(""):'<option value="">生徒を選択してください</option>';
   if(returnOutputState.previewNo!=null)select.value=String(returnOutputState.previewNo);
 }
 function changeReturnPreviewStudent(no){returnOutputState.previewNo=no===""?null:Number(no);renderReturnOutputPreview()}
@@ -7336,7 +7354,7 @@ function returnPracticeSheetHtml(session,className,person,items,pageIndex=0,page
   const title=session.testName||[session.subject,session.unit].filter(Boolean).join(" ")||"テスト";
   const paper=returnOutputPaperSpec(session,"practice",options),resolvedRowHeight=Number.isFinite(Number(rowHeight))?Number(rowHeight):returnPracticeRowHeight(session,items.length,options);
   const itemHtml=items.map(item=>`<article class="return-practice-item"><div class="return-practice-work"><div class="return-practice-details"><div class="return-practice-detail-first"><span class="return-practice-number">${String(item.q+1).padStart(2,"0")}${item.continued?"（続）":""}</span><span class="return-practice-detail-question">${escapeHtml(questionDisplayText(session,item.q,item.question))}</span></div><div class="return-practice-detail-second"><span class="return-practice-detail-rate">正答率 ${item.rate}%</span></div></div><div class="return-four-lines" aria-label="英語4線"><i></i><i></i><i></i><i></i>${item.answer?`<svg class="return-practice-model-layer" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="手本：${escapeHtml(item.answer)}"><text class="return-practice-model-answer" x="1.2%" y="61%">${escapeHtml(item.answer)}</text></svg>`:""}</div></div></article>`).join("");
-  return `<section class="return-sheet ${paper.className} return-practice-sheet" style="--return-paper-ratio:${paper.ratio}" aria-label="${escapeHtml(person.name)}の個別練習課題"><header class="return-practice-head"><div><div class="return-practice-title">個別練習プリント${pageCount>1?` ${pageIndex+1}`:""}</div><div class="return-practice-meta">${escapeHtml(title)}　正答率が高い問題から復習します</div></div><div class="return-practice-name">${escapeHtml(classFullDisplayName(className))}<br>${String(person.no).padStart(2,"0")} ${escapeHtml(person.name)}</div></header>${items.length?`<div class="return-practice-list" style="--practice-row-height:${resolvedRowHeight.toFixed(2)}cqw">${itemHtml}</div>`:'<div class="return-practice-empty">全問正解です。よくできました！</div>'}</section>`;
+  return `<section class="return-sheet ${paper.className} return-practice-sheet" style="--return-paper-ratio:${paper.ratio}" aria-label="${escapeHtml(person.name)}の個別練習課題"><header class="return-practice-head"><div><div class="return-practice-title">個別練習プリント${pageCount>1?` ${pageIndex+1}`:""}</div><div class="return-practice-meta">${escapeHtml(title)}　正答率が高い問題から復習します</div></div><div class="return-practice-name">${escapeHtml(classFullDisplayName(className))}<br>${escapeHtml(String(person.no).padStart(2,"0"))} ${escapeHtml(person.name)}</div></header>${items.length?`<div class="return-practice-list" style="--practice-row-height:${resolvedRowHeight.toFixed(2)}cqw">${itemHtml}</div>`:'<div class="return-practice-empty">全問正解です。よくできました！</div>'}</section>`;
 }
 function returnPracticePagesHtml(session,className,person,options){
   const candidates=options.fitPracticePage?{...options,practiceCount:(session.questions||[]).length}:options;

@@ -287,6 +287,17 @@
     return descriptor;
   }
 
+  const stageOwners = new Map();
+  const stageLockName = name => `yutori-stage:${name}`;
+  async function ownStage(name) {
+    if (!global.navigator?.locks) return;
+    await new Promise((resolve, reject) => {
+      global.navigator.locks.request(stageLockName(name), () => new Promise(release => {
+        stageOwners.set(name, release); resolve();
+      })).catch(reject);
+    });
+  }
+  function releaseStage(name) { stageOwners.get(name)?.(); stageOwners.delete(name); }
   const databaseDeletions = new Map();
   function deleteDatabase(name, { signal } = {}) {
     if (name !== DEFAULT_DATA_DB.name && !STAGE_NAME.test(name)) return Promise.reject(new TypeError("Not a YUTORI data database"));
@@ -298,7 +309,7 @@
       const request = global.indexedDB.deleteDatabase(name);
       const failRequest = error => { deletion.waitError = error; clearDeadline(); reject(error); };
       const clearDeadline = requestDeadline(signal, failRequest);
-      request.onsuccess = () => { clearDeadline(); databaseDeletions.delete(name); resolve(); };
+      request.onsuccess = () => { clearDeadline(); databaseDeletions.delete(name); releaseStage(name); resolve(); };
       request.onerror = () => { clearDeadline(); databaseDeletions.delete(name); reject(request.error); };
       // Native requests cannot be cancelled. Keep timed-out/aborted/blocked
       // requests tracked until a terminal event; late success only clears this
@@ -318,6 +329,35 @@
       if (STAGE_NAME.test(db.name) && db.name !== name && db.name !== active.name) await deleteDatabase(db.name);
     }
   }
+  async function reclaimAbandonedStages() {
+    // The DB name is durable lifecycle identity; a Web Lock proves that its
+    // inspecting page is still alive, including after the writer closes its DB.
+    // Without cross-page ownership support, prefer retaining an orphan to
+    // deleting another page's live candidate.
+    if (!global.navigator?.locks || await getRestoreJournal()) return;
+    for (const db of await global.indexedDB.databases()) {
+      if (!STAGE_NAME.test(db.name)) continue;
+      try {
+        await global.navigator.locks.request(stageLockName(db.name), { ifAvailable: true }, async lock => {
+          if (!lock) return;
+          const meta = await openMetaDb(); let references;
+          try {
+            references = await transactionResult(meta, ["settings", "journals"], "readonly", (tx, result) => {
+              const state = {};
+              tx.objectStore("journals").get("restore").onsuccess = event => { state.journal = event.target.result; };
+              tx.objectStore("settings").get("activeDataDb").onsuccess = event => { state.active = event.target.result || DEFAULT_DATA_DB; };
+              result(state);
+            });
+          } finally { meta.close(); }
+          // A pointer switch and its journal must be observed in one snapshot;
+          // mixing reads across that transaction could mistake the old DB for
+          // an orphan just as another tab starts recovery.
+          if (references.journal || validateDescriptor(references.active).name === db.name) return;
+          await deleteDatabase(db.name);
+        });
+      } catch { break; } // Optional cleanup is bounded and must not block startup.
+    }
+  }
 
   async function deleteRestoreStage(name) {
     if (!STAGE_NAME.test(name)) throw new TypeError("Not a restore stage");
@@ -329,6 +369,7 @@
     const manifest = structuredClone(inputManifest);
     const descriptor = validateManifest(manifest);
     const stageDbName = `${STAGE_PREFIX}${global.crypto.randomUUID()}`;
+    await ownStage(stageDbName);
     const localStorageEntries = [];
     const localKeys = new Set();
     const expectedLocalKeys = new Set(manifest.localStorageKeys);
@@ -427,13 +468,15 @@
       const request = tx.objectStore("journals").get("restore"); request.onsuccess = () => result(request.result || null);
     }); } finally { db.close(); }
   }
+  const verifiedSafetyTransitions = new WeakSet();
   async function commitJournal(journal, descriptor, remove = false) {
     const db = await openMetaDb();
     try { return await transactionResult(db, ["settings", "journals"], "readwrite", (tx, result, abort) => {
       const store = tx.objectStore("journals"), request = store.get("restore");
       request.onsuccess = () => {
         try {
-          if (request.result?.phase === "finalizing" && (!remove && journal.phase !== "finalizing" || descriptor && descriptor.name !== request.result.targetDescriptor.name)) throw new DOMException("Finalized target is authoritative", "InvalidStateError");
+          const safetyTransition = verifiedSafetyTransitions.has(journal) && journal.phase === "recovering-safety" && journal.id === request.result?.id && journal.failedTarget.name === request.result.targetDescriptor.name && journal.targetHash === request.result.oldHash;
+          if (request.result?.phase === "finalizing" && !safetyTransition && (!remove && journal.phase !== "finalizing" || descriptor && descriptor.name !== request.result.targetDescriptor.name)) throw new DOMException("Finalized target is authoritative", "InvalidStateError");
           if (descriptor) tx.objectStore("settings").put(validateDescriptor(descriptor), "activeDataDb");
           if (remove) store.delete("restore"); else store.put(journal, "restore");
           result(journal);
@@ -499,6 +542,19 @@
         await dataIdentity(journal.targetDescriptor, journal.targetManifest, journal.targetLocalStorage) !== journal.targetHash ||
         JSON.stringify(collectLocalStorageEntries()) !== JSON.stringify(sortedEntries(journal.targetLocalStorage))) fail("CHECKSUM_MISMATCH");
   }
+  async function commitSafetyRecovery(journal) {
+    const durable = await getRestoreJournal();
+    if (!durable || durable.id !== journal.id || journal.phase !== "recovering-safety" ||
+        journal.targetManifestHash !== durable.safetyBackup.manifestHash || journal.targetHash !== durable.oldHash ||
+        await dataIdentity(journal.targetDescriptor, journal.targetManifest, journal.targetLocalStorage) !== durable.oldHash) fail("CHECKSUM_MISMATCH");
+    if (durable.phase === "finalizing") {
+      let valid = true;
+      try { await validateRestoreTarget(durable); } catch { valid = false; }
+      if (valid) throw new DOMException("Validated target remains authoritative", "InvalidStateError");
+    }
+    verifiedSafetyTransitions.add(journal);
+    try { return await commitJournal(journal); } finally { verifiedSafetyTransitions.delete(journal); }
+  }
   async function deleteInactive(descriptor) {
     validateDescriptor(descriptor);
     if ((await getActiveDataDbDescriptor()).name === descriptor.name) throw new DOMException("Database is active", "InvalidStateError");
@@ -522,7 +578,8 @@
     if (!durable) return; // Journal removal already committed: cleanup is done.
     if (durable.id !== journal.id || !["pointer-switched", "reload-pending", "finalizing"].includes(durable.phase)) throw new DOMException("Target is not ready to finalize", "InvalidStateError");
     journal = durable;
-    await validateRestoreTarget(journal);
+    try { await validateRestoreTarget(journal); }
+    catch (cause) { throw Object.assign(new Error("Restore target integrity could not be verified", { cause }), { name: "RestoreIntegrityError" }); }
     if ((await getActiveDataDbDescriptor()).name !== journal.targetDescriptor.name) fail("CHECKSUM_MISMATCH");
     // Validation completed after reload. Persist this before deleting the only
     // old database so cleanup can be retried after another crash.
@@ -537,8 +594,8 @@
     isOwnedLocalStorageKey, collectLocalStorageEntries, openMetaDb, getDestinationMeta,
     saveDestinationMeta, clearDestinationHandle, getLastBackupMeta, getActiveDataDbDescriptor,
     saveActiveDataDbDescriptor, openActiveDataDb, createSnapshotRecordSource,
-    createStageWriter, createStageFromArchive, deleteDatabase, deleteAllRestoreStagesExcept, deleteRestoreStage,
+    createStageWriter, createStageFromArchive, deleteDatabase, deleteAllRestoreStagesExcept, deleteRestoreStage, reclaimAbandonedStages,
     beginRestoreJournal, getRestoreJournal, setRestorePhase, switchActiveDataDb, applyOwnedLocalStorage,
-    rollbackRestore, finalizeRestore, validateRestoreTarget, dataIdentity, commitJournal,
+    rollbackRestore, finalizeRestore, validateRestoreTarget, dataIdentity, commitJournal, commitSafetyRecovery,
   });
 })(globalThis);

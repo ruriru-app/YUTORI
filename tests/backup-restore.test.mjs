@@ -34,6 +34,168 @@ beforeEach(async () => {
 afterEach(async () => { await page?.context().close(); assert.deepEqual(errors, []); });
 after(async () => { await harness?.close(); });
 
+test("hostile restored settings remain text and ordinary delete actions preserve foreign storage", async () => {
+  await page.evaluate(async () => {
+    const attack="'-localStorage.clear()-'", html='<img src=x onerror="localStorage.clear()">';
+    const entries={yutori_grade_settings_v1:JSON.stringify([attack,html]),yutori_subject_settings_v1:JSON.stringify([attack,html]),yutori_rosters:JSON.stringify({[attack]:[{no:1,name:html}]}),yutori_grading_sessions_v023:JSON.stringify([{id:attack,testName:attack,questions:["q"],modelAnswers:["a"],classes:[attack],answers:{[attack]:[{no:1,name:html}]},grades:{}}])};
+    const records=[...Object.entries(entries).map(([key,value])=>({type:"localStorage",source:"localStorage",key,value})),...fixtureRecords().filter(r=>r.source==="indexedDB")];
+    const manifest={...fixtureManifest(),counts:{localStorage:Object.keys(entries).length,indexedDB:2},localStorageKeys:Object.keys(entries)};
+    const candidate=await YutoriBackup.inspectRestoreFile(await archiveFile(manifest,records)),safety=await YutoriBackup.saveSafetyBackup(candidate);
+    YutoriBackup.setRestoreConfirmation(true);YutoriBackup.configure({reload:()=>{}});await YutoriBackup.replaceWithCandidate(candidate,safety);
+  });
+  await page.reload();await page.evaluate(()=>yutoriAppInitialization);
+  page.on("dialog",dialog=>dialog.accept());
+  for(const [panel,list,key] of [["grade","gradeSettingsList","yutori_grade_settings_v1"],["subject","subjectSettingsList","yutori_subject_settings_v1"]]) {
+    await page.evaluate(panel=>{showScreen("rosterScreen");showSettingsPanel(panel);},panel);
+    assert.equal(await page.locator(`#${list} img`).count(),0);
+    await page.locator(`#${list} button`).first().click();
+    assert.deepEqual(await page.evaluate(key=>({foreign:localStorage.getItem("mitori_fixture"),values:JSON.parse(localStorage.getItem(key))}),key),{foreign:"foreign",values:['<img src=x onerror="localStorage.clear()">']});
+  }
+  await page.evaluate(()=>{showSettingsPanel("class");});await page.locator(".class-settings-edit").click();
+  assert.equal(await page.locator("#classNameInput").inputValue(),"'-localStorage.clear()-'");
+  await page.evaluate(async()=>{closeClassModal();showScreen("gradingScreen");await resumeGradingSession("'-localStorage.clear()-'");returnToReviewStep();});
+  await page.locator(".pdf-absent-toggle input").check();await page.locator(".pdf-absent-toggle input").uncheck();
+  assert.equal(await page.evaluate(()=>localStorage.getItem("mitori_fixture")),"foreign");
+  const grading=await page.evaluate(()=>{renderGradeGrid();document.querySelector(".answer-card").click();return gradingState.grades[key("'-localStorage.clear()-'",1,0)]?.mark;});
+  assert.equal(grading,"ok");
+  await page.evaluate(()=>{saveGradingSessionNow();renderOutputSessionCards();document.querySelector("#outputSessionCards .secondary").click();});
+  assert.equal(await page.evaluate(()=>outputLibraryState.shelvedIds.has("'-localStorage.clear()-'")),true);
+  await page.evaluate(()=>{document.querySelector("#outputSessionCatalog .secondary").click();openGrading();renderResumeList();});
+  await page.locator(".resume-delete").click();
+  assert.equal(await page.evaluate(()=>localStorage.getItem("mitori_fixture")),"foreign");
+  await page.evaluate(()=>confirmDeleteSession());
+  assert.deepEqual(await page.evaluate(()=>JSON.parse(localStorage.getItem(sessionsKey()))),[]);
+});
+
+test("hostile restored session numbers marks and titles stay inert across grading results and return renderers",async()=>{
+  await page.evaluate(async()=>{
+    const html='<img src=x onerror="localStorage.clear()">',attack="'-localStorage.clear()-'";
+    const session={id:attack,testName:html,questions:[html],modelAnswers:[html],classes:[attack],answers:{[attack]:[{no:html,name:html,pageId:"p1",lateAdded:true,lateConfirmed:true,lateGradeSelected:true}]},grades:{[`${attack}::${html}::0`]:{mark:'"><img src=x onerror="localStorage.clear()">',score:0}},currentWorkflowStep:1};
+    const entries={yutori_rosters:JSON.stringify({[attack]:[{no:html,name:html}]}),yutori_grading_sessions_v023:JSON.stringify([session]),yutori_saved_tests_v1:JSON.stringify([{id:attack,testName:html,questions:[html],answers:[html]}])};
+    const records=[...Object.entries(entries).map(([key,value])=>({type:"localStorage",source:"localStorage",key,value})),...fixtureRecords().filter(r=>r.source==="indexedDB")];
+    const manifest={...fixtureManifest(),counts:{localStorage:3,indexedDB:2},localStorageKeys:Object.keys(entries)};
+    const candidate=await YutoriBackup.inspectRestoreFile(await archiveFile(manifest,records)),safety=await YutoriBackup.saveSafetyBackup(candidate);
+    YutoriBackup.setRestoreConfirmation(true);YutoriBackup.configure({reload:()=>{}});await YutoriBackup.replaceWithCandidate(candidate,safety);
+  });
+  await page.reload();await page.evaluate(()=>yutoriAppInitialization);
+  for(const surface of ["results","late","review","individual","return","practice"]){
+    const state=await page.evaluate(async surface=>{
+      const s=JSON.parse(localStorage.getItem(sessionsKey()))[0],c=s.classes[0],p=s.answers[c][0];
+      if(surface==="results")renderResultsSummary();
+      if(surface==="late")openLatePdfModal(s.id);
+      if(surface==="review"||surface==="individual"){
+        await resumeGradingSession(s.id);if(surface==="review")renderIssues();else {gradingState.gradingScope="late-only";renderIndividualGradeGrid(currentTest(),5);}
+      }
+      if(surface==="return"){returnOutputState.session=s;returnOutputState.className=c;returnOutputState.selectedNos=new Set([Number(p.no)]);renderReturnStudentList();refreshReturnPreviewStudents();}
+      if(surface==="practice")document.getElementById("returnOutputPreview").innerHTML=returnPracticeSheetHtml(s,c,p,[],0,1);
+      await new Promise(r=>setTimeout(r,30));
+      return{foreign:localStorage.getItem("mitori_fixture"),unsafe:document.querySelectorAll('img[src="x"]').length};
+    },surface);assert.deepEqual(state,{foreign:"foreign",unsafe:0},surface);
+  }
+  await page.evaluate(()=>{closeLatePdfModal();showScreen("testListScreen");});page.on("dialog",dialog=>dialog.accept());
+  await page.locator("#savedTestList .saved-test-delete").click();
+  assert.deepEqual(await page.evaluate(()=>JSON.parse(localStorage.getItem("yutori_saved_tests_v1"))),[]);
+});
+
+for(const removed of [false,true])for(const damage of ["corrupt","missing"])for(const handle of [false,true])test(`${damage} finalizing target old deleted ${removed} recovers exact safety with handle ${handle}`,async()=>{
+  await page.evaluate(async ({handle,removed,damage})=>{
+    const candidate=await YutoriBackup.inspectRestoreFile(sourceFile),safety=await YutoriBackup.saveSafetyBackup(candidate);
+    YutoriBackup.setRestoreConfirmation(true);YutoriBackup.configure({reload:()=>{}});await YutoriBackup.replaceWithCandidate(candidate,safety);
+    const journal=await YutoriBackupStorage.getRestoreJournal();journal.phase="finalizing";if(!handle)journal.safetyBackup.handle=null;await YutoriBackupStorage.commitJournal(journal);
+    if(removed)await YutoriBackupStorage.deleteDatabase(journal.oldDescriptor.name);
+    if(damage==="missing")await new Promise((resolve,reject)=>{const r=indexedDB.deleteDatabase(candidate.stageDbName);r.onsuccess=resolve;r.onerror=()=>reject(r.error);});
+    else {const db=await YutoriBackupStorage.openActiveDataDb();await new Promise((resolve,reject)=>{const tx=db.transaction("pdfFiles","readwrite");tx.objectStore("pdfFiles").put({id:"p1",blob:new Blob(["CORRUPTED SAME COUNT"])});tx.oncomplete=resolve;tx.onabort=()=>reject(tx.error);});db.close();}
+  },{handle,removed,damage});
+  await page.reload();await page.evaluate(()=>yutoriAppInitialization);
+  if(!handle){
+    assert.equal(await page.getByRole("button",{name:"復元前バックアップを選んで回復"}).count(),1);
+    const result=await page.evaluate(async()=>{
+      const file=await (await (await navigator.storage.getDirectory()).getFileHandle("safety.yutori")).getFile();
+      const records=[];const archive=await YutoriBackupArchive.readArchiveStream(file,{onRecord:r=>records.push(r)});
+      const other=await new Response(YutoriBackupArchive.createArchiveStream(archive.manifest,records.map(r=>r.key==="yutori_live"?{...r,value:"NOT THE RECORDED SAFETY"}:r))).blob();
+      let wrong=false;try{await YutoriBackup.recoverFromSafetyFile(other,{reload:false});}catch{wrong=true;}
+      const phase=(await YutoriBackupStorage.getRestoreJournal()).phase;
+      await YutoriBackup.recoverFromSafetyFile(file,{reload:false});
+      return{wrong,phase,after:(await YutoriBackupStorage.getRestoreJournal()).phase};
+    });assert.deepEqual(result,{wrong:true,phase:"finalizing",after:"reload-pending"});
+    await page.reload();await page.evaluate(()=>yutoriAppInitialization);
+  }
+  assert.deepEqual(await page.evaluate(async()=>({ready:!!yutoriAppReady,live:localStorage.getItem("yutori_live"),secret:localStorage.getItem("yutori_secret"),foreign:localStorage.getItem("mitori_fixture"),journal:await YutoriBackupStorage.getRestoreJournal()})),{ready:true,live:"CURRENT_PRIVATE",secret:null,foreign:"foreign",journal:null});
+});
+
+test("invalid finalized target safety transition survives crash immediately after durable recovery journal",async()=>{
+  const phase=await page.evaluate(async()=>{
+    const candidate=await YutoriBackup.inspectRestoreFile(sourceFile),safety=await YutoriBackup.saveSafetyBackup(candidate);
+    YutoriBackup.setRestoreConfirmation(true);YutoriBackup.configure({reload:()=>{}});await YutoriBackup.replaceWithCandidate(candidate,safety);
+    await YutoriBackupStorage.setRestorePhase(await YutoriBackupStorage.getRestoreJournal(),"finalizing");
+    await new Promise(resolve=>{const r=indexedDB.deleteDatabase(candidate.stageDbName);r.onsuccess=resolve;});
+    const api=YutoriBackupStorage;globalThis.YutoriBackupStorage={...api,async commitSafetyRecovery(j){await api.commitSafetyRecovery(j);throw new Error("crash after durable safety transition");}};
+    let failed=false;try{await YutoriBackup.recoverFromSafetyFile(await safetyHandle.getFile(),{reload:false});}catch{failed=true;}
+    return{failed,phase:(await api.getRestoreJournal()).phase,live:localStorage.getItem("yutori_live")};
+  });assert.deepEqual(phase,{failed:true,phase:"recovering-safety",live:null});
+  await page.reload();await page.evaluate(()=>yutoriAppInitialization);
+  assert.deepEqual(await page.evaluate(async()=>({ready:!!yutoriAppReady,live:localStorage.getItem("yutori_live"),foreign:localStorage.getItem("mitori_fixture"),journal:await YutoriBackupStorage.getRestoreJournal()})),{ready:true,live:"CURRENT_PRIVATE",foreign:"foreign",journal:null});
+});
+
+test("repeated abandoned inspections reclaim every inactive copy but retain an active restored stage",async()=>{
+  await page.evaluate(async()=>{const root=await navigator.storage.getDirectory(),handle=await root.getFileHandle("source.yutori",{create:true}),writer=await handle.createWritable();await writer.write(sourceFile);await writer.close();});
+  for(let attempt=0;attempt<3;attempt++){
+    await page.evaluate(async()=>{await YutoriBackup.inspectRestoreFile(await (await (await navigator.storage.getDirectory()).getFileHandle("source.yutori")).getFile());});
+    await page.reload();await page.evaluate(()=>yutoriAppInitialization);
+    assert.equal(await page.evaluate(async()=>(await indexedDB.databases()).filter(d=>d.name.startsWith("YUTORI_RESTORE_STAGE_")).length),0);
+  }
+  const active=await page.evaluate(async()=>{
+    const root=await navigator.storage.getDirectory();const c=await YutoriBackup.inspectRestoreFile(await (await root.getFileHandle("source.yutori")).getFile());
+    const handle=await root.getFileHandle("new-safety.yutori",{create:true});YutoriBackup.configure({pickSaveFile:()=>Promise.resolve(handle),reload:()=>{}});
+    const safety=await YutoriBackup.saveSafetyBackup(c);YutoriBackup.setRestoreConfirmation(true);await YutoriBackup.replaceWithCandidate(c,safety);return c.stageDbName;
+  });
+  for(let i=0;i<2;i++){await page.reload();await page.evaluate(()=>yutoriAppInitialization);assert.equal(await page.evaluate(async active=>(await indexedDB.databases()).some(d=>d.name===active),active),true);}
+});
+
+for(const phase of ["partial","inspected","safety"])test(`startup reclaims abandoned pre-journal stage after ${phase} reload`,async()=>{
+  const stage=await page.evaluate(async phase=>{
+    if(phase==="partial"){const writer=await YutoriBackupStorage.createStageWriter(fixtureManifest());await writer.onRecord(fixtureRecords().at(-1));return (await indexedDB.databases()).find(d=>d.name.startsWith("YUTORI_RESTORE_STAGE_")).name;}
+    const candidate=await YutoriBackup.inspectRestoreFile(sourceFile);if(phase==="safety")await YutoriBackup.saveSafetyBackup(candidate);return candidate.stageDbName;
+  },phase);
+  await page.reload();await page.evaluate(()=>yutoriAppInitialization);
+  assert.deepEqual(await page.evaluate(async stage=>({ready:!!yutoriAppReady,orphan:(await indexedDB.databases()).some(d=>d.name===stage),live:localStorage.getItem("yutori_live"),foreign:localStorage.getItem("mitori_fixture")}),stage),{ready:true,orphan:false,live:"CURRENT_PRIVATE",foreign:"foreign"});
+});
+
+test("startup stage cleanup preserves another live inspector then reclaims on owner close",async()=>{
+  const stage=await page.evaluate(async()=> (await YutoriBackup.inspectRestoreFile(sourceFile)).stageDbName);
+  const other=await page.context().newPage();other.on("pageerror",error=>errors.push(error.message));
+  await other.goto(harness.origin);await other.evaluate(()=>yutoriAppInitialization);
+  assert.equal(await other.evaluate(async stage=>(await indexedDB.databases()).some(d=>d.name===stage),stage),true);
+  await page.close();page=other;await page.reload();await page.evaluate(()=>yutoriAppInitialization);
+  assert.equal(await page.evaluate(async stage=>(await indexedDB.databases()).some(d=>d.name===stage),stage),false);
+});
+
+test("abandoned stage held open in another page cannot indefinitely block startup",async()=>{
+  const stage=await page.evaluate(async()=> (await YutoriBackup.inspectRestoreFile(sourceFile)).stageDbName);
+  const blocker=await page.context().newPage();await blocker.goto(`${harness.origin}/__test_blank__`);
+  await blocker.evaluate(async name=>{globalThis.held=await new Promise(resolve=>{const r=indexedDB.open(name);r.onsuccess=()=>resolve(r.result);});held.onversionchange=()=>{};},stage);
+  await page.route("**/assets/yutori-backup-storage.js*",async route=>{const response=await route.fetch();await route.fulfill({response,body:`${await response.text()}\nYutoriBackupStorage.configure({requestTimeoutMs:80});`});});
+  for(let i=0;i<2;i++){await page.reload();assert.equal(await page.evaluate(()=>Promise.race([yutoriAppInitialization.then(()=>!!yutoriAppReady),new Promise(r=>setTimeout(()=>r(false),600))])),true);}
+  await blocker.close();await page.reload();await page.evaluate(()=>yutoriAppInitialization);
+  assert.equal(await page.evaluate(async stage=>(await indexedDB.databases()).some(d=>d.name===stage),stage),false);
+});
+
+test("stage reclamation cannot mix a pre-journal read with a post-switch active pointer",async()=>{
+  const result=await page.evaluate(async()=>{
+    const old="YUTORI_RESTORE_STAGE_00000000-0000-4000-8000-000000000000",target="YUTORI_RESTORE_STAGE_11111111-1111-4111-8111-111111111111";
+    for(const name of [old,target])await new Promise(resolve=>{const r=indexedDB.open(name,2);r.onsuccess=()=>{r.result.close();resolve();};});
+    await YutoriBackupStorage.saveActiveDataDbDescriptor({name:old,version:2});
+    const meta=await YutoriBackupStorage.openMetaDb(),get=IDBObjectStore.prototype.get;let reads=0,switched;
+    IDBObjectStore.prototype.get=function(key){const r=get.call(this,key);if(this.name==="journals"&&++reads===2)r.addEventListener("success",()=>{
+      const tx=meta.transaction(["journals","settings"],"readwrite");
+      tx.objectStore("journals").put({id:"concurrent-restore",phase:"pointer-switched",oldDescriptor:{name:old,version:2},targetDescriptor:{name:target,version:2}},"restore");
+      tx.objectStore("settings").put({name:target,version:2},"activeDataDb");switched=new Promise(resolve=>tx.oncomplete=resolve);
+    });return r;};
+    try{await YutoriBackupStorage.reclaimAbandonedStages();await switched;}finally{IDBObjectStore.prototype.get=get;meta.close();}
+    return {old:(await indexedDB.databases()).some(d=>d.name===old),target:(await indexedDB.databases()).some(d=>d.name===target),journal:(await YutoriBackupStorage.getRestoreJournal()).id};
+  });assert.deepEqual(result,{old:true,target:true,journal:"concurrent-restore"});
+});
+
 test("inspection streams once into an inactive stage and renders only verified summary", async () => {
   assert.equal(await page.evaluate(() => typeof YutoriBackup.inspectRestoreFile), "function");
   const result = await page.evaluate(async () => {

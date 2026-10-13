@@ -619,9 +619,13 @@
     const journal = await storage().getRestoreJournal();
     if (!journal) throw new DOMException("No recovery pending", "InvalidStateError");
     if (journal.phase === "finalizing") {
-      const result = await retryFinalization();
-      if (reload) options.reload();
-      return result;
+      let valid = true;
+      try { await storage().validateRestoreTarget(journal); } catch { valid = false; }
+      if (valid) {
+        const result = await retryFinalization();
+        if (reload) options.reload();
+        return result;
+      }
     }
     let writer, staged;
     try {
@@ -635,7 +639,7 @@
       const recovered = { ...journal, phase: "recovering-safety", failedTarget: journal.targetDescriptor, targetDescriptor,
         targetManifest: staged.manifest, targetManifestHash: await sha(new TextEncoder().encode(JSON.stringify(staged.manifest))),
         targetLocalStorage: staged.localStorageEntries, targetHash: await storage().dataIdentity(targetDescriptor, staged.manifest, staged.localStorageEntries) };
-      await storage().commitJournal(recovered);
+      await storage().commitSafetyRecovery(recovered);
       await completeSafetyRecovery(recovered);
       if (reload) options.reload();
       return { status: "completed" };
@@ -665,12 +669,37 @@
     } catch (error) {
       // A failure reported after journal deletion is already-completed cleanup.
       if (!await storage().getRestoreJournal()) return { status: "completed" };
+      if (error.name === "RestoreIntegrityError") throw error;
       throw Object.assign(new Error("Restore cleanup must be retried", { cause: error }), { name: "RestoreCleanupError" });
+    }
+  }
+  async function recoverFinalizedTarget(journal) {
+    try { return await retryFinalization(); }
+    catch (error) { if (error.name !== "RestoreIntegrityError") throw error; }
+    // Cleanup errors cannot undo valid data. Failed integrity is different:
+    // only the exact verified pre-restore archive may establish a new target.
+    try {
+      const handle = journal.safetyBackup?.handle;
+      if (!handle || (handle.queryPermission && await handle.queryPermission({ mode: "read" }) !== "granted")) throw new Error("Safety file unavailable");
+      await recoverFromSafetyFile(await handle.getFile(), { reload: false });
+      await storage().finalizeRestore(await storage().getRestoreJournal());
+      return { status: "rolled-back" };
+    } catch {
+      const durable = await storage().getRestoreJournal();
+      if (!durable) return { status: "completed" };
+      if (durable.phase === "finalizing") {
+        try { return await retryFinalization(); }
+        catch (error) { if (error.name !== "RestoreIntegrityError") throw error; }
+      }
+      return { status: "needs-safety-file", message: "復元したデータを確認できません。復元前バックアップを選んで回復してください。" };
     }
   }
   async function recoverInterruptedRestore() {
     let journal = await storage().getRestoreJournal();
-    if (!journal) return { status: "none" };
+    if (!journal) {
+      try { await storage().reclaimAbandonedStages(); } catch { /* Optional orphan cleanup must not prevent normal startup. */ }
+      return { status: "none" };
+    }
     try {
       if (journal.phase === "recovering-safety") journal = await completeSafetyRecovery(journal);
       if (["pointer-switched", "reload-pending", "finalizing"].includes(journal.phase)) {
@@ -683,15 +712,13 @@
       }
       journal = await storage().getRestoreJournal();
       if (!journal) return { status: "completed" };
-      if (journal.phase === "finalizing") return await retryFinalization();
+      if (journal.phase === "finalizing") return await recoverFinalizedTarget(journal);
       await storage().rollbackRestore(journal);
       return { status: "rolled-back" };
     } catch {
       journal = await storage().getRestoreJournal();
       if (!journal) return { status: "completed" };
-      // Durable finalization cannot be undone, even when cleanup or validation
-      // on a later attempt fails. Preserve the target and block for retry.
-      if (journal.phase === "finalizing") return retryFinalization();
+      if (journal.phase === "finalizing") return recoverFinalizedTarget(journal);
       // A remembered handle is only an optimization. Never prompt for permission
       // at startup or initialize the app against mixed/incomplete data.
       try {
@@ -703,7 +730,7 @@
       } catch {
         journal = await storage().getRestoreJournal();
         if (!journal) return { status: "completed" };
-        if (journal.phase === "finalizing") return retryFinalization();
+        if (journal.phase === "finalizing") return recoverFinalizedTarget(journal);
         return { status: "needs-safety-file", message: "復元前バックアップを選んで回復してください。" };
       }
     }
