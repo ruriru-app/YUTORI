@@ -82,6 +82,8 @@
   };
   let destination = null, ready = false, pending = null, activeOperation = null, generation = 0;
   let state = { busy: false, phase: "", itemsDone: 0, itemsTotal: 0, bytesDone: 0, bytesTotal: 0, canCancel: false };
+  let restoreSession = null;
+  const candidates = new WeakSet();
   const storage = () => global.YutoriBackupStorage;
   const codec = () => global.YutoriBackupArchive;
   const element = id => global.document?.getElementById(id);
@@ -107,12 +109,12 @@
     const mode = successful && !destination.handle ? "（ダウンロード・毎回保存）" : "";
     const status = successful ? `最終バックアップ: ${timeLabel(destination.lastSuccessfulAt)}\n${name}${mode}\n確認済み容量: ${byteLabel(destination.size)}` : "バックアップはまだ作成されていません";
     const button = element("backupSaveButton");
-    if (button) { button.title = status; button.disabled = !ready || state.busy; button.setAttribute("aria-busy", String(state.busy)); }
+    if (button) { button.title = status; button.disabled = !ready || state.busy || !!restoreSession; button.setAttribute("aria-busy", String(state.busy)); }
     setText("backupTooltip", status);
     setText("backupFileName", `${name}${mode}`);
     setText("backupLastSaved", successful ? timeLabel(destination.lastSuccessfulAt) : "まだ保存していません");
     setText("backupSize", successful ? byteLabel(destination.size) : "—");
-    global.document?.querySelectorAll("[data-backup-action]").forEach(button => { button.disabled = !ready || state.busy; });
+    global.document?.querySelectorAll("[data-backup-action]").forEach(button => { button.disabled = !ready || state.busy || !!restoreSession; });
   }
   function progress(phase, details = {}) {
     state = { ...state, phase, ...details };
@@ -226,6 +228,7 @@
   function startSave(change = false) {
     if (pending) return pending;
     if (!ready) return Promise.resolve({ ok: false, reason: "initializing" });
+    if (restoreSession) return Promise.resolve({ ok: false, reason: "restore-active" });
     state = { busy: true, phase: "準備", itemsDone: 0, itemsTotal: 0, bytesDone: 0, bytesTotal: 0, canCancel: true };
     const operation = { generation: ++generation, controller: new AbortController(), previousFocus: global.document?.activeElement };
     activeOperation = operation;
@@ -291,16 +294,281 @@
   function cancelBackup() { if (state.canCancel) activeOperation?.controller.abort(); }
   function showBackupSettings() { global.showSettingsPanel("backup"); renderStatus(); }
 
+  function restoreActive(session) {
+    session.controller.signal.throwIfAborted();
+    if (restoreSession !== session) throw new DOMException("Restore session ended", "AbortError");
+  }
+  function restoreWait(promise, session) {
+    return new Promise((resolve, reject) => {
+      const signal = session.controller.signal;
+      let settled = false;
+      const finish = (settle, value) => { if (settled) return; settled = true; signal.removeEventListener("abort", aborted); settle(value); };
+      const aborted = () => finish(reject, signal.reason);
+      Promise.resolve(promise).then(value => {
+        try { restoreActive(session); finish(resolve, value); } catch (error) { finish(reject, error); }
+      }, error => finish(reject, error));
+      if (signal.aborted) aborted(); else signal.addEventListener("abort", aborted, { once: true });
+    });
+  }
+  function getRestoreUiState() {
+    const session = restoreSession;
+    return { phase: session?.phase || "closed", candidate: session?.candidate || null, safetyBackup: session?.safetyBackup || null,
+      canReplace: !!(session?.held && session.safetyBackup && session.confirmed && !session.busy), busy: !!session?.busy };
+  }
+  function renderRestore() {
+    const session = restoreSession;
+    setText("restorePhase", session?.phaseLabel || "ファイルを選んでください");
+    const candidate = session?.candidate;
+    const summary = element("restoreSummary");
+    if (summary) summary.hidden = !candidate;
+    if (candidate) {
+      const version = candidate.manifest.appVersion;
+      const values = { restoreCreatedAt: timeLabel(candidate.manifest.createdAt), restoreAppVersion: typeof version === "string" && /^v?\d+\.\d+\.\d+(?:[-+][a-zA-Z0-9.-]+)?$/.test(version) ? version : "—", restoreSize: byteLabel(candidate.size),
+        restoreTests: candidate.summary.tests, restoreClasses: candidate.summary.classes, restoreSessions: candidate.summary.gradingSessions,
+        restorePdfs: candidate.summary.pdfFiles, restorePages: candidate.summary.pdfPages };
+      for (const [id, value] of Object.entries(values)) setText(id, String(value));
+    }
+    const save = element("restoreSafetyButton");
+    if (save) save.disabled = !candidate || !!session.busy || !!session.safetyBackup || !!session.awaitingDownload;
+    const confirm = element("restoreConfirm");
+    if (confirm) { confirm.checked = !!session?.confirmed; confirm.disabled = !session?.safetyBackup || !!session.busy; }
+    const reselect = element("restoreSafetyReselect");
+    if (reselect) { reselect.hidden = !session?.awaitingDownload; reselect.disabled = !!session?.busy; }
+    const cancel = element("restoreCancelButton");
+    if (cancel) cancel.disabled = !!session?.writing || session?.phase === "replacing";
+    // Task 6 installs replacement. The gate can be ready, but this task never
+    // runs a destructive action from the UI.
+    const replace = element("restoreReplaceButton");
+    if (replace) replace.disabled = true;
+    renderStatus();
+  }
+  function restorePhase(session, phase, label, busy = false) {
+    restoreActive(session); Object.assign(session, { phase, phaseLabel: label, busy }); renderRestore();
+  }
+  function restoreError(error) {
+    if (error.name === "AbortError") return "キャンセルしました。現在のデータは変更していません。";
+    if (error.name === "QuotaExceededError") return "復元の準備に必要な空き容量が足りません。空き容量を増やして、もう一度ファイルを選んでください。";
+    if (error.code === "UNSUPPORTED_VERSION") return "このバックアップ形式には対応していません。YUTORI を更新するか、別のバックアップを選んでください。";
+    if (error.name === "InvalidStateError") return "復元元や主バックアップとは別の安全用ファイルを選んでください。";
+    if (error.name === "NotAllowedError" || error.name === "SecurityError") return "安全用ファイルへの保存が許可されませんでした。保存先を確認して、もう一度保存してください。";
+    return "ファイルの内容を確認できませんでした。現在のデータは変更していません。別のバックアップを選ぶか、安全用ファイルを保存し直してください。";
+  }
+  function deepFreeze(value) {
+    if (value && typeof value === "object") { Object.values(value).forEach(deepFreeze); Object.freeze(value); }
+    return value;
+  }
+  function newRestoreSession(phase, phaseLabel) {
+    return { controller: new AbortController(), phase, phaseLabel, busy: true,
+      previousFocus: global.document?.activeElement, candidate: null, safetyBackup: null, confirmed: false };
+  }
+  async function inspectRestoreFile(file, sourceHandle = null, selectedSession = null) {
+    if (state.busy) throw new DOMException("Backup is running", "InvalidStateError");
+    if (selectedSession) restoreActive(selectedSession);
+    if (restoreSession && restoreSession !== selectedSession) {
+      if (restoreSession.writing || restoreSession.phase === "replacing") throw new DOMException("Restore is busy", "InvalidStateError");
+      await cancelRestore();
+    }
+    const session = selectedSession || newRestoreSession("inspecting", "バックアップの内容を確認");
+    Object.assign(session, { sourceHandle, phase: "inspecting", phaseLabel: "バックアップの内容を確認", busy: true });
+    restoreSession = session; setText("restoreMessage", ""); renderRestore(); element("restoreDialog")?.showModal();
+    let writer;
+    session.inspection = (async () => {
+      try {
+        const signal = session.controller.signal;
+        const parsing = codec().readArchiveStream(file.stream().pipeThrough(new TransformStream(), { signal }), {
+          async onManifest(manifest) {
+            restoreActive(session);
+            writer = await storage().createStageWriter(manifest);
+            try { restoreActive(session); } catch (error) { await writer.abort(); throw error; }
+          },
+          async onRecord(record) { restoreActive(session); await writer.onRecord(record); },
+        }, { onProgress: info => { if (restoreSession === session) setText("restoreProgress", `${count(info.counts)} 件を確認`); } });
+        // A hook can continue after cancellation. Observe it and clean any late
+        // stage, while the session itself stops awaiting it immediately.
+        parsing.catch(async () => { await writer?.abort(); }).catch(() => {});
+        await restoreWait(parsing, session);
+        restoreActive(session);
+        const staged = await writer.finalize();
+        const candidate = deepFreeze({ ...staged, size: file.size }); candidates.add(candidate);
+        session.candidate = candidate;
+        restoreActive(session); restorePhase(session, "inspected", "内容を確認しました。復元前バックアップを保存してください。");
+        return candidate;
+      } catch (error) {
+        await writer?.abort();
+        if (session.candidate) await storage().deleteRestoreStage(session.candidate.stageDbName);
+        if (restoreSession === session) { session.candidate = null; restorePhase(session, "inspection-failed", "バックアップの確認を中止しました。"); setText("restoreMessage", restoreError(error)); }
+        throw error;
+      }
+    })();
+    session.inspection.catch(() => {});
+    return session.inspection;
+  }
+  async function discardRestoreCandidate(candidate) {
+    if (!candidates.has(candidate)) throw new TypeError("Unknown restore candidate");
+    if (restoreSession?.candidate === candidate) { await cancelRestore(); return; }
+    await storage().deleteRestoreStage(candidate.stageDbName); candidates.delete(candidate);
+  }
+  async function cancelRestore() {
+    const session = restoreSession;
+    if (!session) return true;
+    if (session.writing || session.phase === "replacing") return false;
+    restoreSession = null; session.controller.abort(); session.release?.(null);
+    element("restoreDialog")?.close(); renderRestore(); session.previousFocus?.focus();
+    await Promise.allSettled([session.inspection, session.selection, session.gate]);
+    if (session.candidate && candidates.has(session.candidate)) {
+      await storage().deleteRestoreStage(session.candidate.stageDbName); candidates.delete(session.candidate);
+    }
+    return true;
+  }
+  function selectRestoreFile() {
+    if (restoreSession?.selection && restoreSession.phase === "selecting") return restoreSession.selection;
+    if (state.busy || restoreSession) return Promise.resolve();
+    if (!options.pickOpenFile) { const input = element("restoreSourceInput"); if (input) { input.value = ""; input.click(); } return; }
+    const session = newRestoreSession("selecting", "復元元のファイルを選んでください");
+    restoreSession = session; setText("restoreMessage", ""); renderRestore(); element("restoreDialog")?.showModal();
+    let selected;
+    try { selected = options.pickOpenFile({ multiple: false, types: [{ description: "YUTORI バックアップ", accept: { "application/octet-stream": [".yutori"] } }] }); }
+    catch (error) { selected = Promise.reject(error); }
+    session.selection = (async () => {
+      try {
+        const [handle] = await restoreWait(selected, session);
+        const file = await restoreWait(handle.getFile(), session);
+        return await inspectRestoreFile(file, handle, session);
+      } catch (error) {
+        if (restoreSession === session) { restorePhase(session, "selection-failed", "ファイルを選び直してください。"); setText("restoreMessage", restoreError(error)); }
+      }
+    })();
+    return session.selection;
+  }
+  function safetyName() {
+    const date = options.now(), pad = n => String(n).padStart(2, "0");
+    return `YUTORI_復元前バックアップ_${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}_${pad(date.getHours())}${pad(date.getMinutes())}.yutori`;
+  }
+  async function sha(bytes) { return [...new Uint8Array(await global.crypto.subtle.digest("SHA-256", bytes))].map(n => n.toString(16).padStart(2, "0")).join(""); }
+  async function fingerprint(file) {
+    const hashes = [];
+    for (let offset = 0; offset < file.size; offset += 1024 * 1024) hashes.push(await sha(await file.slice(offset, offset + 1024 * 1024).arrayBuffer()));
+    return { size: file.size, hashes };
+  }
+  async function safetyProof(result) {
+    return Object.freeze({ handle: result.handle || null, fileName: result.fileName,
+      manifestHash: await sha(new TextEncoder().encode(JSON.stringify(result.manifest))), archiveHash: result.archiveHash, verifiedAt: options.now().toISOString() });
+  }
+  function setRestoreConfirmation(checked) { if (restoreSession) { restoreSession.confirmed = !!checked && !!restoreSession.safetyBackup; renderRestore(); } }
+  function saveSafetyBackup(candidate) {
+    const session = restoreSession;
+    if (!session || session.candidate !== candidate || !candidates.has(candidate)) return Promise.reject(new DOMException("Unknown restore session", "InvalidStateError"));
+    if (session.safetyPending) return session.safetyPending;
+    if (session.safetyBackup) return Promise.resolve(session.safetyBackup);
+    if (session.awaitingDownload) return Promise.resolve({ requiresReselection: true, fileName: session.awaitingDownload.fileName });
+    let selected;
+    const fileName = safetyName();
+    try { selected = options.pickSaveFile ? options.pickSaveFile({ suggestedName: fileName, types: [{ description: "YUTORI 復元前バックアップ", accept: { "application/octet-stream": [".yutori"] } }] }) : null; }
+    catch (error) { selected = Promise.reject(error); }
+    Promise.resolve(selected).catch(() => {});
+    session.safetyBackup = null; session.confirmed = false;
+    setText("restoreMessage", "");
+    restorePhase(session, "safety-preparing", "復元前バックアップの準備", true);
+    let resolveSaved, rejectSaved;
+    session.safetyPending = new Promise((resolve, reject) => { resolveSaved = resolve; rejectSaved = reject; });
+    session.gate = runExclusiveOperation("restore", async owner => {
+      session.held = true; session.owner = owner;
+      const continuing = new Promise(resolve => { session.release = resolve; });
+      try {
+        const handle = await restoreWait(selected, session);
+        for (const other of [session.sourceHandle, destination?.handle]) {
+          if (handle && other && (handle === other || (typeof handle.isSameEntry === "function" && await restoreWait(handle.isSameEntry(other), session)))) throw new DOMException("Same file", "InvalidStateError");
+        }
+        await restoreWait(options.waitForIdle(), session);
+        const source = await restoreWait(storage().createSnapshotRecordSource({ appVersion: options.appVersion, createdAt: options.now().toISOString() }), session);
+        restoreActive(session); session.writing = true;
+        let result;
+        if (handle) {
+          result = await writeVerifiedArchiveToHandle(handle, source, { onProgress: info => { restorePhase(session, "safety-saving", info.phase, true); } });
+          restoreActive(session); session.safetyBackup = await safetyProof(result);
+          restoreActive(session); restorePhase(session, "safety-verified", "復元前バックアップを保存し、内容を確認しました。");
+          resolveSaved(session.safetyBackup);
+        } else {
+          restorePhase(session, "safety-saving", "復元前バックアップを作成・確認", true);
+          const blob = await new Response(codec().createArchiveStream(source.manifest, source.records)).blob();
+          const verified = await codec().readArchiveStream(blob);
+          const identity = await fingerprint(blob);
+          restoreActive(session);
+          await options.downloadBlob(blob, fileName);
+          session.awaitingDownload = { ...verified, ...identity, fileName };
+          restorePhase(session, "safety-reselect", "ダウンロードした復元前バックアップを選び直し、保存内容を確認してください。");
+          resolveSaved({ requiresReselection: true, fileName });
+        }
+        session.writing = false; renderRestore();
+        const callback = await continuing;
+        if (callback) { restoreActive(session); return await callback(owner); }
+      } catch (error) {
+        rejectSaved(error);
+        if (restoreSession === session) {
+          session.safetyBackup = null; session.awaitingDownload = null; session.confirmed = false; session.writing = false;
+          restorePhase(session, "safety-failed", "復元前バックアップを確認できませんでした。"); setText("restoreMessage", restoreError(error));
+        }
+        throw error;
+      } finally {
+        session.held = false; session.release = null;
+        if (restoreSession === session) {
+          session.busy = false; session.safetyBackup = null; session.confirmed = false;
+          if (session.phase === "replacing") { session.phase = "continuation-ended"; session.phaseLabel = "復元の処理を終了しました。"; }
+          renderRestore();
+        }
+      }
+    }, { signal: session.controller.signal });
+    session.gate.catch(error => { rejectSaved(error); });
+    const pendingSafety = session.safetyPending;
+    pendingSafety.finally(() => { if (session.safetyPending === pendingSafety) session.safetyPending = null; }).catch(() => {});
+    return pendingSafety;
+  }
+  async function verifyDownloadedSafetyFile(file) {
+    const session = restoreSession, expected = session?.awaitingDownload;
+    if (!expected || !session.held || session.busy) throw new DOMException("No safety download", "InvalidStateError");
+    session.confirmed = false; session.safetyBackup = null;
+    setText("restoreMessage", "");
+    restorePhase(session, "safety-checking", "保存した復元前バックアップを確認", true);
+    try {
+      if (file.name !== expected.fileName || file.size !== expected.size) throw new Error("Different safety file");
+      const identity = await restoreWait(fingerprint(file), session);
+      if (JSON.stringify(identity.hashes) !== JSON.stringify(expected.hashes)) throw new Error("Different safety bytes");
+      const verified = await restoreWait(codec().readArchiveStream(file), session);
+      if (verified.archiveHash !== expected.archiveHash) throw new Error("Different safety archive");
+      const proof = await restoreWait(safetyProof({ ...verified, fileName: expected.fileName }), session);
+      session.safetyBackup = proof; session.awaitingDownload = null;
+      restorePhase(session, "safety-verified", "保存した復元前バックアップの内容を確認しました。");
+      return proof;
+    } catch (error) {
+      if (restoreSession === session) { restorePhase(session, "safety-reselect", "ダウンロードした安全用ファイルを選び直してください。"); setText("restoreMessage", restoreError(error)); }
+      throw error;
+    }
+  }
+  function withRestoreSession(candidate, safetyBackup, callback) {
+    const session = restoreSession;
+    if (!getRestoreUiState().canReplace || session.candidate !== candidate || session.safetyBackup !== safetyBackup || typeof callback !== "function") return Promise.reject(new DOMException("Safety confirmation required", "InvalidStateError"));
+    // Task 6 must retain this callback's owner through reload, or explicitly
+    // discard queued old-state autosaves before it returns. Never reacquire.
+    restorePhase(session, "replacing", "復元を準備しています", true);
+    session.release(callback);
+    return session.gate;
+  }
+
   // Restore orchestration shares the same gate in later tasks; the reusable IO
   // writer deliberately does not acquire it again inside a restore operation.
   global.YutoriBackup = { configure, initialize, savePrimaryBackup: () => startSave(false),
     changeDestination: () => startSave(true), writeVerifiedArchiveToHandle,
-    renderStatus, getOperationState: () => ({ ...state }), cancelBackup };
+    renderStatus, getOperationState: () => ({ ...state }), cancelBackup,
+    inspectRestoreFile, discardRestoreCandidate, saveSafetyBackup, getRestoreUiState, setRestoreConfirmation,
+    selectRestoreFile, verifyDownloadedSafetyFile, cancelRestore, withRestoreSession };
   global.saveYutoriBackup = () => global.YutoriBackup.savePrimaryBackup();
   global.changeYutoriBackupDestination = () => global.YutoriBackup.changeDestination();
   global.showBackupSettings = showBackupSettings;
   global.document?.addEventListener("DOMContentLoaded", () => {
     element("backupProgressDialog")?.addEventListener("cancel", event => { event.preventDefault(); cancelBackup(); });
+    element("restoreDialog")?.addEventListener("cancel", event => { event.preventDefault(); cancelRestore().catch(() => {}); });
+    element("restoreSourceInput")?.addEventListener("change", event => { const file = event.target.files[0]; if (file) inspectRestoreFile(file).catch(() => {}); });
+    element("restoreSafetyInput")?.addEventListener("change", event => { const file = event.target.files[0]; if (file) verifyDownloadedSafetyFile(file).catch(() => {}); });
     initialize().catch(() => notify("バックアップ設定を読み込めませんでした。画面を再読み込みしてください。", true));
   });
 })(globalThis);

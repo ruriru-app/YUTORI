@@ -274,6 +274,12 @@
     }
   }
 
+  async function deleteRestoreStage(name) {
+    if (!STAGE_NAME.test(name)) throw new TypeError("Not a restore stage");
+    if ((await getActiveDataDbDescriptor()).name === name) throw new DOMException("Stage is active", "InvalidStateError");
+    await deleteDatabase(name);
+  }
+
   async function createStageWriter(inputManifest) {
     const manifest = structuredClone(inputManifest);
     const descriptor = validateManifest(manifest);
@@ -359,6 +365,6 @@
     isOwnedLocalStorageKey, collectLocalStorageEntries, openMetaDb, getDestinationMeta,
     saveDestinationMeta, clearDestinationHandle, getLastBackupMeta, getActiveDataDbDescriptor,
     saveActiveDataDbDescriptor, openActiveDataDb, createSnapshotRecordSource,
-    createStageWriter, createStageFromArchive, deleteDatabase, deleteAllRestoreStagesExcept,
+    createStageWriter, createStageFromArchive, deleteDatabase, deleteAllRestoreStagesExcept, deleteRestoreStage,
   });
 })(globalThis);

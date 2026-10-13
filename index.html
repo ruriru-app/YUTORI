@@ -1776,6 +1776,12 @@ body{
 .backup-notice{position:fixed;bottom:20px;right:20px;z-index:110;max-width:min(540px,calc(100vw - 40px));padding:16px;border:1px solid #E1C8A9;border-radius:14px;background:#FFF9EF;box-shadow:0 6px 28px #624B4528;font-size:13px;line-height:1.7}
 .backup-notice[hidden]{display:none}.backup-notice.backup-error{border-color:#CF9E86;background:#FFF4EC}
 .backup-notice button{margin:8px 8px 0 0;padding:6px 12px;font-size:12px}
+.restore-dialog{width:min(620px,calc(100vw - 32px));max-height:calc(100dvh - 32px);overflow:auto;box-sizing:border-box}
+.restore-summary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;padding:16px 0;margin:0}
+.restore-summary[hidden]{display:none}.restore-summary dt{font-size:12px;color:var(--muted)}.restore-summary dd{margin:5px 0 0;overflow-wrap:anywhere;font-weight:800;font-size:14px}
+.restore-confirm{display:flex;align-items:flex-start;gap:10px;margin:18px 0;font-size:13px;line-height:1.7}.restore-confirm input{flex:none;width:18px;height:18px;margin-top:3px}
+.restore-actions{display:flex;flex-wrap:wrap;gap:10px}.restore-actions button{white-space:normal;overflow-wrap:anywhere;max-width:100%}
+@media(max-width:480px){.restore-dialog{padding:20px}.restore-summary{grid-template-columns:1fr}.restore-actions{flex-direction:column}.restore-actions button{width:100%}}
 @media(max-width:820px){.backup-status-grid{grid-template-columns:1fr;gap:16px}.backup-tooltip{width:min(290px,calc(100vw - 30px))}}
 
 .workspace-shell{
@@ -3858,7 +3864,8 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
     <div class="class-settings-head"><div><h2 class="step-title">バックアップ設定</h2><p>テスト・名簿・答案・採点途中のデータを、ひとつのファイルへ保存します。</p></div></div>
     <div class="backup-status-card">
       <dl class="backup-status-grid"><div><dt>ファイル名</dt><dd id="backupFileName">未設定</dd></div><div><dt>最終保存（内容確認済み）</dt><dd id="backupLastSaved">まだ保存していません</dd></div><div><dt>確認済み容量</dt><dd id="backupSize">—</dd></div></dl>
-      <div class="backup-actions"><button type="button" class="primary" data-backup-action onclick="saveYutoriBackup()">今すぐバックアップ</button><button type="button" class="secondary" data-backup-action onclick="changeYutoriBackupDestination()">保存先を変更</button><button type="button" class="secondary" disabled title="復元機能は準備中です">バックアップから復元</button></div>
+      <div class="backup-actions"><button type="button" class="primary" data-backup-action onclick="saveYutoriBackup()">今すぐバックアップ</button><button type="button" class="secondary" data-backup-action onclick="changeYutoriBackupDestination()">保存先を変更</button><button id="restoreOpenButton" type="button" class="secondary" data-backup-action onclick="YutoriBackup.selectRestoreFile()">バックアップから復元</button></div>
+      <input id="restoreSourceInput" type="file" accept=".yutori" aria-label="復元元のバックアップ" hidden>
       <p id="backupMessage" class="backup-message" role="status"></p>
     </div>
     <div class="backup-guidance">
@@ -7645,6 +7652,24 @@ showScreen("testListScreen");
   </div>
 </div>
 
+<dialog id="restoreDialog" class="backup-progress-dialog restore-dialog" aria-labelledby="restoreTitle" aria-describedby="restoreHelp">
+  <h3 id="restoreTitle">バックアップから復元</h3>
+  <p id="restoreHelp">バックアップの内容を確認し、現在のデータを別の安全用ファイルへ保存します。個人情報を含むため、学校の管理方針に従った保存先を選んでください。</p>
+  <div id="restorePhase" class="backup-progress-phase" role="status" aria-live="polite">バックアップの内容を確認</div>
+  <p id="restoreProgress" role="status"></p>
+  <dl id="restoreSummary" class="restore-summary" hidden>
+    <div><dt>バックアップ作成日時</dt><dd id="restoreCreatedAt">—</dd></div><div><dt>作成元 YUTORI バージョン</dt><dd id="restoreAppVersion">—</dd></div>
+    <div><dt>ファイル容量</dt><dd id="restoreSize">—</dd></div><div><dt>テスト数</dt><dd id="restoreTests">—</dd></div>
+    <div><dt>クラス数</dt><dd id="restoreClasses">—</dd></div><div><dt>採点セッション数</dt><dd id="restoreSessions">—</dd></div>
+    <div><dt>元 PDF 数</dt><dd id="restorePdfs">—</dd></div><div><dt>ページ画像数</dt><dd id="restorePages">—</dd></div>
+  </dl>
+  <p id="restoreMessage" class="backup-message" role="status" aria-live="polite"></p>
+  <div class="restore-actions"><button id="restoreSafetyButton" type="button" class="primary" onclick="YutoriBackup.saveSafetyBackup(YutoriBackup.getRestoreUiState().candidate).catch(()=>{})" disabled>復元前バックアップを保存</button><button id="restoreSafetyReselect" type="button" class="secondary" onclick="document.getElementById('restoreSafetyInput').value='';document.getElementById('restoreSafetyInput').click()" hidden>ダウンロードした安全用ファイルを確認</button></div>
+  <input id="restoreSafetyInput" type="file" accept=".yutori" aria-label="保存した復元前バックアップ" hidden>
+  <label class="restore-confirm"><input id="restoreConfirm" type="checkbox" onchange="YutoriBackup.setRestoreConfirmation(this.checked)" disabled><span>現在のデータがすべて置き換わることを確認しました</span></label>
+  <p>全データの置き換えは準備中です。現在は内容の確認と復元前バックアップの保存まで利用できます。</p>
+  <div class="restore-actions"><button id="restoreReplaceButton" type="button" class="danger" disabled>全データを置き換えて復元</button><button id="restoreCancelButton" type="button" class="secondary" onclick="YutoriBackup.cancelRestore().catch(()=>{})">キャンセル</button></div>
+</dialog>
 <dialog id="backupProgressDialog" class="backup-progress-dialog" aria-labelledby="backupProgressTitle" aria-describedby="backupProgressHelp">
   <h3 id="backupProgressTitle">全データをバックアップ</h3>
   <div id="backupProgressPhase" class="backup-progress-phase" role="status" aria-live="polite">準備</div>

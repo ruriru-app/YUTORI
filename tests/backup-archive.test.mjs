@@ -17,6 +17,30 @@ afterEach(async () => {
 });
 after(async () => { await harness?.close(); });
 
+test("manifest callback awaits authenticated inline and reconstructed manifests before any records", async () => {
+  const result = await page.evaluate(async () => {
+    const outcomes = [];
+    for (const padding of ["", "x".repeat(2 * 1024 * 1024)]) {
+      const manifest = { counts: { localStorage: 1 }, padding };
+      const archive = await new Response(YutoriBackupArchive.createArchiveStream(manifest, [{ type: "localStorage", source: "localStorage", key: "yutori_one", value: "one" }])).blob();
+      const order = [];
+      await YutoriBackupArchive.readArchiveStream(archive, {
+        async onManifest(value) { order.push(value.padding === padding ? "manifest" : "wrong"); await new Promise(resolve => setTimeout(resolve, 10)); order.push("ready"); },
+        onRecord() { order.push("record"); },
+      });
+      const frames = (await new Response(archive.stream().pipeThrough(new DecompressionStream("gzip"))).text()).trim().split("\n").map(JSON.parse);
+      if (padding) frames.find(f => f.type === "chunk").checksum = "0".repeat(64);
+      else frames[0].checksum = "0".repeat(64);
+      let calls = 0;
+      const corrupt = await new Response(new Blob([frames.map(f => JSON.stringify(f) + "\n").join("")]).stream().pipeThrough(new CompressionStream("gzip"))).blob();
+      try { await YutoriBackupArchive.readArchiveStream(corrupt, { onManifest() { calls++; } }); } catch {}
+      outcomes.push({ order, calls });
+    }
+    return outcomes;
+  });
+  assert.deepEqual(result, [{ order: ["manifest", "ready", "record"], calls: 0 }, { order: ["manifest", "ready", "record"], calls: 0 }]);
+});
+
 test("format 1 round-trips Unicode and structured browser values across multiple chunks", async () => {
   assert.equal(await page.evaluate(() => typeof window.YutoriBackupArchive), "object", "the archive codec must be available");
   const result = await page.evaluate(async () => {

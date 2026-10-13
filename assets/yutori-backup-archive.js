@@ -430,6 +430,7 @@
         if (!value || typeof value !== "object" || Array.isArray(value)) fail("CHECKSUM_MISMATCH");
         header.manifest = value;
         pending = null;
+        await handlers.onManifest?.(header.manifest);
         return;
       }
       if (!value || typeof value !== "object" || Array.isArray(value) || !Object.hasOwn(value, "record") ||
@@ -468,7 +469,10 @@
             if (Object.hasOwn(frame, "manifest")) fail("CHECKSUM_MISMATCH");
             const payload = payloadAttachment(frame.manifestPayload, "json-utf8", frame.attachments);
             pending = { mode: "manifest", payload, attachments: [payload] };
-          } else if (!frame.manifest || typeof frame.manifest !== "object" || Array.isArray(frame.manifest)) fail("CHECKSUM_MISMATCH");
+          } else {
+            if (!frame.manifest || typeof frame.manifest !== "object" || Array.isArray(frame.manifest)) fail("CHECKSUM_MISMATCH");
+            await handlers.onManifest?.(header.manifest);
+          }
           digests.push(checksum);
           continue;
         }
