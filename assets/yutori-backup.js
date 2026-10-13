@@ -21,7 +21,10 @@
     for (;;) {
       const revision = persistenceRevision;
       await Promise.allSettled([...persistence.values()]);
-      await Promise.resolve();
+      // One microtask yield can leave deeper .then chains still registering
+      // child writes. A task boundary drains the complete current microtask
+      // checkpoint before the empty/revision check declares stable idle.
+      await new Promise(resolve => global.setTimeout(resolve, 0));
       if (!persistence.size && revision === persistenceRevision) return;
     }
   }

@@ -82,6 +82,99 @@ test("persistence idle waits for writes registered while draining and preserves 
   assert.deepEqual(result, { available: true, early: false, idle: true, value: 17, sameError: true });
 });
 
+test("persistence idle waits for deep promise-chain child writes across the microtask checkpoint", async () => {
+  await setup();
+  const result = await page.evaluate(async () => {
+    let releaseFirst, releaseChild, idle = false;
+    const first = trackPersistence(new Promise(resolve => { releaseFirst = resolve; }), "pdf-files");
+    let chain = first;
+    for (let index = 0; index < 20; index++) chain = chain.then(() => {});
+    const childRegistered = chain.then(() => {
+      trackPersistence(new Promise(resolve => { releaseChild = resolve; }), "pdf-page");
+    });
+    const draining = waitForPersistenceIdle().then(() => { idle = true; });
+    releaseFirst(17); await childRegistered;
+    await new Promise(resolve => setTimeout(resolve, 20));
+    const premature = idle;
+    releaseChild(); await draining;
+    return { premature, idle, value: await first };
+  });
+  assert.deepEqual(result, { premature: false, idle: true, value: 17 });
+});
+
+test("backup waits for deep chained persistence before snapshot and leaves queued imports outside idle", async () => {
+  await setup();
+  await page.evaluate(() => {
+    globalThis.deepIdleStarted = false;
+    const flush = flushYutoriAutoSaves;
+    globalThis.flushYutoriAutoSaves = () => { deepIdleStarted = true; flush(); };
+    const first = trackPersistence(new Promise(resolve => { globalThis.releaseDeepFirst = resolve; }), "pdf-files");
+    let chain = first;
+    for (let index = 0; index < 20; index++) chain = chain.then(() => {});
+    chain.then(() => {
+      trackPersistence(new Promise(resolve => {
+        globalThis.releaseDeepChild = () => { localStorage.setItem("yutori_chained_write", "committed"); resolve(); };
+      }), "pdf-page");
+    });
+    globalThis.deepSave = saveYutoriBackup();
+    globalThis.queuedDeepImport = savePdfPageToIndexedDB("queued-after-backup", { id: "p1" }, new Blob(["queued page"]));
+  });
+  await page.waitForFunction(() => deepIdleStarted);
+  await page.evaluate(() => releaseDeepFirst());
+  await page.waitForFunction(() => !!globalThis.releaseDeepChild);
+  await page.waitForTimeout(50);
+  const held = await page.evaluate(async () => {
+    const db = await openYutoriDb();
+    const pages = await new Promise(resolve => { const request = db.transaction("pdfPages").objectStore("pdfPages").count(); request.onsuccess = () => resolve(request.result); }); db.close();
+    return { busy: YutoriBackup.getOperationState().busy, phase: YutoriBackup.getOperationState().phase,
+      bytes: (await backupHandle.getFile()).size, meta: await YutoriBackupStorage.getLastBackupMeta(), pages };
+  });
+  assert.deepEqual(held, { busy: true, phase: "準備", bytes: 0, meta: null, pages: 0 });
+  const completed = await page.evaluate(async () => {
+    releaseDeepChild();
+    const saved = await deepSave; await queuedDeepImport;
+    const records = []; await YutoriBackupArchive.readArchiveStream(await backupHandle.getFile(), { onRecord: item => records.push(item) });
+    return { ok: saved.ok, value: records.find(item => item.key === "yutori_chained_write")?.value,
+      queuedPageIncluded: records.some(item => item.store === "pdfPages") };
+  });
+  assert.deepEqual(completed, { ok: true, value: "committed", queuedPageIncluded: false });
+});
+
+test("cancel promptly releases the exclusive gate while the idle task checkpoint is unresolved", async () => {
+  await setup();
+  await page.evaluate(() => {
+    globalThis.nativeCheckpointTimer = globalThis.setTimeout;
+    globalThis.checkpointStarted = false;
+    globalThis.checkpointUnhandled = [];
+    addEventListener("unhandledrejection", event => checkpointUnhandled.push(String(event.reason)));
+    // Hold the actual task-boundary timer; cancellation must not wait for it.
+    globalThis.setTimeout = (callback, delay, ...args) => {
+      if (delay === 0 && !checkpointStarted) {
+        checkpointStarted = true;
+        globalThis.releaseIdleCheckpoint = () => callback(...args);
+        return 0;
+      }
+      return nativeCheckpointTimer(callback, delay, ...args);
+    };
+    globalThis.checkpointSave = saveYutoriBackup();
+  });
+  await page.waitForFunction(() => checkpointStarted);
+  const cancelled = await page.evaluate(async () => {
+    globalThis.setTimeout = nativeCheckpointTimer;
+    YutoriBackup.cancelBackup();
+    const saved = await Promise.race([checkpointSave, new Promise(resolve => setTimeout(() => resolve({ reason: "timeout" }), 250))]);
+    const next = await runExclusiveOperation("restore", () => "released");
+    return { reason: saved.reason, next, busy: YutoriBackup.getOperationState().busy, bytes: (await backupHandle.getFile()).size };
+  });
+  assert.deepEqual(cancelled, { reason: "AbortError", next: "released", busy: false, bytes: 0 });
+  const late = await page.evaluate(async () => {
+    releaseIdleCheckpoint(); await new Promise(resolve => setTimeout(resolve, 20));
+    return { busy: YutoriBackup.getOperationState().busy, bytes: (await backupHandle.getFile()).size,
+      meta: await YutoriBackupStorage.getLastBackupMeta(), unhandled: checkpointUnhandled };
+  });
+  assert.deepEqual(late, { busy: false, bytes: 0, meta: null, unhandled: [] });
+});
+
 test("exclusive operations are FIFO and release after throw and backup cancellation", async () => {
   await setup();
   const result = await page.evaluate(async () => {
