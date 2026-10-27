@@ -1,4 +1,4 @@
-const CACHE_NAME="yutori-v0.3.51";
+const CACHE_NAME="yutori-v0.3.52";
 const APP_SHELL=[
   "./",
   "./index.html",
@@ -17,6 +17,7 @@ const APP_SHELL=[
   "./assets/fonts/ruriru/RuRiRuFontv2.ttf",
   "./assets/pdfjs/pdf.min.js",
   "./assets/pdfjs/pdf.worker.min.js",
+  "./assets/yutori-sheet-geometry.js",
   "./assets/yutori-backup-archive.js",
   "./assets/yutori-backup-storage.js",
   "./assets/yutori-backup.js"

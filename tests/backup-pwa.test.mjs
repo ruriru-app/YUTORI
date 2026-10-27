@@ -14,7 +14,7 @@ const { chromium } = createRequire(import.meta.url)("playwright");
 
 // A dedicated browser/context allows the real worker; the ordinary helper still blocks it.
 // Missing precache assets must fail before an online application visit can warm the cache.
-test("APP_SHELL v0.3.51 installs backup dependencies and boots the backup UI offline", { timeout: 20000 }, async t => {
+test("APP_SHELL v0.3.52 installs geometry and backup dependencies and boots offline", { timeout: 20000 }, async t => {
   const harness = await createYutoriBrowser();
   let browser;
   const abort = () => { browser?.close().catch(() => {}); };
@@ -35,23 +35,44 @@ test("APP_SHELL v0.3.51 installs backup dependencies and boots the backup UI off
       const cache = await caches.open(names.find(name => name.startsWith("yutori-v")));
       return { names, paths: (await cache.keys()).map(request => new URL(request.url).pathname) };
     });
-    assert.deepEqual(installed.names, ["yutori-v0.3.51"]);
-    const dependencies = ["/assets/yutori-backup-archive.js", "/assets/yutori-backup-storage.js", "/assets/yutori-backup.js"];
-    for (const asset of [...dependencies, "/assets/backup.svg"]) assert.ok(installed.paths.includes(asset), `precache missing ${asset}`);
+    assert.deepEqual(installed.names, ["yutori-v0.3.52"]);
+    const dependencies = ["/assets/yutori-sheet-geometry.js", "/assets/yutori-backup-archive.js", "/assets/yutori-backup-storage.js", "/assets/yutori-backup.js"];
+    const geometryAssets = ["/assets/test-mark-name-header.svg", "/assets/fonts/ruriru/RuRiRuFontv2.ttf", "/assets/pdfjs/pdf.min.js", "/assets/pdfjs/pdf.worker.min.js"];
+    for (const asset of [...dependencies, ...geometryAssets, "/assets/backup.svg"]) assert.ok(installed.paths.includes(asset), `precache missing ${asset}`);
     assert.ok(installed.paths.indexOf(dependencies[0]) < installed.paths.indexOf(dependencies[1]));
     assert.ok(installed.paths.indexOf(dependencies[1]) < installed.paths.indexOf(dependencies[2]));
+    assert.ok(installed.paths.indexOf(dependencies[2]) < installed.paths.indexOf(dependencies[3]));
     await context.setOffline(true);
     const responses = await page.evaluate(async paths => Promise.all(paths.map(async path => {
       const response = await fetch(path);
       return { path, status: response.status, bytes: (await response.arrayBuffer()).byteLength };
-    })), [...dependencies, "/assets/backup.svg"]);
+    })), [...dependencies, ...geometryAssets, "/assets/backup.svg"]);
     for (const response of responses) {
       assert.equal(response.status, 200, response.path);
       assert.ok(response.bytes > 0, response.path);
     }
     await page.goto(`${harness.origin}/`, { waitUntil: "domcontentloaded" });
     await page.evaluate(() => globalThis.yutoriAppInitialization);
-    assert.equal(await page.title(), "YUTORI v0.3.51");
+    assert.equal(await page.title(), "YUTORI v0.3.52");
+    assert.deepEqual(await page.evaluate(() => YutoriSheetGeometry.questionRect(
+      { left: .125, top: .25, right: .625, bottom: .75 }, { rows: 2, cols: 1 }, 1
+    )), { left: .125, top: .5, width: .5, height: .25 });
+    const offlineCalibration = await page.evaluate(async () => {
+      const test = { paperSize: "a5", orientation: "portrait", rows: 10, cols: 1, answerFormat: "word", answerLine: "third", flow: "column", questionMode: "inline", testName: "Synthetic", questions: Array(10).fill("Synthetic"), answers: Array(10).fill("answer") };
+      const canvas = document.createElement("canvas"); canvas.width = 592; canvas.height = 840;
+      const ctx = canvas.getContext("2d"); ctx.fillStyle = "white"; ctx.fillRect(0, 0, 592, 840);
+      const header = new Image(); header.src = "assets/test-mark-name-header.svg"; await header.decode();
+      ctx.drawImage(header, 40, 40, 512, 512 * 371 / 4000);
+      ctx.strokeStyle = "#666"; ctx.lineWidth = 1.2;
+      ctx.strokeRect(40, 36.4753 * 4, 256, 636);
+      for (let row = 1; row < 10; row++) { ctx.beginPath(); ctx.moveTo(40, (36.4753 + row * 15.9) * 4); ctx.lineTo(296, (36.4753 + row * 15.9) * 4); ctx.stroke(); }
+      const image = new Image(); image.src = canvas.toDataURL(); await image.decode();
+      const calibration = await prepareAnswerSheetCalibration(image, test);
+      return { provenance: calibration.provenance, last: answerCropRect(image, test, 9), referenceGrid: calibration.reference.gridMm };
+    });
+    assert.equal(offlineCalibration.provenance, "header-grid");
+    assert.ok(offlineCalibration.last.y > 179 * 4 && offlineCalibration.last.y + offlineCalibration.last.height < 196 * 4, JSON.stringify(offlineCalibration));
+    assert.ok(offlineCalibration.last.width > 200 && offlineCalibration.last.width < 256);
     assert.deepEqual(await page.evaluate(() => ({ ready: yutoriAppReady,
       codec: typeof YutoriBackupArchive.readArchiveStream,
       storage: typeof YutoriBackupStorage.createSnapshotRecordSource,
@@ -151,8 +172,9 @@ test("APP_SHELL failed upgrade preserves old active shell and retry activates re
     fixture.missing = false;
     await registerAndWaitForWorker(fixture.page, { timeoutMs: 5000, update: true });
     const restored = await fixture.page.evaluate(async () => ({ names: await caches.keys(),
-      newAsset: !!(await (await caches.open("yutori-v0.3.51")).match("/assets/yutori-backup-storage.js")) }));
-    assert.deepEqual(restored, { names: ["yutori-v0.3.51"], newAsset: true });
+      newAsset: !!(await (await caches.open("yutori-v0.3.52")).match("/assets/yutori-backup-storage.js")),
+      geometry: !!(await (await caches.open("yutori-v0.3.52")).match("/assets/yutori-sheet-geometry.js")) }));
+    assert.deepEqual(restored, { names: ["yutori-v0.3.52"], newAsset: true, geometry: true });
   } finally { t.signal.removeEventListener("abort", abort); await fixture.close(); }
 });
 
