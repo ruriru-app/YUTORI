@@ -4018,6 +4018,7 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
 <div id="testPrintRoot" class="test-print-root" aria-hidden="true"></div>
 
 <script src="assets/pdfjs/pdf.min.js"></script>
+<script src="assets/yutori-sheet-geometry.js"></script>
 <script src="assets/yutori-backup-archive.js"></script>
 <script src="assets/yutori-backup-storage.js"></script>
 <script src="assets/yutori-backup.js"></script>
@@ -5386,7 +5387,7 @@ function clusterMarkIndexes(indexes){
 }
 function findMarkHeaderBounds(imageData){
   const {data,width,height}=imageData;
-  const searchEnd=Math.min(height-1,Math.round(height*.16));
+  const searchEnd=Math.min(height-1,Math.round(height*.3));
   const rowCounts=new Uint32Array(searchEnd+1);
   for(let y=0;y<=searchEnd;y++){
     let count=0,offset=y*width*4;
@@ -5421,6 +5422,17 @@ function findMarkHeaderBounds(imageData){
     for(let left=0;left<colClusters.length;left++)for(let right=left+1;right<colClusters.length;right++){
       const xLeft=colClusters[left],xRight=colClusters[right],measuredUnits=(xRight-xLeft)/scale;
       if(measuredUnits<3500||measuredUnits>4200)continue;
+      // Row borders can have the same aspect ratio as the header. Its two unequal
+      // name/score partitions must also be present before accepting a candidate.
+      const outerWidth=Math.abs(measuredUnits-3988.64)<Math.abs(measuredUnits-3678.17)?3988.64:3678.17;
+      const widthScale=(xRight-xLeft)/outerWidth,tolerance=Math.max(2,Math.round((xRight-xLeft)*.006));
+      const partitionStrength=units=>{
+        const expectedX=Math.round(xLeft+(units-ATTENDANCE_MARK_TEMPLATE.outer.left)*widthScale);
+        let peak=0;
+        for(let x=Math.max(0,expectedX-tolerance);x<=Math.min(width-1,expectedX+tolerance);x++)peak=Math.max(peak,colCounts[x]);
+        return peak/span;
+      };
+      if(partitionStrength(MARK_NAME_TEMPLATE.left)<.45||partitionStrength(MARK_NAME_TEMPLATE.right)<.45)continue;
       const lineScore=rowClusters[a].peak+rowClusters[b].peak+colCounts[xLeft]*5+colCounts[xRight]*5;
       const score=lineScore-Math.abs(measuredUnits-3988.64)*.08;
       if(!best||score>best.score)best={score,xLeft,xRight,yTop,yBottom,scale,measuredUnits};
@@ -5762,10 +5774,11 @@ function invalidateReviewConfirmation(){
 const nameHeaderBoundsCache=new WeakMap();
 function markHeaderBoundsFromMetadata(image,page){
   const saved=page?.markHeaderBounds;
-  if(!saved||![saved.left,saved.right,saved.top,saved.bottom].every(Number.isFinite))return null;
+  if(!YutoriSheetGeometry.validRect(saved,true))return null;
   const xLeft=saved.left*image.naturalWidth,xRight=saved.right*image.naturalWidth,yTop=saved.top*image.naturalHeight,yBottom=saved.bottom*image.naturalHeight;
   const scale=(yBottom-yTop)/(ATTENDANCE_MARK_TEMPLATE.outer.bottom-ATTENDANCE_MARK_TEMPLATE.outer.top);
-  if(scale<=0||xRight<=xLeft)return null;
+  const aspect=(xRight-xLeft)/Math.max(1,yBottom-yTop);
+  if(scale<=0||aspect<8||aspect>15)return null;
   return{xLeft,xRight,yTop,yBottom,scale,originX:xLeft-scale*ATTENDANCE_MARK_TEMPLATE.outer.left,originY:yTop-scale*ATTENDANCE_MARK_TEMPLATE.outer.top};
 }
 function detectMarkHeaderBoundsFromImage(image){
@@ -6032,6 +6045,73 @@ const PAPER_DIMENSIONS_MM={a4:[210,297],b5:[182,257],a5:[148,210]};
 const ANSWER_SHEET_GRID_MM={side:10,top:40,bottom:10};
 const answerGridBoundsCache=new WeakMap();
 const answerGuideBoundsCache=new WeakMap();
+const sheetReferenceCache=new Map();
+const answerSheetCalibrationCache=new WeakMap();
+function sheetReferenceKey(test){return JSON.stringify(copyTestState(test))}
+async function measureSheetReference(test){
+  const source=copyTestState(test),key=sheetReferenceKey(source);
+  if(sheetReferenceCache.has(key))return sheetReferenceCache.get(key);
+  const pending=(async()=>{
+    const paper=paperDimensionsMm(source),host=document.createElement("div");
+    host.className=`paper ${source.paperSize} ${source.orientation}`;
+    host.setAttribute("aria-hidden","true");
+    host.style.cssText="position:fixed;left:-20000px;top:0;visibility:hidden;pointer-events:none;transform:none;box-shadow:none;display:block";
+    host.innerHTML=paperMarkupForTest(source);
+    document.body.appendChild(host);
+    try{
+      await Promise.all([...host.querySelectorAll("img")].map(image=>image.decode()));
+      // Trigger font use in this new layout before awaiting the FontFaceSet's ready promise.
+      host.getBoundingClientRect();
+      if(document.fonts)await document.fonts.ready;
+      const bounds=host.getBoundingClientRect();
+      const mmRect=node=>{
+        const rect=node.getBoundingClientRect();
+        return {left:(rect.left-bounds.left)*paper.width/bounds.width,top:(rect.top-bounds.top)*paper.height/bounds.height,right:(rect.right-bounds.left)*paper.width/bounds.width,bottom:(rect.bottom-bounds.top)*paper.height/bounds.height};
+      };
+      const headerImageMm=mmRect(host.querySelector(".paper-header img")),gridMm=mmRect(host.querySelector(".sheet-grid"));
+      const svg=ATTENDANCE_MARK_TEMPLATE,headerWidth=headerImageMm.right-headerImageMm.left,headerHeight=headerImageMm.bottom-headerImageMm.top;
+      // headerMm is the printed OUTER LINE, not the SVG image's bounding box.
+      const headerMm={left:headerImageMm.left+headerWidth*svg.outer.left/svg.width,top:headerImageMm.top+headerHeight*svg.outer.top/svg.height,right:headerImageMm.left+headerWidth*svg.outer.right/svg.width,bottom:headerImageMm.top+headerHeight*svg.outer.bottom/svg.height};
+      if(!YutoriSheetGeometry.validRect(headerMm)||!YutoriSheetGeometry.validRect(gridMm))throw new Error("用紙の配置を測定できませんでした。");
+      return Object.freeze({key,paper:Object.freeze(paper),headerImageMm:Object.freeze(headerImageMm),headerMm:Object.freeze(headerMm),gridMm:Object.freeze(gridMm)});
+    }finally{host.remove()}
+  })();
+  sheetReferenceCache.set(key,pending);
+  // These are derived measurements, never saved tests or session data.
+  if(sheetReferenceCache.size>32)sheetReferenceCache.delete(sheetReferenceCache.keys().next().value);
+  try{return await pending}catch(error){sheetReferenceCache.delete(key);throw error}
+}
+function calibrationCacheForImage(image){
+  const source=image.currentSrc||image.src,width=image.naturalWidth,height=image.naturalHeight;
+  let cached=answerSheetCalibrationCache.get(image);
+  if(!cached||cached.source!==source||cached.width!==width||cached.height!==height){
+    cached={source,width,height,entries:new Map()};answerSheetCalibrationCache.set(image,cached);
+    answerGridBoundsCache.delete(image);answerGuideBoundsCache.delete(image);nameHeaderBoundsCache.delete(image);
+  }
+  return cached.entries;
+}
+function sheetCalibrationKey(test,page){return `${sheetReferenceKey(test)}|${JSON.stringify(page?.markHeaderBounds||null)}`}
+async function prepareAnswerSheetCalibration(image,test,page=null){
+  const source=copyTestState(test),hint=page?.markHeaderBounds?{markHeaderBounds:{...page.markHeaderBounds}}:null;
+  const cache=calibrationCacheForImage(image),key=sheetCalibrationKey(source,hint);
+  if(cache.has(key))return cache.get(key);
+  const pending=(async()=>{
+    const reference=await measureSheetReference(source),imageSize={width:image.naturalWidth,height:image.naturalHeight};
+    const bounds=markHeaderBoundsFromMetadata(image,hint)||detectMarkHeaderBoundsFromImage(image);
+    const header=bounds?normalizedMarkHeaderBounds(bounds,imageSize.width,imageSize.height):null;
+    const prediction=YutoriSheetGeometry.predictFromHeader(reference,header,imageSize);
+    const expected=prediction?{
+      left:prediction.grid.left*imageSize.width,right:prediction.grid.right*imageSize.width,
+      top:prediction.grid.top*imageSize.height,bottom:prediction.grid.bottom*imageSize.height,paper:reference.paper,calibrated:true
+    }:expectedAnswerGridBounds(image,source);
+    const refined=refineAnswerGridBounds(image,source,expected);
+    const grid={left:Math.max(0,refined.left/imageSize.width),top:Math.max(0,refined.top/imageSize.height),right:Math.min(1,refined.right/imageSize.width),bottom:Math.min(1,refined.bottom/imageSize.height)};
+    const result=Object.freeze({grid:Object.freeze(grid),header:prediction?Object.freeze(header):null,reference,imageSize:Object.freeze(imageSize),provenance:prediction?"header-grid":"legacy"});
+    cache.set(key,result);return result;
+  })();
+  cache.set(key,pending);
+  try{return await pending}catch(error){cache.delete(key);throw error}
+}
 function paperDimensionsMm(test={},image=null){
   const size=["a4","b5","a5"].includes(test.paperSize)?test.paperSize:"a4";
   const base=PAPER_DIMENSIONS_MM[size];
@@ -6052,13 +6132,13 @@ function expectedAnswerGridBounds(image,test={}){
   };
 }
 function answerGridCacheKey(test={}){
-  return [test.paperSize||"",test.orientation||"",Number(test.rows)||10,Number(test.cols)||3,normalizeAnswerFormat(test)].join("|");
+  return sheetReferenceKey(test);
 }
 function refineAnswerGridBounds(image,test,expected){
   if(typeof document==="undefined"||!image?.naturalWidth||!image?.naturalHeight)return expected;
   let cache=answerGridBoundsCache.get(image);
   if(!cache){cache=new Map();answerGridBoundsCache.set(image,cache)}
-  const cacheKey=answerGridCacheKey(test);
+  const cacheKey=`${answerGridCacheKey(test)}|${!!expected.calibrated}|${expected.left}|${expected.top}|${expected.right}|${expected.bottom}`;
   if(cache.has(cacheKey))return cache.get(cacheKey);
   try{
     const scale=Math.min(1,1100/Math.max(image.naturalWidth,image.naturalHeight));
@@ -6095,7 +6175,7 @@ function refineAnswerGridBounds(image,test,expected){
       }
       return bestScore>=minimum?bestValue:expectedValue;
     };
-    const radiusX=Math.max(6,width*.018),radiusY=Math.max(6,height*.024);
+    const radiusX=Math.max(6,width*.018),radiusY=expected.calibrated?Math.max(3,Math.min(height*.024,(ex.bottom-ex.top)/Math.max(1,Number(test.rows)||10)*.22)):Math.max(6,height*.024);
     const left=findEdge(ex.left,radiusX,verticalScore,.34),right=findEdge(ex.right,radiusX,verticalScore,.34);
     const top=findEdge(ex.top,radiusY,horizontalScore,.3),bottom=findEdge(ex.bottom,radiusY,horizontalScore,.3);
     const minimumGridWidth=isSingleColumnWordLayout(test)?width*.25:width*.5;
@@ -6114,7 +6194,7 @@ function detectedFourLineCrop(image,test,q,cell){
   let cache=answerGuideBoundsCache.get(image);
   if(!cache){cache=new Map();answerGuideBoundsCache.set(image,cache)}
   const lineMode=fourLineHeightForAnswer(test.answers?.[q]||"",test);
-  const cacheKey=`${answerGridCacheKey(test)}|${test.answerLine}|${lineMode}|${q}`;
+  const cacheKey=`${answerGridCacheKey(test)}|${test.answerLine}|${lineMode}|${q}|${cell.x}|${cell.y}|${cell.width}|${cell.height}`;
   if(cache.has(cacheKey))return cache.get(cacheKey);
   try{
     const width=320,height=Math.max(70,Math.min(260,Math.round(width*cell.height/cell.width)));
@@ -6168,20 +6248,30 @@ function fallbackAnswerCropY(test,q,cell,paper){
   const bottom=cell.y+cell.height*Math.max(.7,1-Math.min(.08,1/Math.max(1,cellHeightMm)));
   return {top,bottom};
 }
-function answerCropRect(image,test,q){
+function answerCropRect(image,test,q,page=null){
   const rows=Math.max(1,Number(test.rows)||10),cols=Math.max(1,Number(test.cols)||3);
   const column=test.flow==="row"?(q%cols):Math.floor(q/rows);
   const row=test.flow==="row"?Math.floor(q/cols):(q%rows);
-  const expected=expectedAnswerGridBounds(image,test),grid=refineAnswerGridBounds(image,test,expected);
+  const prepared=calibrationCacheForImage(image).get(sheetCalibrationKey(test,page));
+  const calibration=prepared?.grid?prepared:null;
+  const expected=expectedAnswerGridBounds(image,test),grid=calibration?{
+    left:calibration.grid.left*image.naturalWidth,right:calibration.grid.right*image.naturalWidth,
+    top:calibration.grid.top*image.naturalHeight,bottom:calibration.grid.bottom*image.naturalHeight,paper:calibration.reference.paper
+  }:refineAnswerGridBounds(image,test,expected);
   const cellWidth=(grid.right-grid.left)/cols,cellHeight=(grid.bottom-grid.top)/rows;
   const cell={x:grid.left+column*cellWidth,y:grid.top+row*cellHeight,width:cellWidth,height:cellHeight};
-  const printableWidthMm=(grid.paper.width-ANSWER_SHEET_GRID_MM.side*2)*(isSingleColumnWordLayout(test)?.5:1);
+  const referenceGrid=calibration?.provenance==="header-grid"?calibration.reference.gridMm:null;
+  const printableWidthMm=referenceGrid?referenceGrid.right-referenceGrid.left:(grid.paper.width-ANSWER_SHEET_GRID_MM.side*2)*(isSingleColumnWordLayout(test)?.5:1);
+  const gridHeightMm=referenceGrid?referenceGrid.bottom-referenceGrid.top:grid.paper.height-ANSWER_SHEET_GRID_MM.top-ANSWER_SHEET_GRID_MM.bottom;
   const pxPerMmX=(grid.right-grid.left)/Math.max(1,printableWidthMm);
   const separate=test.questionMode==="separate";
   const horizontalInset=Math.min(cellWidth*.08,pxPerMmX*(separate?.5:1.5));
   let vertical;
-  if(separate){
-    const pxPerMmY=(grid.bottom-grid.top)/Math.max(1,grid.paper.height-ANSWER_SHEET_GRID_MM.top-ANSWER_SHEET_GRID_MM.bottom);
+  // Once the row is calibrated, handwriting can overlap the printed question or
+  // extend outside its guide. Keep the cell interior rather than cut ascenders.
+  // Uncalibrated/legacy sheets retain their established guide-based crop policy.
+  if(separate||referenceGrid){
+    const pxPerMmY=(grid.bottom-grid.top)/Math.max(1,gridHeightMm);
     const inset=Math.min(cellHeight*.08,pxPerMmY*.5);
     vertical={top:cell.y+inset,bottom:cell.y+cell.height-inset};
   }else{
@@ -6200,14 +6290,17 @@ async function renderAnswerCrops(q,test){
     canvas.width=480;canvas.height=128;
     try{
       const image=await loadPageImage(canvas.dataset.pageId);
+      const page=gradingState.pdfPages.find(item=>item.id===canvas.dataset.pageId);
+      const calibration=await prepareAnswerSheetCalibration(image,test,page);
       if(token!==answerCropRenderToken||!canvas.isConnected)return;
       const questionIndex=canvas.dataset.questionIndex==null?Number(q):Number(canvas.dataset.questionIndex);
-      const crop=answerCropRect(image,test,questionIndex);
-      canvas.width=480;canvas.height=test.questionMode==="separate"?Math.max(1,Math.round(480*crop.height/crop.width)):128;
+      const crop=answerCropRect(image,test,questionIndex,page);
+      const natural=test.questionMode==="separate"||calibration.provenance==="header-grid";
+      canvas.width=480;canvas.height=natural?Math.max(1,Math.round(480*crop.height/crop.width)):128;
       const context=canvas.getContext("2d",{alpha:false});
       context.fillStyle="#fff";context.fillRect(0,0,canvas.width,canvas.height);
       context.drawImage(image,crop.x,crop.y,crop.width,crop.height,0,0,canvas.width,canvas.height);
-      if(test.questionMode==="separate")answerImage?.classList.add("answer-image-natural");
+      if(natural)answerImage?.classList.add("answer-image-natural");
       canvas.classList.remove("answer-card-loading");
     }catch(error){
       canvas.classList.remove("answer-card-loading");
