@@ -112,6 +112,8 @@ Controller repeated private45-page geometry verification on the final code: head
 
 Earlier release evidence262/262 remains historical. Its first run261/262 exposed an offline synthetic fixture missing its title setting; matching the independently drawn layout fixed the fixture without production/tolerance/deadline changes. All task gates and the final review/fix gate are now complete. Product commits remain on the isolated branch; integration and GitHub publication await user choice, and no push or deployment has been performed.
 
+Publication authorization: the user subsequently instructed that, once all tests pass, work should continue through GitHub publication without another confirmation. The verified feature branch was fast-forwarded into main; the merged main receives a fresh full-suite gate before pushing. No private scan, pupil image, roster, answer or grading record is included in the release.
+
 ## Plan self-review
 
 All spec goals map to Tasks 1-4; all five Review Focus cases have explicit tests in their owning task. The normalized geometry boundary is shared by cropping and return overlays; logical paper size remains independent of imposition and target return paper. The private PDF remains outside tracked paths. Exact tuning of edge-search tolerances is deliberately left to the builder, constrained by independently drawn scaled fixtures and actual-scan verification. User reviewed and approved this plan, isolated workspace and subagent execution on 2026-10-27. Baseline: all 211 tests pass, zero failures. Publication remains separately gated.
