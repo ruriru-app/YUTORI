@@ -7149,7 +7149,7 @@ const outputLibraryState={shelvedIds:new Set()};
 function saveOutputShelvedSessionIds(){
   localStorage.setItem(OUTPUT_SHELVED_SESSIONS_KEY,JSON.stringify([...outputLibraryState.shelvedIds]));
 }
-const returnOutputState={session:null,className:"",selectedNos:new Set(),previewNo:null,previewPage:1,imageUrls:{},ownedUrls:[],loadToken:0,practiceCountAutomatic:true,layoutSessionId:""};
+const returnOutputState={session:null,className:"",selectedNos:new Set(),previewNo:null,previewPage:1,imageUrls:{},calibrations:{},ownedUrls:[],loadToken:0,practiceCountAutomatic:true,layoutSessionId:""};
 function returnOutputSessions(){
   return readSessionViews();
 }
@@ -7214,13 +7214,18 @@ function setReturnOutputNotice(message,isError=false){
   notice.textContent=message;notice.classList.toggle("error",Boolean(isError));
 }
 function revokeReturnOutputUrls(){
+  ++returnOutputState.loadToken;
   (returnOutputState.ownedUrls||[]).forEach(url=>{try{URL.revokeObjectURL(url)}catch(error){}});
-  returnOutputState.ownedUrls=[];returnOutputState.imageUrls={};
+  returnOutputState.ownedUrls=[];returnOutputState.imageUrls={};returnOutputState.calibrations={};
 }
 async function loadReturnOutputImages(session){
-  const token=++returnOutputState.loadToken;
   revokeReturnOutputUrls();
-  const urls={};
+  const token=returnOutputState.loadToken;
+  // The session owns its print snapshot. Its answers object is pupil assignments,
+  // not the model-answer array expected by the print markup/reference builder.
+  const test=copyTestState({...session,answers:session.modelAnswers});
+  const pages=new Map((session.pdfPages||[]).map(page=>[page.id,{...page,markHeaderBounds:page.markHeaderBounds?{...page.markHeaderBounds}:null}]));
+  const urls={},ownedUrls=[],calibrations={};
   if(gradingState.sessionId===session.id){
     Object.entries(gradingState.pageImageUrls||{}).forEach(([pageId,url])=>{if(url)urls[pageId]=url});
   }
@@ -7228,19 +7233,41 @@ async function loadReturnOutputImages(session){
     const db=await openYutoriDb();
     try{
       const entries=await new Promise((resolve,reject)=>{const request=db.transaction("pdfPages","readonly").objectStore("pdfPages").getAll();request.onsuccess=()=>resolve(request.result||[]);request.onerror=()=>reject(request.error)});
-      entries.filter(entry=>entry.sessionId===session.id&&entry.blob&&!urls[entry.pageId]).forEach(entry=>{
-        const url=URL.createObjectURL(entry.blob);urls[entry.pageId]=url;returnOutputState.ownedUrls.push(url);
+      entries.filter(entry=>entry.sessionId===session.id).forEach(entry=>{
+        if(!pages.has(entry.pageId)&&entry.metadata)pages.set(entry.pageId,entry.metadata);
+        if(entry.blob&&!urls[entry.pageId]){const url=URL.createObjectURL(entry.blob);urls[entry.pageId]=url;ownedUrls.push(url)}
       });
     }finally{db.close()}
   }catch(error){console.warn("返却用答案画像の復元に失敗しました",error)}
-  if(token!==returnOutputState.loadToken)return false;
-  returnOutputState.imageUrls=urls;
+  if(token===returnOutputState.loadToken){
+    // Decode/calibrate once per page, before synchronous HTML rendering. Limit
+    // concurrency so full-class scans do not all allocate detection canvases.
+    const entries=Object.entries(urls);let next=0;
+    await Promise.all(Array.from({length:Math.min(2,entries.length)},async()=>{
+      while(next<entries.length&&token===returnOutputState.loadToken){
+        const [pageId,url]=entries[next++];
+        try{
+          const image=new Image();image.src=url;await image.decode();
+          if(token!==returnOutputState.loadToken)break;
+          const calibration=await prepareAnswerSheetCalibration(image,test,pages.get(pageId)||null);
+          if(token!==returnOutputState.loadToken)break;
+          // Metadata bounds alone do not identify the 4000-unit SVG. Require
+          // the detector's validated internal partitions before using its fields.
+          const headerLayout=calibration.header?detectMarkHeaderBoundsFromImage(image)?.layout||"":"";
+          calibrations[pageId]=Object.freeze({...calibration,headerLayout});
+        }catch(error){console.warn("返却用答案の配置を測定できませんでした",error)}
+      }
+    }));
+  }
+  if(token!==returnOutputState.loadToken){ownedUrls.forEach(url=>{try{URL.revokeObjectURL(url)}catch(error){}});return false}
+  returnOutputState.imageUrls=urls;returnOutputState.ownedUrls=ownedUrls;returnOutputState.calibrations=calibrations;
   return true;
 }
 async function prepareReturnOutput(preferredSessionId=""){
   const sessions=outputGradedSessions();
   const sessionSelect=document.getElementById("returnSessionSelect"),classSelect=document.getElementById("returnClassSelect");
   if(!sessions.length){
+    revokeReturnOutputUrls();
     returnOutputState.session=null;returnOutputState.className="";returnOutputState.selectedNos=new Set();
     sessionSelect.innerHTML='<option value="">採点データなし</option>';classSelect.innerHTML='<option value="">クラスなし</option>';
     document.getElementById("returnStudentList").innerHTML='<div class="empty-resume">保存された採点データはありません。</div>';
@@ -7270,7 +7297,7 @@ async function changeReturnOutputSession(sessionId){
   classSelect.value=returnOutputState.className;
   document.getElementById("returnOutputTitle").textContent="答案画像を準備しています…";
   setReturnOutputNotice("保存済みの答案画像を読み込んでいます。",false);
-  await loadReturnOutputImages(session);
+  if(!await loadReturnOutputImages(session))return;
   changeReturnOutputClass(returnOutputState.className);
 }
 function returnOutputPeople(){
@@ -7394,11 +7421,20 @@ function returnClassStats(session,className,person,scope="class"){
   return {average,rank,count:rankingRows.length};
 }
 function formatReturnScore(value){const number=Number(value||0);return Number.isInteger(number)?String(number):String(Math.round(number*10)/10)}
-function returnQuestionRect(session,q){
-  const rows=Math.max(1,Number(session.rows)||10),cols=Math.max(1,Number(session.cols)||3),flow=session.flow==="row"?"row":"column";
+function returnQuestionRect(session,q,pageId=""){
+  const count=(value,fallback)=>Number.isInteger(Number(value))&&Number(value)>0?Number(value):fallback;
+  const rows=count(session.rows,10),cols=count(session.cols,3),layout={...session,rows,cols};
+  const calibration=returnOutputState.calibrations[pageId];
+  if(calibration?.provenance==="header-grid"){
+    // Subdivide the raw model, never visibleGrid: clipping it first compresses
+    // neighboring cells. The existing source layer clips off-image annotations.
+    const rect=YutoriSheetGeometry.questionRect(calibration.grid,layout,q);
+    if(rect)return Object.fromEntries(Object.entries(rect).map(([key,value])=>[key,value*100]));
+  }
+  const flow=session.flow==="row"?"row":"column";
   const column=flow==="row"?(q%cols):Math.floor(q/rows),row=flow==="row"?Math.floor(q/cols):(q%rows);
   const paper=paperDimensionsMm(session),left=ANSWER_SHEET_GRID_MM.side/paper.width*100,top=ANSWER_SHEET_GRID_MM.top/paper.height*100;
-  const right=(paper.width-ANSWER_SHEET_GRID_MM.side)/paper.width*100,bottom=(paper.height-ANSWER_SHEET_GRID_MM.bottom)/paper.height*100,width=(right-left)/cols,height=(bottom-top)/rows;
+  const right=(paper.width-ANSWER_SHEET_GRID_MM.side)/paper.width*100,bottom=(paper.height-ANSWER_SHEET_GRID_MM.bottom)/paper.height*100,width=(right-left)*(isSingleColumnWordLayout(layout)?.5:1)/cols,height=(bottom-top)/rows;
   return {left:left+column*width,top:top+row*height,width,height};
 }
 function returnHandwrittenMark(mark,q){
@@ -7429,22 +7465,45 @@ function returnAnswerSourceLayout(session={},options={}){
   const width=source.width*scale,height=source.height*scale,left=options.returnAnswerPlacement==="original"?0:(target.width-width)/2,top=options.returnAnswerPlacement==="original"?0:(target.height-height)/2;
   return{left:left/target.width*100,top:top/target.height*100,width:width/target.width*100,height:height/target.height*100};
 }
-function returnHeaderOverlayStyles(session={}){
+function returnHeaderOverlayStyles(session={},pageId="",options={}){
   const paper=returnPaperSpec(session),headerScale=Math.min(139,paper.width-20)/139;
-  const percent=(millimeters,total)=>millimeters/total*100;
   const top=10+(10.0386-10)*headerScale,height=12.8601*headerScale;
   const scoreLeft=10+(128-10)*headerScale,scoreWidth=20.5*headerScale;
   const extraLeft=10+(151.5-10)*headerScale,extraRight=8.5*headerScale;
-  return{
-    score:`top:${percent(top,paper.height).toFixed(4)}%;left:${percent(scoreLeft,paper.width).toFixed(4)}%;width:${percent(scoreWidth,paper.width).toFixed(4)}%;height:${percent(height,paper.height).toFixed(4)}%;font-size:${percent(4.35*headerScale,paper.width).toFixed(4)}cqw`,
-    extra:`top:${percent(top,paper.height).toFixed(4)}%;left:${percent(extraLeft,paper.width).toFixed(4)}%;right:${percent(extraRight,paper.width).toFixed(4)}%;height:${percent(height,paper.height).toFixed(4)}%;font-size:${percent(2.625*headerScale,paper.width).toFixed(4)}cqw`
-  };
+  const normalized=rect=>({left:rect.left/paper.width,top:rect.top/paper.height,right:rect.right/paper.width,bottom:rect.bottom/paper.height});
+  let score=normalized({left:scoreLeft,top,right:Math.min(paper.width,scoreLeft+scoreWidth),bottom:top+height});
+  let extra=normalized({left:extraLeft,top,right:paper.width-extraRight,bottom:top+height});
+  let fontScale=headerScale/paper.width;
+  let separateExtra=paper.width-extraRight-extraLeft>=25;
+  const calibration=returnOutputState.calibrations[pageId];
+  if(calibration?.headerLayout==="wide"&&calibration.header){
+    const {reference,header,imageSize}=calibration,image=reference.headerImageMm;
+    const width=image.right-image.left,svgRect={left:image.left+width*MARK_NAME_TEMPLATE.right/ATTENDANCE_MARK_TEMPLATE.width,top:reference.headerMm.top,right:reference.headerMm.right,bottom:reference.headerMm.bottom};
+    const mapped=YutoriSheetGeometry.mapReferenceRect(svgRect,reference,header,imageSize);
+    if(mapped){
+      score=mapped;
+      const pxPerMm=(header.right-header.left)*imageSize.width/(reference.headerMm.right-reference.headerMm.left);
+      fontScale=pxPerMm/imageSize.width*headerScale;
+      const blank={left:image.right+2.5,top:svgRect.top,right:paper.width-8.5,bottom:svgRect.bottom};
+      extra=YutoriSheetGeometry.mapReferenceRect(blank,reference,header,imageSize);
+      separateExtra=Boolean(extra&&(extra.right-extra.left)*imageSize.width/pxPerMm>=25);
+    }
+  }
+  // A5 has no blank-right lane. Score stays visible above two compact lines in
+  // the same bounded score field; wider paper retains its established lane.
+  const compact=!separateExtra,hasExtras=options.showAverage||options.showRank;
+  if(compact){
+    extra={...score,top:score.top+(score.bottom-score.top)*.48};
+    if(hasExtras)score={...score,bottom:extra.top};
+  }
+  const style=(rect,font)=>`top:${(rect.top*100).toFixed(4)}%;left:${(rect.left*100).toFixed(4)}%;width:${((rect.right-rect.left)*100).toFixed(4)}%;height:${((rect.bottom-rect.top)*100).toFixed(4)}%;font-size:${(font*fontScale*100).toFixed(4)}cqw;right:auto`;
+  return{score:style(score,compact&&hasExtras?3.3:4.35),extra:style(extra,compact?1.8:2.625)};
 }
 function returnAnswerPageHtml(session,className,person,options={}){
-  const rates=returnQuestionRates(session,className,options.rateScope),result=calculateStudentResult(session,className,person),maximum=returnMaximumScore(session),stats=returnClassStats(session,className,person,options.rateScope),paper=returnOutputPaperSpec(session,"answer",options),sourceLayout=returnAnswerSourceLayout(session,options),overlay=returnHeaderOverlayStyles(session);
+  const rates=returnQuestionRates(session,className,options.rateScope),result=calculateStudentResult(session,className,person),maximum=returnMaximumScore(session),stats=returnClassStats(session,className,person,options.rateScope),paper=returnOutputPaperSpec(session,"answer",options),sourceLayout=returnAnswerSourceLayout(session,options),overlay=returnHeaderOverlayStyles(session,person.pageId,options);
   const imageUrl=returnOutputState.imageUrls[person.pageId]||"";
   const annotations=(session.questions||[]).map((_,q)=>{
-    const grade=session.grades?.[`${className}::${person.no}::${q}`],rect=returnQuestionRect(session,q),mark=grade?.mark||"";
+    const grade=session.grades?.[`${className}::${person.no}::${q}`],rect=returnQuestionRect(session,q,person.pageId),mark=grade?.mark||"";
     const correct=grade&&grade.mark!=="ok"?(session.modelAnswers?.[q]||""):"";
     if(!mark&&!options.showQuestionRate)return"";
     return `<div class="return-question-annotation" style="left:${rect.left.toFixed(4)}%;top:${rect.top.toFixed(4)}%;width:${rect.width.toFixed(4)}%;height:${rect.height.toFixed(4)}%">${returnHandwrittenMark(mark,q)}${correct?`<span class="return-correct-answer">正：${escapeHtml(correct)}</span>`:""}${options.showQuestionRate?`<span class="return-question-rate">正答率 ${rates[q]}%</span>`:""}</div>`;
