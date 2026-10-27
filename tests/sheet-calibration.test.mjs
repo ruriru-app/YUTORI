@@ -49,7 +49,7 @@ test("pure transforms reject invalid references, headers, images, and question i
 });
 
 // All drawing positions are independent physical fixtures, not measured or computed by the production helpers.
-async function synthetic({ settings, widthMm = 148, heightMm = 210, gridTopMm = 36.4753, scale = 1, translated = false, translation = null, noHeader = false, metadata = null, skew = 0, contrast = 1, render = false, renderQuestion = 9, tallInk = false }) {
+async function synthetic({ settings, widthMm = 148, heightMm = 210, gridTopMm = 36.4753, scale = 1, translated = false, translation = null, noHeader = false, metadata = null, metadataRowShift = null, skew = 0, contrast = 1, render = false, renderQuestion = 9, tallInk = false }) {
   const testState = { ...settings, questions: Array(settings.rows * settings.cols).fill("word"), answers: Array(settings.rows * settings.cols).fill("word") };
   const canvas = document.createElement("canvas"); canvas.width = Math.round(widthMm * 6); canvas.height = Math.round(heightMm * 6);
   const ctx = canvas.getContext("2d"); ctx.fillStyle = "white"; ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -74,6 +74,11 @@ async function synthetic({ settings, widthMm = 148, heightMm = 210, gridTopMm = 
   }
   ctx.restore();
   const image = new Image(); image.src = canvas.toDataURL(); await image.decode();
+  if (metadataRowShift !== null) {
+    const actual = normalizedMarkHeaderBounds(detectMarkHeaderBoundsFromImage(image), canvas.width, canvas.height);
+    const shift = metadataRowShift * cellHeight * scale / heightMm;
+    metadata = { markHeaderBounds: { ...actual, top: actual.top + shift, bottom: actual.bottom + shift } };
+  }
   const calibration = typeof prepareAnswerSheetCalibration === "function" ? await prepareAnswerSheetCalibration(image, testState, metadata) : null;
   const crops = [], pixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
   for (let q = 0; q < settings.rows * settings.cols; q++) {
@@ -97,7 +102,7 @@ async function synthetic({ settings, widthMm = 148, heightMm = 210, gridTopMm = 
     for (let i = 0; i < data.length; i += 4) { const owner = colors.indexOf(`${data[i]},${data[i + 1]},${data[i + 2]}`); if (owner >= 0) found.add(owner); }
     renderedOwners = [...found]; renderedSize = { width: target.width, height: target.height, blank: data.every((value, i) => i % 4 === 3 || value === 255) }; target.remove();
   }
-  return { crops, provenance: calibration?.provenance, grid: calibration?.grid, visibleGrid: calibration?.visibleGrid, renderedOwners, renderedSize, totalInk, width: canvas.width, height: canvas.height };
+  return { crops, provenance: calibration?.provenance, grid: calibration?.grid, visibleGrid: calibration?.visibleGrid, metadata, renderedOwners, renderedSize, totalInk, width: canvas.width, height: canvas.height };
 }
 
 for (const variant of [
@@ -139,6 +144,45 @@ test("absent headers keep legacy crop geometry and malformed hints do not overri
     const result = await page.evaluate(synthetic, { settings: base, scale: .85, translated: true, metadata: { markHeaderBounds } });
     assert.equal(result.provenance, "header-grid"); for (const { q, owners } of result.crops) assert.deepEqual(owners, [q]);
   }
+});
+
+// A finite, ordered, correctly proportioned hint one row above the real header
+// must not let grid refinement relabel q9's ink as q10's answer.
+for (const metadataRowShift of [0, -1]) test(`current-image evidence keeps crop ownership with header hint shifted ${metadataRowShift} rows`, async () => {
+  const result = await page.evaluate(synthetic, { settings: base, scale: .92, translated: true, metadataRowShift });
+  const hint = result.metadata.markHeaderBounds;
+  assert.ok(Object.values(hint).every(Number.isFinite));
+  assert.ok(hint.left >= 0 && hint.top >= 0 && hint.right <= 1 && hint.bottom <= 1 && hint.right > hint.left && hint.bottom > hint.top);
+  const aspect = (hint.right - hint.left) * 888 / ((hint.bottom - hint.top) * 1260);
+  assert.ok(aspect > 8 && aspect < 15, "the hint must pass the former shape-only validation");
+  assert.equal(result.provenance, "header-grid");
+  assert.deepEqual(result.crops[9].owners, [9], "q10 must contain q10 ink, not q9 ink");
+  for (const { q, owners } of result.crops) assert.deepEqual(owners, [q], `q${q + 1}`);
+  // Independent physical fixture: 92% scale, +8.92/+16.4 mm origin, 0.5 mm inset.
+  near(result.crops[9].crop.y, ((36.4753 + 9 * 15.9 + .5) * .92 + 16.4) * 6, 3);
+});
+
+test("header hints without current-image evidence cannot promote legacy crops to calibrated geometry", async () => {
+  const metadata = { markHeaderBounds: { left: 80 / 888, top: 110 / 1260, right: 784 / 888, bottom: 173.5 / 1260 } };
+  const result = await page.evaluate(synthetic, { settings: base, noHeader: true, gridTopMm: 40, metadata });
+  assert.equal(result.provenance, "legacy");
+  for (const { q, owners } of result.crops) assert.deepEqual(owners, [q]);
+});
+
+// Defaulting explicit zero/NaN/malformed values silently creates unrelated cells.
+for (const field of ["rows", "cols"]) test(`pure question geometry rejects explicit invalid ${field}`, async () => {
+  const result = await page.evaluate(field => [0, NaN, "bad", -1, 1.5, Infinity, null, ""].map(value => ({
+    label: String(value), cell: YutoriSheetGeometry.questionRect({ left: 0, top: 0, right: 1, bottom: 1 }, { rows: 10, cols: 3, [field]: value }, 0)
+  })), field);
+  for (const { label, cell } of result) assert.equal(cell, null, `${field}=${label} must be rejected`);
+});
+
+test("pure question geometry defaults omitted counts and accepts legitimate numeric strings", async () => {
+  const result = await page.evaluate(() => {
+    const grid = { left: 0, top: 0, right: 1, bottom: 1 };
+    return [{}, { rows: undefined, cols: undefined }, { rows: "10", cols: "3" }].map(settings => YutoriSheetGeometry.questionRect(grid, settings, 29));
+  });
+  for (const cell of result) assert.deepEqual(cell, { left: 2 / 3, top: .9, width: 1 / 3, height: .1 });
 });
 
 // Measuring state instead of the passed snapshot, omitting content from cache keys, or changing editor state breaks this.
@@ -201,19 +245,21 @@ test("same-image calibration cache tracks changed test content and metadata with
   const result = await page.evaluate(async base => {
     const canvas = document.createElement("canvas"); canvas.width = 888; canvas.height = 1260;
     const ctx = canvas.getContext("2d"); ctx.fillStyle = "white"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    const header = new Image(); header.src = "assets/test-mark-name-header.svg"; await header.decode();
+    ctx.drawImage(header, 80, 110, 704, 704 * 371 / 4000);
     const image = new Image(); image.src = canvas.toDataURL(); await image.decode();
-    const metadata = { markHeaderBounds: { left: 80 / 888, top: 110 / 1260, right: 784 / 888, bottom: 173.5 / 1260 } };
+    const metadata = { markHeaderBounds: normalizedMarkHeaderBounds(detectMarkHeaderBoundsFromImage(image), 888, 1260) };
     const before = JSON.stringify({ base, metadata }), first = await prepareAnswerSheetCalibration(image, base, metadata), same = await prepareAnswerSheetCalibration(image, { ...base }, metadata);
     const extended = await prepareAnswerSheetCalibration(image, { ...base, answerFormat: "extended" }, metadata);
     const longer = await prepareAnswerSheetCalibration(image, { ...base, testName: "Long synthetic title ".repeat(3) }, metadata);
-    const moved = await prepareAnswerSheetCalibration(image, base, { markHeaderBounds: { ...metadata.markHeaderBounds, top: 120 / 1260, bottom: 183.5 / 1260 } });
+    const moved = await prepareAnswerSheetCalibration(image, base, { markHeaderBounds: { ...metadata.markHeaderBounds, top: metadata.markHeaderBounds.top + 10 / 1260, bottom: metadata.markHeaderBounds.bottom + 10 / 1260 } });
     const crop = answerCropRect(image, base, 9, metadata);
     const blank = await prepareAnswerSheetCalibration(image, base);
-    return { reused: first === same, first: first.grid, extended: extended.grid, longer: longer.grid, moved: moved.grid, crop, blank: blank.provenance, unchanged: before === JSON.stringify({ base, metadata }) };
+    return { reused: first === same, changedHintEntry: first !== moved, first: first.grid, extended: extended.grid, longer: longer.grid, moved: moved.grid, crop, noHint: blank.grid, provenance: blank.provenance, frozen: Object.isFrozen(first) && Object.isFrozen(first.grid) && Object.isFrozen(first.reference), unchanged: before === JSON.stringify({ base, metadata }) };
   }, base);
-  assert.equal(result.reused, true); assert.equal(result.unchanged, true); assert.equal(result.blank, "legacy");
+  assert.equal(result.reused, true); assert.equal(result.changedHintEntry, true); assert.equal(result.unchanged, true); assert.equal(result.frozen, true); assert.equal(result.provenance, "header-grid");
   near(result.extended.right - result.extended.left, 2 * (result.first.right - result.first.left));
-  assert.ok(result.longer.top > result.first.top + .02); near(result.moved.top - result.first.top, 10 / 1260);
+  assert.ok(result.longer.top > result.first.top + .02); assert.deepEqual(result.moved, result.first); assert.deepEqual(result.noHint, result.first);
   assert.ok(result.crop.y >= (result.first.top + .9 * (result.first.bottom - result.first.top)) * 1260);
 });
 

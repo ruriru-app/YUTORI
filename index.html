@@ -6097,7 +6097,10 @@ async function prepareAnswerSheetCalibration(image,test,page=null){
   if(cache.has(key))return cache.get(key);
   const pending=(async()=>{
     const reference=await measureSheetReference(source),imageSize={width:image.naturalWidth,height:image.naturalHeight};
-    const bounds=markHeaderBoundsFromMetadata(image,hint)||detectMarkHeaderBoundsFromImage(image);
+    // Stored bounds can be well-shaped yet belong to another image/row. Only
+    // current-image outer lines and validated partitions may establish a transform.
+    // Detection is cached per image; absent evidence retains the legacy fallback.
+    const bounds=detectMarkHeaderBoundsFromImage(image);
     const header=bounds?normalizedMarkHeaderBounds(bounds,imageSize.width,imageSize.height):null;
     const prediction=YutoriSheetGeometry.predictFromHeader(reference,header,imageSize);
     const expected=prediction?{

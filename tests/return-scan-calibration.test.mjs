@@ -11,7 +11,7 @@ beforeEach(async () => {
     clearTimeout(draftSaveTimer); draftSaveTimer = null;
     // Independent physical fixture: A5, header at 10 mm, half-width grid
     // at 36.4753 mm, ten 15.9 mm rows. No production geometry draws this scan.
-    globalThis.seedReturnScan = async ({ scale = .85, x = 3, y = 8, noHeader = false, legacyHeader = false, id = "return-scan", pageId = "scan-a", settings = {} } = {}) => {
+    globalThis.seedReturnScan = async ({ scale = .85, x = 3, y = 8, noHeader = false, legacyHeader = false, metadataRowShift = null, id = "return-scan", pageId = "scan-a", settings = {} } = {}) => {
       const session = { id, selectedTestId: "changed-saved-test", testName: "Synthetic", paperSize: "a5", orientation: "portrait", rows: 10, cols: 1, flow: "column", answerFormat: "word", answerLine: "third", questionMode: "inline", questions: Array(10).fill("word"), modelAnswers: Array(10).fill("answer"), classes: ["test"], answers: { test: [{ no: 1, name: "Synthetic", pageId }] }, grades: Object.fromEntries(Array.from({ length: 10 }, (_, q) => [`test::1::${q}`, { mark: q === 0 ? "ok" : "ng", score: q === 0 ? 1 : 0 }])), pdfPages: [{ id: pageId }], ...settings };
       const paperWidth = session.paperSize === "a4" ? 210 : 148, paperHeight = session.paperSize === "a4" ? 297 : 210;
       const headerWidth = Math.min(139, paperWidth - 20);
@@ -26,6 +26,13 @@ beforeEach(async () => {
       ctx.font = "3px sans-serif"; ctx.fillStyle = "#244";
       for (let r = 0; r < 10; r++) ctx.fillText(`Synthetic ${r + 1}`, 15, top + (r + .7) * 15.9);
       const blob = await new Promise(resolve => canvas.toBlob(resolve));
+      if (metadataRowShift !== null) {
+        const image = new Image(); image.src = URL.createObjectURL(blob); await image.decode();
+        const actual = normalizedMarkHeaderBounds(detectMarkHeaderBoundsFromImage(image), canvas.width, canvas.height);
+        const shift = metadataRowShift * 15.9 * scale / paperHeight;
+        session.pdfPages[0].markHeaderBounds = { ...actual, top: actual.top + shift, bottom: actual.bottom + shift };
+        URL.revokeObjectURL(image.src);
+      }
       const db = await openYutoriDb();
       await new Promise((resolve, reject) => { const tx = db.transaction("pdfPages", "readwrite"); tx.objectStore("pdfPages").put({ id: `${id}:${pageId}`, sessionId: id, pageId, metadata: { id: pageId }, blob }); tx.oncomplete = resolve; tx.onerror = () => reject(tx.error); }); db.close();
       return session;
@@ -58,6 +65,44 @@ for (const fixture of [{ scale: .85, x: 3, y: 8 }, { scale: 1.05, x: -2, y: 0 },
     assert.equal(result.sourceOverflow, "hidden");
   });
 }
+
+// Plausible saved bounds cannot register question/header annotations to another row.
+for (const metadataRowShift of [0, -1]) test(`current-image evidence aligns returned overlays with header hint shifted ${metadataRowShift} rows`, async () => {
+  const result = await page.evaluate(async metadataRowShift => {
+    const s = await seedReturnScan({ scale: .92, x: 8.92, y: 16.4, metadataRowShift });
+    const before = JSON.stringify(s);
+    await loadReturnOutputImages(s);
+    return { output: showReturnScan(s), hint: s.pdfPages[0].markHeaderBounds, unchanged: JSON.stringify(s) === before, provenance: returnOutputState.calibrations["scan-a"].provenance, layout: returnOutputState.calibrations["scan-a"].headerLayout };
+  }, metadataRowShift);
+  assert.ok(Object.values(result.hint).every(Number.isFinite));
+  assert.ok(result.hint.top >= 0 && result.hint.bottom <= 1 && result.hint.bottom > result.hint.top);
+  assert.equal(result.provenance, "header-grid"); assert.equal(result.layout, "wide"); assert.equal(result.unchanged, true);
+  for (const q of [9, 0]) {
+    near(result.output.cells[q].top, ((36.4753 + q * 15.9) * .92 + 16.4) / 210);
+    near(result.output.cells[q].height, 15.9 * .92 / 210);
+    near(result.output.cells[q].left, (10 * .92 + 8.92) / 148);
+    near(result.output.cells[q].width, 64 * .92 / 148);
+  }
+  const field = { left: (8.92 + .92 * (10 + 128 * 3202.02 / 4000)) / 148, right: (8.92 + .92 * (10 + 128 * 3994.18 / 4000)) / 148, top: (16.4 + .92 * (10 + 128 * 5.5449 / 4000)) / 210, bottom: (16.4 + .92 * (10 + 128 * 365.281 / 4000)) / 210 };
+  for (const box of [result.output.score, result.output.extra]) {
+    assert.ok(box.left >= field.left - .002 && box.left + box.width <= field.right + .002);
+    assert.ok(box.top >= field.top - .002 && box.top + box.height <= field.bottom + .002);
+  }
+});
+
+test("header hints without current-image evidence retain legacy returned alignment", async () => {
+  const result = await page.evaluate(async () => {
+    const s = await seedReturnScan({ noHeader: true });
+    await loadReturnOutputImages(s); const withoutHint = showReturnScan(s);
+    s.pdfPages[0].markHeaderBounds = { left: 80 / 888, top: 110 / 1260, right: 784 / 888, bottom: 173.5 / 1260 };
+    const before = JSON.stringify(s);
+    await loadReturnOutputImages(s);
+    return { withoutHint, withHint: showReturnScan(s), provenance: returnOutputState.calibrations["scan-a"].provenance, unchanged: JSON.stringify(s) === before };
+  });
+  assert.equal(result.provenance, "legacy"); assert.equal(result.unchanged, true);
+  assert.deepEqual(result.withHint, result.withoutHint);
+  near(result.withHint.cells[9].top, 184 / 210);
+});
 
 // The old score-left constant overlaps the name; old extras extend beyond A5.
 test("A5 score and optional statistics share only the actual right header field", async () => {

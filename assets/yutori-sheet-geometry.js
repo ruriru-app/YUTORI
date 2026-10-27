@@ -42,7 +42,7 @@
     return transform && grid ? { grid, visibleGrid: clipRect(grid), header: { ...header }, pxPerMm: transform.pxPerMm } : null;
   }
   function questionRect(grid, test, q) {
-    const rows = Number(test?.rows) || 10, cols = Number(test?.cols) || 3;
+    const rows = test?.rows === undefined ? 10 : Number(test.rows), cols = test?.cols === undefined ? 3 : Number(test.cols);
     if (!validExtent(grid) || !Number.isInteger(rows) || rows < 1 || !Number.isInteger(cols) || cols < 1 || !Number.isInteger(q) || q < 0 || q >= rows * cols) return null;
     const column = test.flow === "row" ? q % cols : Math.floor(q / rows), row = test.flow === "row" ? Math.floor(q / cols) : q % rows;
     const width = (grid.right - grid.left) / cols, height = (grid.bottom - grid.top) / rows;
