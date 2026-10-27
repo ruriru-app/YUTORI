@@ -6105,8 +6105,9 @@ async function prepareAnswerSheetCalibration(image,test,page=null){
       top:prediction.grid.top*imageSize.height,bottom:prediction.grid.bottom*imageSize.height,paper:reference.paper,calibrated:true
     }:expectedAnswerGridBounds(image,source);
     const refined=refineAnswerGridBounds(image,source,expected);
-    const grid={left:Math.max(0,refined.left/imageSize.width),top:Math.max(0,refined.top/imageSize.height),right:Math.min(1,refined.right/imageSize.width),bottom:Math.min(1,refined.bottom/imageSize.height)};
-    const result=Object.freeze({grid:Object.freeze(grid),header:prediction?Object.freeze(header):null,reference,imageSize:Object.freeze(imageSize),provenance:prediction?"header-grid":"legacy"});
+    const model={left:refined.left/imageSize.width,top:refined.top/imageSize.height,right:refined.right/imageSize.width,bottom:refined.bottom/imageSize.height};
+    const visibleGrid=YutoriSheetGeometry.clipRect(model),grid=prediction?model:visibleGrid;
+    const result=Object.freeze({grid:Object.freeze(grid),visibleGrid:visibleGrid?Object.freeze(visibleGrid):null,header:prediction?Object.freeze(header):null,reference,imageSize:Object.freeze(imageSize),provenance:prediction?"header-grid":"legacy"});
     cache.set(key,result);return result;
   })();
   cache.set(key,pending);
@@ -6151,7 +6152,7 @@ function refineAnswerGridBounds(image,test,expected){
     const luminance=(x,y)=>{const index=(Math.max(0,Math.min(height-1,y))*width+Math.max(0,Math.min(width-1,x)))*4;return pixels[index]*.299+pixels[index+1]*.587+pixels[index+2]*.114};
     const verticalScore=x=>{
       let dark=0,total=0;const step=Math.max(1,Math.floor((ex.bottom-ex.top)/500));
-      for(let y=Math.round(ex.top);y<=Math.round(ex.bottom);y+=step){
+      for(let y=Math.max(0,Math.round(ex.top));y<=Math.min(height-1,Math.round(ex.bottom));y+=step){
         let darkest=255;for(let offset=-1;offset<=1;offset++)darkest=Math.min(darkest,luminance(Math.round(x)+offset,y));
         if(darkest<185)dark++;total++;
       }
@@ -6159,15 +6160,18 @@ function refineAnswerGridBounds(image,test,expected){
     };
     const horizontalScore=y=>{
       let dark=0,total=0;const step=Math.max(1,Math.floor((ex.right-ex.left)/650));
-      for(let x=Math.round(ex.left);x<=Math.round(ex.right);x+=step){
+      for(let x=Math.max(0,Math.round(ex.left));x<=Math.min(width-1,Math.round(ex.right));x+=step){
         let darkest=255;for(let offset=-1;offset<=1;offset++)darkest=Math.min(darkest,luminance(x,Math.round(y)+offset));
         if(darkest<185)dark++;total++;
       }
       return total?dark/total:0;
     };
-    const findEdge=(expectedValue,radius,score,minimum)=>{
+    const findEdge=(expectedValue,radius,score,minimum,limit)=>{
+      // An off-image border has no observed edge. Retain its affine position;
+      // treating the scan boundary as that border would shrink the model again.
+      if(expected.calibrated&&(expectedValue<0||expectedValue>limit-1))return expectedValue;
       let bestValue=expectedValue,bestScore=-1;
-      const start=Math.round(expectedValue-radius),end=Math.round(expectedValue+radius);
+      const start=Math.max(0,Math.round(expectedValue-radius)),end=Math.min(limit-1,Math.round(expectedValue+radius));
       for(let value=start;value<=end;value++){
         const proximity=Math.abs(value-expectedValue)/Math.max(1,radius);
         const candidate=score(value)-proximity*.025;
@@ -6176,8 +6180,8 @@ function refineAnswerGridBounds(image,test,expected){
       return bestScore>=minimum?bestValue:expectedValue;
     };
     const radiusX=Math.max(6,width*.018),radiusY=expected.calibrated?Math.max(3,Math.min(height*.024,(ex.bottom-ex.top)/Math.max(1,Number(test.rows)||10)*.22)):Math.max(6,height*.024);
-    const left=findEdge(ex.left,radiusX,verticalScore,.34),right=findEdge(ex.right,radiusX,verticalScore,.34);
-    const top=findEdge(ex.top,radiusY,horizontalScore,.3),bottom=findEdge(ex.bottom,radiusY,horizontalScore,.3);
+    const left=findEdge(ex.left,radiusX,verticalScore,.34,width),right=findEdge(ex.right,radiusX,verticalScore,.34,width);
+    const top=findEdge(ex.top,radiusY,horizontalScore,.3,height),bottom=findEdge(ex.bottom,radiusY,horizontalScore,.3,height);
     const minimumGridWidth=isSingleColumnWordLayout(test)?width*.25:width*.5;
     const refined=right-left>minimumGridWidth&&bottom-top>height*.45?{
       left:left/scale,top:top/scale,right:right/scale,bottom:bottom/scale,paper:expected.paper
@@ -6277,9 +6281,10 @@ function answerCropRect(image,test,q,page=null){
   }else{
     vertical=detectedFourLineCrop(image,test,q,cell)||fallbackAnswerCropY(test,q,cell,grid.paper);
   }
-  const x=Math.max(0,cell.x+horizontalInset),y=Math.max(0,vertical.top);
-  const right=Math.min(image.naturalWidth,cell.x+cell.width-horizontalInset),bottom=Math.min(image.naturalHeight,vertical.bottom);
-  return {x,y,width:Math.max(1,right-x),height:Math.max(1,bottom-y)};
+  const x=Math.min(image.naturalWidth,Math.max(0,cell.x+horizontalInset)),y=Math.min(image.naturalHeight,Math.max(0,vertical.top));
+  const right=Math.max(0,Math.min(image.naturalWidth,cell.x+cell.width-horizontalInset)),bottom=Math.max(0,Math.min(image.naturalHeight,vertical.bottom));
+  if(right<=x||bottom<=y)return {x,y,width:0,height:0};
+  return {x,y,width:right-x,height:bottom-y};
 }
 async function renderAnswerCrops(q,test){
   const token=++answerCropRenderToken;
@@ -6295,11 +6300,12 @@ async function renderAnswerCrops(q,test){
       if(token!==answerCropRenderToken||!canvas.isConnected)return;
       const questionIndex=canvas.dataset.questionIndex==null?Number(q):Number(canvas.dataset.questionIndex);
       const crop=answerCropRect(image,test,questionIndex,page);
-      const natural=test.questionMode==="separate"||calibration.provenance==="header-grid";
+      const hasArea=crop.width>0&&crop.height>0;
+      const natural=hasArea&&(test.questionMode==="separate"||calibration.provenance==="header-grid");
       canvas.width=480;canvas.height=natural?Math.max(1,Math.round(480*crop.height/crop.width)):128;
       const context=canvas.getContext("2d",{alpha:false});
       context.fillStyle="#fff";context.fillRect(0,0,canvas.width,canvas.height);
-      context.drawImage(image,crop.x,crop.y,crop.width,crop.height,0,0,canvas.width,canvas.height);
+      if(hasArea)context.drawImage(image,crop.x,crop.y,crop.width,crop.height,0,0,canvas.width,canvas.height);
       if(natural)answerImage?.classList.add("answer-image-natural");
       canvas.classList.remove("answer-card-loading");
     }catch(error){

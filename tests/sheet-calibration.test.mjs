@@ -49,11 +49,11 @@ test("pure transforms reject invalid references, headers, images, and question i
 });
 
 // All drawing positions are independent physical fixtures, not measured or computed by the production helpers.
-async function synthetic({ settings, widthMm = 148, heightMm = 210, gridTopMm = 36.4753, scale = 1, translated = false, noHeader = false, metadata = null, skew = 0, contrast = 1, render = false, tallInk = false }) {
+async function synthetic({ settings, widthMm = 148, heightMm = 210, gridTopMm = 36.4753, scale = 1, translated = false, translation = null, noHeader = false, metadata = null, skew = 0, contrast = 1, render = false, renderQuestion = 9, tallInk = false }) {
   const testState = { ...settings, questions: Array(settings.rows * settings.cols).fill("word"), answers: Array(settings.rows * settings.cols).fill("word") };
   const canvas = document.createElement("canvas"); canvas.width = Math.round(widthMm * 6); canvas.height = Math.round(heightMm * 6);
   const ctx = canvas.getContext("2d"); ctx.fillStyle = "white"; ctx.fillRect(0, 0, canvas.width, canvas.height);
-  const originX = (1 - scale) * widthMm / 2 + (translated ? 3 : 0), originY = (1 - scale) * heightMm / 2 + (translated ? 8 : 0);
+  const originX = (1 - scale) * widthMm / 2 + (translation?.x ?? (translated ? 3 : 0)), originY = (1 - scale) * heightMm / 2 + (translation?.y ?? (translated ? 8 : 0));
   ctx.save(); ctx.translate(originX * 6, originY * 6); ctx.scale(scale * 6, scale * 6); ctx.transform(1, skew, 0, 1, 0, 0); ctx.globalAlpha = contrast;
   if (!noHeader) {
     const header = new Image(); header.src = "assets/test-mark-name-header.svg"; await header.decode();
@@ -88,14 +88,16 @@ async function synthetic({ settings, widthMm = 148, heightMm = 210, gridTopMm = 
   if (tallInk) for (let i = 0; i < pixels.length; i += 4) { const owner = colors.indexOf(`${pixels[i]},${pixels[i + 1]},${pixels[i + 2]}`); if (owner >= 0) totalInk[owner]++; }
   let renderedOwners = null, renderedSize = null;
   if (render) {
-    const target = document.createElement("canvas"); target.className = "answer-crop-canvas"; target.dataset.pageId = "synthetic"; target.dataset.questionIndex = "9"; document.body.appendChild(target);
+    const target = document.createElement("canvas"); target.className = "answer-crop-canvas"; target.dataset.pageId = "synthetic"; target.dataset.questionIndex = String(renderQuestion); document.body.appendChild(target);
+    // A fully invisible answer must replace prior content, not leave a previous tile behind.
+    target.getContext("2d").fillRect(0, 0, target.width, target.height);
     gradingState.pageImageUrls.synthetic = image.src;
     await renderAnswerCrops(0, testState);
     const data = target.getContext("2d").getImageData(0, 0, target.width, target.height).data, found = new Set();
     for (let i = 0; i < data.length; i += 4) { const owner = colors.indexOf(`${data[i]},${data[i + 1]},${data[i + 2]}`); if (owner >= 0) found.add(owner); }
-    renderedOwners = [...found]; renderedSize = { width: target.width, height: target.height }; target.remove();
+    renderedOwners = [...found]; renderedSize = { width: target.width, height: target.height, blank: data.every((value, i) => i % 4 === 3 || value === 255) }; target.remove();
   }
-  return { crops, provenance: calibration?.provenance, grid: calibration?.grid, renderedOwners, renderedSize, totalInk, width: canvas.width, height: canvas.height };
+  return { crops, provenance: calibration?.provenance, grid: calibration?.grid, visibleGrid: calibration?.visibleGrid, renderedOwners, renderedSize, totalInk, width: canvas.width, height: canvas.height };
 }
 
 for (const variant of [
@@ -242,4 +244,53 @@ test("calibration uses the requested snapshot if the caller edits the test while
   }, base);
   assert.equal(result.reused, true); near(result.first.right, .5, .001);
   near(result.first.bottom, 200 / 210); assert.equal(result.paper.orientation, "portrait");
+});
+
+// Intersecting the model before subdivision compresses q10 into q9 at the bottom scan boundary.
+test("bottom-clipped A5 scan preserves all original row positions including q10", async () => {
+  const result = await page.evaluate(synthetic, { settings: base, translation: { x: 0, y: 20 }, render: true });
+  assert.equal(result.provenance, "header-grid");
+  for (const { q, owners } of result.crops) assert.deepEqual(owners, [q], `q${q + 1} owns the wrong row at the bottom boundary`);
+  assert.ok(result.grid.bottom > 1); assert.equal(result.visibleGrid.bottom, 1);
+  // Hand-computed q10 top: (36.4753 + 20 + 9 * 15.9) mm at 6 px/mm, plus 0.5 mm inset.
+  near(result.crops[9].crop.y, 1200.4518, 3); near(result.crops[9].crop.y + result.crops[9].crop.height, 1260, .01);
+  assert.deepEqual(result.renderedOwners, [9]);
+});
+
+// A4 landscape leaves the real header visible while the final column crosses the right scan boundary.
+test("right-clipped scan preserves the original column spacing", async () => {
+  const result = await page.evaluate(synthetic, { settings: { ...base, paperSize: "a4", orientation: "landscape", answerFormat: "extended", cols: 3 }, widthMm: 297, heightMm: 210, gridTopMm: 37.4964, translation: { x: 30, y: 0 }, render: true, renderQuestion: 29 });
+  assert.equal(result.provenance, "header-grid");
+  for (const { q, owners } of result.crops) assert.deepEqual(owners, [q], `q${q + 1} owns the wrong column at the right boundary`);
+  assert.ok(result.grid.right > 1); assert.equal(result.visibleGrid.right, 1);
+  // Final column starts at 10 + 30 + 2 * (277 / 3) mm, not a third of a shortened grid.
+  near(result.crops[29].crop.x, 1357, 3); near(result.crops[29].crop.x + result.crops[29].crop.width, 1782, .01);
+  assert.deepEqual(result.renderedOwners, [29]);
+});
+
+for (const fixture of [
+  { label: "bottom", settings: base, translation: { x: 0, y: 40 }, renderQuestion: 9 },
+  { label: "right", settings: { ...base, paperSize: "a4", orientation: "landscape", answerFormat: "extended", cols: 3 }, widthMm: 297, heightMm: 210, gridTopMm: 37.4964, translation: { x: 140, y: 0 }, renderQuestion: 29 }
+]) test(`fully invisible ${fixture.label} questions produce an empty crop and clear the tile`, async () => {
+  const result = await page.evaluate(synthetic, { ...fixture, render: true });
+  assert.equal(result.provenance, "header-grid");
+  const final = result.crops[fixture.renderQuestion];
+  assert.deepEqual(final.owners, [], "an invisible answer must not read a neighboring row/column");
+  assert.equal(final.crop.width, 0); assert.equal(final.crop.height, 0);
+  assert.ok(final.crop.x >= 0 && final.crop.x <= result.width && final.crop.y >= 0 && final.crop.y <= result.height);
+  assert.deepEqual(result.renderedOwners, []); assert.equal(result.renderedSize.blank, true);
+  assert.ok(result.renderedSize.width > 0 && result.renderedSize.height > 0, "empty answers keep a usable blank tile");
+});
+
+test("pure geometry distinguishes raw model extents from visible intersections", async () => {
+  const result = await page.evaluate(() => {
+    const reference = { paper: { width: 148, height: 210 }, headerMm: { left: 10, top: 10, right: 138, bottom: 22 }, gridMm: { left: 10, top: 36.5, right: 74, bottom: 195.5 } };
+    const header = { left: 10 / 148, top: 30 / 210, right: 138 / 148, bottom: 42 / 210 }, size = { width: 888, height: 1260 };
+    const prediction = YutoriSheetGeometry.predictFromHeader(reference, header, size);
+    return { prediction, cell: YutoriSheetGeometry.questionRect(prediction.grid, { rows: 10, cols: 1 }, 9), mapped: YutoriSheetGeometry.mapReferenceRect(reference.gridMm, reference, header, size), negativeCell: YutoriSheetGeometry.questionRect({ left: -.1, top: -.1, right: 1.1, bottom: 1.1 }, { rows: 2, cols: 2 }, 0), hidden: typeof YutoriSheetGeometry.clipRect === "function" ? YutoriSheetGeometry.clipRect({ left: 1.1, top: .1, right: 1.2, bottom: .2 }) : "missing" };
+  });
+  near(result.prediction.grid.bottom, 215.5 / 210); near(result.cell.top, 199.6 / 210); near(result.cell.height, 15.9 / 210);
+  assert.equal(result.prediction.visibleGrid.bottom, 1); assert.equal(result.mapped.bottom, 1);
+  near(result.negativeCell.left, -.1); near(result.negativeCell.top, -.1); near(result.negativeCell.width, .6); near(result.negativeCell.height, .6);
+  assert.equal(result.hidden, null);
 });
