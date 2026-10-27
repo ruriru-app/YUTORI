@@ -114,6 +114,7 @@ input,select{height:36px;padding:0 10px}
   color:var(--muted);
 }
 
+.test-print-root,#a5PrintControls[hidden]{display:none}
 .paper{
   background:#fff;
   color:#111;
@@ -3270,6 +3271,11 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
     -webkit-print-color-adjust:exact!important;
     print-color-adjust:exact!important;
   }
+  body.test-printing .app-shell{display:none!important}
+  body.test-printing #testPrintRoot{display:block!important;margin:0!important;padding:0!important}
+  #testPrintRoot .test-print-page{display:flex;flex-direction:row;align-items:center;justify-content:center;width:var(--test-print-width);height:var(--test-print-height);overflow:hidden;break-inside:avoid-page;page-break-inside:avoid}
+  #testPrintRoot .test-print-page.two-up-landscape{flex-direction:column}
+  #testPrintRoot .paper{flex:0 0 auto;zoom:1!important;transform:none!important}
   body.return-printing .app-shell{display:none!important}
   body.return-printing #returnPrintRoot{display:block!important;width:auto!important;margin:0!important;padding:0!important}
   body.return-printing #returnPrintRoot .return-print-page{display:block!important;margin:0!important;break-after:page!important;page-break-after:always!important;break-inside:avoid-page!important;page-break-inside:avoid!important}
@@ -3544,6 +3550,11 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
           <span class="group option-gap">向き</span>
           <label><input type="radio" name="orientation" value="portrait" checked>縦</label>
           <label><input type="radio" name="orientation" value="landscape">横</label>
+        </div>
+        <div id="a5PrintControls" class="compact" hidden>
+          <span class="group">A5の印刷方法</span>
+          <label><input type="radio" name="a5PrintMode" value="two-up" checked>A4に2枚（切って使用）</label>
+          <label><input type="radio" name="a5PrintMode" value="single">A5に1枚</label>
         </div>
       </div>
     </div>
@@ -4004,6 +4015,7 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
 </div>
 
 <div id="returnPrintRoot" class="return-print-root" aria-hidden="true"></div>
+<div id="testPrintRoot" class="test-print-root" aria-hidden="true"></div>
 
 <script src="assets/pdfjs/pdf.min.js"></script>
 <script src="assets/yutori-backup-archive.js"></script>
@@ -4015,7 +4027,7 @@ const HEADER_SVG = "<!-- Created with Linearity Curve (http://linearity.io/curve
 const state = {
   grade:"", subject:"", unit:"", testName:"",
   titleVisibility:{grade:true,subject:true,unit:true,testName:true},
-  paperSize:"a4", orientation:"portrait",
+  paperSize:"a4", orientation:"portrait", a5PrintMode:"two-up",
   rows:10, cols:3, flow:"column", answerLine:"fourline", fourLineHeight:"auto", answerFormat:"word", questionMode:"inline",
   questions:[], answers:[]
 };
@@ -4048,6 +4060,7 @@ function copyTestState(source=state){
     titleVisibility:normalizeTitleVisibility(source.titleVisibility),
     paperSize:["a4","b5","a5"].includes(source.paperSize)?source.paperSize:"a4",
     orientation:source.orientation==="landscape"?"landscape":"portrait",
+    a5PrintMode:source.a5PrintMode==="single"?"single":"two-up",
     rows:Number(source.rows)||10,
     cols:Number(source.cols)||3,
     flow:source.flow==="row"?"row":"column",
@@ -4316,7 +4329,7 @@ function fitEditorPaper(){
 }
 function updateLivePreviewInfo(){
   const el=document.getElementById("livePreviewInfo");
-  if(el)el.textContent=`${paperLabel()}／${state.questions.length}問`;
+  if(el)el.textContent=`${printPaperLabel()}／${state.questions.length}問`;
 }
 function scheduleLivePreview(){
   cancelAnimationFrame(livePreviewFrame);
@@ -4334,6 +4347,7 @@ function bindLivePreviewControls(){
   ["titleShowGrade","titleShowSubject","titleShowUnit","titleShowTestName"].forEach(id=>document.getElementById(id)?.addEventListener("change",updateCounts));
   document.getElementById("paperSize")?.addEventListener("change",applyLimits);
   document.querySelectorAll('input[name="orientation"]').forEach(el=>el.addEventListener("change",applyLimits));
+  document.querySelectorAll('input[name="a5PrintMode"]').forEach(el=>el.addEventListener("change",updateCounts));
   ["rows","cols"].forEach(id=>document.getElementById(id)?.addEventListener("change",updateCounts));
   document.getElementById("fourLineHeight")?.addEventListener("change",updateCounts);
   document.querySelectorAll('input[name="flow"],input[name="answerLine"]').forEach(el=>el.addEventListener("change",updateCounts));
@@ -4584,6 +4598,7 @@ function syncState(){
   };
   state.paperSize=document.getElementById("paperSize").value;
   state.orientation=checked("orientation");
+  state.a5PrintMode=checked("a5PrintMode")==="single"?"single":"two-up";
   state.rows=Number(document.getElementById("rows").value||1);
   state.cols=Number(document.getElementById("cols").value||1);
   state.flow=checked("flow");
@@ -4628,6 +4643,7 @@ function applyLimits(){
 }
 function updateCounts(){
   syncState();
+  document.getElementById("a5PrintControls").hidden=state.paperSize!=="a5";
   updateFourLineHeightControl();
   const cap=state.rows*state.cols;
   const count=state.questions.length;
@@ -4833,6 +4849,7 @@ function applyTestToEditor(source,id=""){
   applyTitleVisibilityToControls(state);
   document.getElementById("paperSize").value=state.paperSize;
   document.querySelector(`input[name="orientation"][value="${state.orientation}"]`).checked=true;
+  document.querySelector(`input[name="a5PrintMode"][value="${state.a5PrintMode}"]`).checked=true;
   document.querySelector(`input[name="flow"][value="${state.flow}"]`).checked=true;
   document.querySelector(`input[name="answerLine"][value="${state.answerLine}"]`).checked=true;
   document.getElementById("fourLineHeight").value=state.fourLineHeight||"auto";
@@ -4885,34 +4902,40 @@ function renderPaper(){
   syncState();
   const paper=document.getElementById("paper");
   paper.className=`paper ${state.paperSize} ${state.orientation}`;
-  const cap=state.rows*state.cols;
-  const flowClass=state.flow==="row"?"flow-row":"";
-  const answerWidthClass=isSingleColumnWordLayout(state)?"word-single-column":"";
-  const items=state.questions.slice(0,cap).map((q,i)=>{
-    const col=state.flow==="row"?(i%state.cols):Math.floor(i/state.rows);
-    const row=state.flow==="row"?Math.floor(i/state.cols):(i%state.rows);
-    const lastCol=col===state.cols-1?" last-col":"";
-    const lastRow=row===state.rows-1?" last-row":"";
-    const fourLineClass=state.answerLine==="fourline"?` fourline-${fourLineHeightForAnswer(state.answers[i])}`:"";
+  paper.innerHTML=paperMarkupForTest(state);
+  updateLivePreviewInfo();
+}
+function paperMarkupForTest(test){
+  const source=copyTestState(test);
+  const cap=source.rows*source.cols;
+  const flowClass=source.flow==="row"?"flow-row":"";
+  const answerWidthClass=isSingleColumnWordLayout(source)?"word-single-column":"";
+  const items=source.questions.slice(0,cap).map((q,i)=>{
+    const col=source.flow==="row"?(i%source.cols):Math.floor(i/source.rows);
+    const row=source.flow==="row"?Math.floor(i/source.cols):(i%source.rows);
+    const lastCol=col===source.cols-1?" last-col":"";
+    const lastRow=row===source.rows-1?" last-row":"";
+    const fourLineClass=source.answerLine==="fourline"?` fourline-${fourLineHeightForAnswer(source.answers[i],source)}`:"";
     return `<div class="problem-cell${lastCol}${lastRow}">
       <div class="problem-top">
         <div class="problem-no">${String(i+1).padStart(2,"0")}</div>
-        ${state.questionMode==="separate"?"":`<div class="problem-text">${escapeHtml(q)||"&nbsp;"}</div>`}
+        ${source.questionMode==="separate"?"":`<div class="problem-text">${escapeHtml(q)||"&nbsp;"}</div>`}
       </div>
-      <div class="answer-guide ${state.answerLine}${fourLineClass}"><i aria-hidden="true"></i><i aria-hidden="true"></i><i aria-hidden="true"></i><i aria-hidden="true"></i></div>
+      <div class="answer-guide ${source.answerLine}${fourLineClass}"><i aria-hidden="true"></i><i aria-hidden="true"></i><i aria-hidden="true"></i><i aria-hidden="true"></i></div>
     </div>`;
   }).join("");
-  const warning=state.questions.length>cap?`<div class="paper-warning">※ ${state.questions.length-cap}問が用紙内に収まりません。</div>`:"";
-  paper.innerHTML=`
+  const warning=source.questions.length>cap?`<div class="paper-warning">※ ${source.questions.length-cap}問が用紙内に収まりません。</div>`:"";
+  return `
     <div class="paper-header"><img src="assets/test-mark-name-header.svg" alt="組、出席番号、名前、点数の記入欄"></div>
-    <div class="paper-title">${escapeHtml(testDisplayTitle(state))}</div>
-    <div class="sheet-grid ${flowClass} ${answerWidthClass}" data-answer-format="${state.answerFormat}" style="
-      grid-template-columns:repeat(${state.cols},minmax(0,1fr));
-      grid-template-rows:repeat(${state.rows},minmax(0,1fr));
+    <div class="paper-title">${escapeHtml(testDisplayTitle(source))}</div>
+    <div class="sheet-grid ${flowClass} ${answerWidthClass}" data-answer-format="${source.answerFormat}" style="
+      grid-template-columns:repeat(${source.cols},minmax(0,1fr));
+      grid-template-rows:repeat(${source.rows},minmax(0,1fr));
       height:calc(100% - 31mm);">${items}</div>
     ${warning}`;
-  updateLivePreviewInfo();
 }
+function isA5TwoUp(test=state){return test.paperSize==="a5"&&test.a5PrintMode!=="single"}
+function printPaperLabel(){return isA5TwoUp()?`${paperLabel()}／A4・${state.orientation==="landscape"?"縦":"横"}に2枚（切って使用）`:paperLabel()}
 function paperLabel(){
   const size={a4:"A4",b5:"B5",a5:"A5"}[state.paperSize]||"A4";
   const orientation=state.orientation==="landscape"?"横":"縦";
@@ -4924,7 +4947,7 @@ function updatePrintInfo(){
   const count=state.questions.length;
   const capacity=state.rows*state.cols;
   el.innerHTML=`
-    <strong>用紙：</strong>${paperLabel()}<br>
+    <strong>用紙：</strong>${printPaperLabel()}<br>
     <strong>問題数：</strong>${count}問<br>
     <strong>配置可能数：</strong>${capacity}問
   `;
@@ -4955,7 +4978,31 @@ function applyPrintPageStyle(){
     style.id="dynamicPrintStyle";
     document.head.appendChild(style);
   }
-  style.textContent=`@page { size:${sizes[state.paperSize][state.orientation]}; margin:0; }`;
+  const size=isA5TwoUp()?sizes.a4[state.orientation==="landscape"?"portrait":"landscape"]:sizes[state.paperSize][state.orientation];
+  style.textContent=`@page { size:${size}; margin:0; }`;
+}
+function prepareTestPrintLayout(){
+  if(document.body.classList.contains("return-printing"))return;
+  syncState();
+  renderPaper();
+  applyPrintPageStyle();
+  const twoUp=isA5TwoUp(),root=document.getElementById("testPrintRoot"),page=document.createElement("div");
+  const dimensions={a5:[148,210],b5:[182,257],a4:[210,297]};
+  const [short,long]=dimensions[twoUp?"a4":state.paperSize];
+  const landscape=twoUp?state.orientation!=="landscape":state.orientation==="landscape";
+  page.className=`test-print-page${twoUp?` two-up-${state.orientation}`:""}`;
+  page.style.setProperty("--test-print-width",`${landscape?long:short}mm`);
+  page.style.setProperty("--test-print-height",`${landscape?short:long}mm`);
+  const markup=paperMarkupForTest(state);
+  for(let i=0;i<(twoUp?2:1);i++){
+    const copy=document.createElement("div");
+    copy.className=`paper ${state.paperSize} ${state.orientation}`;
+    copy.innerHTML=markup;
+    page.appendChild(copy);
+  }
+  root.replaceChildren(page);
+  root.setAttribute("aria-hidden","false");
+  document.body.classList.add("test-printing");
 }
 let printTitleBeforeDialog="";
 function safeFileNamePart(value){return String(value||"").trim().replace(/[\\/:*?"<>|\u0000-\u001f]/g,"_").replace(/[. ]+$/g,"")}
@@ -4971,9 +5018,7 @@ function printDocument(){
 
   if(!validateBeforePrint()) return;
 
-  mountPaperForScreen("previewScreen");
-  renderPaper();
-  applyPrintPageStyle();
+  prepareTestPrintLayout();
   setPrintDocumentTitle(testPdfBaseName());
   window.print();
 }
@@ -4998,14 +5043,14 @@ document.getElementById("cols").addEventListener("change",updateCounts);
 window.addEventListener("beforeprint",()=>{
   if(!globalThis.yutoriAppReady)return;
   if(document.body.classList.contains("return-printing"))return;
-  syncState();
-  mountPaperForScreen("previewScreen");
-  renderPaper();
-  applyPrintPageStyle();
+  prepareTestPrintLayout();
   setPrintDocumentTitle(testPdfBaseName());
 });
 window.addEventListener("afterprint",()=>{
   if(!globalThis.yutoriAppReady)return;
+  document.body.classList.remove("test-printing");
+  const testRoot=document.getElementById("testPrintRoot");
+  testRoot.replaceChildren();testRoot.setAttribute("aria-hidden","true");
   document.body.classList.remove("return-printing");
   const root=document.getElementById("returnPrintRoot");if(root)root.setAttribute("aria-hidden","true");
   restoreDocumentTitle();
@@ -7556,6 +7601,7 @@ if(initialSaved){
     applyTitleVisibilityToControls(state);
     document.getElementById("paperSize").value=state.paperSize||"a4";
     document.querySelector(`input[name="orientation"][value="${state.orientation||"portrait"}"]`).checked=true;
+    document.querySelector(`input[name="a5PrintMode"][value="${state.a5PrintMode}"]`).checked=true;
     document.querySelector(`input[name="flow"][value="${state.flow||"column"}"]`).checked=true;
     document.querySelector(`input[name="answerLine"][value="${state.answerLine||"fourline"}"]`).checked=true;
     document.getElementById("fourLineHeight").value=state.fourLineHeight||"auto";
