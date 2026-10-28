@@ -3446,7 +3446,7 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
         </label>
         <button id="returnPracticeAutoButton" class="secondary" type="button" onclick="resetReturnPracticeCount()">1枚に収まる最大数に戻す</button>
         <div id="returnPracticeCountHint" class="help" aria-live="polite">自動：縦は最大15問、横は最大7問。長い手本は複数行分として調整します。</div>
-        <label class="output-check-row"><input id="returnIncludePartial" type="checkbox" onchange="updateReturnOutputOptions()">△の問題も含める</label>
+        <label class="output-check-row"><input id="returnIncludePartial" type="checkbox" checked onchange="updateReturnOutputOptions()">△の問題も含める</label>
         <button class="primary return-output-sidebar-button" type="button" onclick="printReturnPdfs()">返却用PDFを保存</button>
       </div>
     </div>

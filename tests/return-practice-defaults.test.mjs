@@ -42,6 +42,31 @@ after(async () => {
   await new Promise(resolve => server?.close(resolve));
 });
 
+test("partial-credit problems are included by default but can still be excluded", async () => {
+  const initial = await page.evaluate(async () => {
+    const session = practiceFixture("portrait");
+    session.questions = ["部分点の問題", "不正解の問題", "正解の問題"];
+    session.modelAnswers = ["partial", "incorrect", "correct"];
+    session.grades = Object.fromEntries(["partial", "ng", "ok"].map((mark, q) => [`test::1::${q}`, { mark }]));
+    localStorage.setItem(sessionsKey(), JSON.stringify([session]));
+    await changeReturnOutputSession(session.id);
+    window.practiceNumbers = () => {
+      const current = returnOutputState.session;
+      const host = document.createElement("div");
+      host.innerHTML = returnPracticePagesHtml(current, "test", current.answers.test[0], returnOutputOptions()).join("");
+      return [...host.querySelectorAll(".return-practice-number")].map(node => node.textContent);
+    };
+    return { checked: document.getElementById("returnIncludePartial").checked, includePartial: returnOutputOptions().includePartial, numbers: practiceNumbers() };
+  });
+  assert.deepEqual(initial, { checked: true, includePartial: true, numbers: ["01", "02"] });
+  const excluded = await page.evaluate(async () => {
+    document.getElementById("returnIncludePartial").click();
+    await changeReturnOutputSession("portrait");
+    return { checked: document.getElementById("returnIncludePartial").checked, includePartial: returnOutputOptions().includePartial, numbers: practiceNumbers() };
+  });
+  assert.deepEqual(excluded, { checked: false, includePartial: false, numbers: ["02"] });
+});
+
 for (const [orientation, expected] of [["portrait", 15], ["landscape", 7]]) {
   test(`${orientation} starts with a full one-page practice count rather than five`, async () => {
     const result = await page.evaluate(async orientation => {
