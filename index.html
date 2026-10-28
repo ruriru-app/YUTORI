@@ -3295,6 +3295,9 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
   body.return-printing #returnPrintRoot .return-print-page:last-child{break-after:auto!important;page-break-after:auto!important}
   body.return-printing #returnPrintRoot .return-print-side{width:100%!important;height:100%!important;inset:0!important;transform:none!important}
   body.return-printing #returnPrintRoot .return-sheet{display:grid!important;max-width:none!important;margin:0!important;box-shadow:none!important;break-inside:avoid-page!important;page-break-inside:avoid!important}
+  /* Raw scan cells may extend off-image. Keep their clipped overflow out of
+     print shrink-to-fit sizing; the source already has explicit dimensions. */
+  body.return-printing #returnPrintRoot .return-answer-source{contain:size}
 }
 </style>
 </head>
