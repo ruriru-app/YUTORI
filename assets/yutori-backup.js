@@ -83,7 +83,7 @@
   }
   Object.assign(global, { trackPersistence, waitForPersistenceIdle, runExclusiveOperation, runPersistenceOperation, deferPersistenceWhileExclusive });
   const options = {
-    appVersion: "v0.3.52", waitForIdle: waitForPersistenceIdle, now: () => new Date(),
+    appVersion: "v0.3.53", waitForIdle: waitForPersistenceIdle, now: () => new Date(),
     pickSaveFile: typeof global.showSaveFilePicker === "function" ? settings => global.showSaveFilePicker(settings) : null,
     pickOpenFile: typeof global.showOpenFilePicker === "function" ? settings => global.showOpenFilePicker(settings) : null,
     openDataDb: () => global.YutoriBackupStorage.openActiveDataDb(), reload: () => global.location.reload(),

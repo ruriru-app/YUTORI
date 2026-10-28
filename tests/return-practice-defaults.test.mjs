@@ -188,7 +188,7 @@ test("a single exceptionally long answer is complete on continuation pages inste
     session.questions = ["長い手本"]; session.modelAnswers = ["W".repeat(700)];
     const pages = returnPracticePagesHtml(session, "test", session.answers.test[0], returnOutputOptions());
     const host = document.createElement("div"); host.innerHTML = pages.join("");
-    return { pages: pages.length, restored: [...host.querySelectorAll("text")].map(node => node.textContent).join(""), empty: host.querySelectorAll(".return-practice-empty").length };
+    return { pages: pages.length, restored: [...host.querySelectorAll(".return-practice-model-answer")].map(node => node.textContent).join(""), empty: host.querySelectorAll(".return-practice-empty").length };
   });
   assert.ok(result.pages > 1);
   assert.equal(result.restored, "W".repeat(700));

@@ -14,7 +14,7 @@ const { chromium } = createRequire(import.meta.url)("playwright");
 
 // A dedicated browser/context allows the real worker; the ordinary helper still blocks it.
 // Missing precache assets must fail before an online application visit can warm the cache.
-test("APP_SHELL v0.3.52 installs geometry and backup dependencies and boots offline", { timeout: 20000 }, async t => {
+test("APP_SHELL v0.3.53 precaches distribution, geometry and backup dependencies and boots offline", { timeout: 20000 }, async t => {
   const harness = await createYutoriBrowser();
   let browser;
   const abort = () => { browser?.close().catch(() => {}); };
@@ -35,8 +35,8 @@ test("APP_SHELL v0.3.52 installs geometry and backup dependencies and boots offl
       const cache = await caches.open(names.find(name => name.startsWith("yutori-v")));
       return { names, paths: (await cache.keys()).map(request => new URL(request.url).pathname) };
     });
-    assert.deepEqual(installed.names, ["yutori-v0.3.52"]);
-    const dependencies = ["/assets/yutori-sheet-geometry.js", "/assets/yutori-backup-archive.js", "/assets/yutori-backup-storage.js", "/assets/yutori-backup.js"];
+    assert.deepEqual(installed.names, ["yutori-v0.3.53"]);
+    const dependencies = ["/assets/yutori-sheet-geometry.js", "/assets/yutori-backup-archive.js", "/assets/yutori-backup-storage.js", "/assets/yutori-backup.js", "/assets/yutori-score-distribution.js"];
     const geometryAssets = ["/assets/test-mark-name-header.svg", "/assets/fonts/ruriru/RuRiRuFontv2.ttf", "/assets/pdfjs/pdf.min.js", "/assets/pdfjs/pdf.worker.min.js"];
     for (const asset of [...dependencies, ...geometryAssets, "/assets/backup.svg"]) assert.ok(installed.paths.includes(asset), `precache missing ${asset}`);
     assert.ok(installed.paths.indexOf(dependencies[0]) < installed.paths.indexOf(dependencies[1]));
@@ -53,7 +53,19 @@ test("APP_SHELL v0.3.52 installs geometry and backup dependencies and boots offl
     }
     await page.goto(`${harness.origin}/`, { waitUntil: "domcontentloaded" });
     await page.evaluate(() => globalThis.yutoriAppInitialization);
-    assert.equal(await page.title(), "YUTORI v0.3.52");
+    assert.equal(await page.title(), "YUTORI v0.3.53");
+    const distribution = await page.evaluate(() => {
+      const session = { questions: ["合成"], fullScore: 10, partialScore: 5, classes: ["A"],
+        answers: { A: [{ no: 1, name: "非公開" }] }, grades: { "A::1::0": { mark: "partial" } } };
+      const host = document.createElement("div");
+      host.innerHTML = returnScoreDistributionHtml(session, "A", session.answers.A[0], { rateScope: "class" });
+      return { text: host.textContent, marker: host.querySelectorAll(".return-distribution-marker").length };
+    });
+    assert.match(distribution.text, /クラス・1人/);
+    assert.match(distribution.text, /あなた 5点/);
+    assert.match(distribution.text, /平均 5点/);
+    assert.doesNotMatch(distribution.text, /非公開/);
+    assert.equal(distribution.marker, 1);
     assert.deepEqual(await page.evaluate(() => YutoriSheetGeometry.questionRect(
       { left: .125, top: .25, right: .625, bottom: .75 }, { rows: 2, cols: 1 }, 1
     )), { left: .125, top: .5, width: .5, height: .25 });
@@ -172,9 +184,9 @@ test("APP_SHELL failed upgrade preserves old active shell and retry activates re
     fixture.missing = false;
     await registerAndWaitForWorker(fixture.page, { timeoutMs: 5000, update: true });
     const restored = await fixture.page.evaluate(async () => ({ names: await caches.keys(),
-      newAsset: !!(await (await caches.open("yutori-v0.3.52")).match("/assets/yutori-backup-storage.js")),
-      geometry: !!(await (await caches.open("yutori-v0.3.52")).match("/assets/yutori-sheet-geometry.js")) }));
-    assert.deepEqual(restored, { names: ["yutori-v0.3.52"], newAsset: true, geometry: true });
+      newAsset: !!(await (await caches.open("yutori-v0.3.53")).match("/assets/yutori-backup-storage.js")),
+      geometry: !!(await (await caches.open("yutori-v0.3.53")).match("/assets/yutori-sheet-geometry.js")) }));
+    assert.deepEqual(restored, { names: ["yutori-v0.3.53"], newAsset: true, geometry: true });
   } finally { t.signal.removeEventListener("abort", abort); await fixture.close(); }
 });
 

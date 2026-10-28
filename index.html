@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="YUTORI">
-<title>YUTORI v0.3.52</title>
+<title>YUTORI v0.3.53</title>
 <link rel="icon" type="image/svg+xml" href="assets/yutori-symbol.svg">
 <link rel="apple-touch-icon" href="assets/yutori-192.png">
 <link rel="manifest" href="manifest.webmanifest">
@@ -3218,6 +3218,17 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
 .return-four-lines i:nth-child(4){top:86.857%}
 .return-practice-model-layer{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
 .return-practice-model-answer{fill:#969696;font-family:"RuRiRu Font","YUTORI Andika","BIZ UDPGothic","Yu Gothic",sans-serif;font-size:var(--practice-model-size);font-weight:400;font-synthesis:none;dominant-baseline:alphabetic;white-space:pre}
+.return-score-distribution{box-sizing:border-box;position:absolute;z-index:2;right:6%;bottom:4.6%;width:var(--distribution-width,30%);padding:calc(.91cqw * var(--distribution-scale,1)) calc(1.09cqw * var(--distribution-scale,1));border:1px solid #b6afa6;background:#fff;box-shadow:-2px -1px 0 #fff,0 2px 5px #30292014;color:#292724;font-size:calc(1.76cqw * var(--distribution-scale,1));line-height:1.12}
+.return-sheet.return-landscape .return-score-distribution{right:5%;bottom:5.7%}
+.return-distribution-head,.return-distribution-score{display:flex;justify-content:space-between;align-items:center;gap:.4em;white-space:nowrap;margin-bottom:.24em}
+.return-distribution-title{margin:0;font-size:1.174em;font-weight:500}
+.return-distribution-scope{font-size:.94em;color:#77716b}
+.return-distribution-score strong{font-weight:500}
+.return-distribution-average,.return-distribution-empty,.return-distribution-legend{color:#77716b}
+.return-distribution-chart{display:block;width:100%;height:auto;aspect-ratio:146 / 56;overflow:visible}
+.return-distribution-chart text{font-family:"Yu Gothic","Meiryo",sans-serif;font-size:8px;fill:#292724}
+.return-distribution-legend{font-size:.88em;white-space:nowrap;margin-top:.2em}
+.return-distribution-empty{font-size:.94em;margin:.25em 0}
 
 @media print{
   html,body{
@@ -3290,10 +3301,10 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
 <body inert>
 <div class="app-shell">
 <header class="app-header no-print">
-  <div class="brand" aria-label="YUTORI v0.3.52">
+  <div class="brand" aria-label="YUTORI v0.3.53">
     <div class="brand-copy">
       <img class="brand-logo-image" src="assets/yutori-logo.svg" alt="YUTORI つくる・つける・つなげる">
-      <span class="brand-version">v0.3.52</span>
+      <span class="brand-version">v0.3.53</span>
     </div>
   </div>
   <nav aria-label="主要メニュー">
@@ -3431,8 +3442,8 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
         <h3>1ページ目</h3>
         <label>集計範囲
           <select id="returnRateScope" onchange="updateReturnOutputOptions()">
-            <option value="class">対象クラス（正答率・平均点・順位）</option>
-            <option value="grade">同学年（正答率・平均点・順位）</option>
+            <option value="class">対象クラス（正答率・平均点・順位・得点分布）</option>
+            <option value="grade">同学年（正答率・平均点・順位・得点分布）</option>
           </select>
         </label>
         <label class="output-check-row"><input id="returnShowQuestionRate" type="checkbox" checked onchange="updateReturnOutputOptions()">問題ごとの正答率</label>
@@ -3441,6 +3452,7 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
       </div>
       <div class="special-sidebar-section output-control-section">
         <h3>2ページ目・個別課題</h3>
+        <label class="output-check-row"><input id="returnShowScoreDistribution" type="checkbox" checked onchange="updateReturnOutputOptions()">得点分布票を付ける</label>
         <label>出題数（上限・自由入力）
           <span class="return-practice-count-field"><input id="returnPracticeCount" type="number" min="1" step="1" value="15" inputmode="numeric" oninput="changeReturnPracticeCount()" onchange="normalizeReturnPracticeCount(this)"><span>問</span></span>
         </label>
@@ -4019,6 +4031,7 @@ body.sidebar-scrolling{cursor:ns-resize;user-select:none;-webkit-user-select:non
 
 <script src="assets/pdfjs/pdf.min.js"></script>
 <script src="assets/yutori-sheet-geometry.js"></script>
+<script src="assets/yutori-score-distribution.js"></script>
 <script src="assets/yutori-backup-archive.js"></script>
 <script src="assets/yutori-backup-storage.js"></script>
 <script src="assets/yutori-backup.js"></script>
@@ -7398,6 +7411,7 @@ function returnOutputOptions(){
     showQuestionRate:Boolean(document.getElementById("returnShowQuestionRate")?.checked),
     showAverage:Boolean(document.getElementById("returnShowAverage")?.checked),
     showRank:Boolean(document.getElementById("returnShowRank")?.checked),
+    showScoreDistribution:Boolean(document.getElementById("returnShowScoreDistribution")?.checked),
     rateScope:document.getElementById("returnRateScope")?.value||"class",
     includePartial:Boolean(document.getElementById("returnIncludePartial")?.checked),
     practiceCount:Number.isFinite(practiceValue)&&practiceValue>0?practiceValue:returnPracticePageCapacity(session,{returnPracticeOrientation:checkedReturnOption("returnPracticeOrientation",sourceOrientation)}),
@@ -7582,11 +7596,33 @@ function wrapReturnPracticeItems(items,rowHeight){
     return lines.map((answer,index)=>({...item,answer,continued:index>0}));
   });
 }
+function returnScoreDistributionHtml(session,className,person,options={}){
+  const scores=resultRateClasses(session,className,options.rateScope).flatMap(name=>(session.answers?.[name]||[])
+    .map(value=>calculateStudentResult(session,name,value)).filter(result=>result.complete).map(result=>result.score));
+  const own=calculateStudentResult(session,className,person);
+  const distribution=YutoriScoreDistribution.buildDistribution(scores,returnMaximumScore(session),own.complete?own.score:null);
+  const paper=returnOutputPaperSpec(session,"practice",options),width=Math.min(.3,63/paper.width),scale=width/.3;
+  // Suppress arithmetic drift without rounding away actual fractional point units.
+  const score=value=>Number.isFinite(value)?escapeHtml(String(Number(value.toPrecision(12)))):"—";
+  const average=Number.isFinite(distribution.average)?Math.round(distribution.average*10)/10:null;
+  const maximum=distribution.maximum,count=distribution.count,peak=Math.max(1,...distribution.bins.map(bin=>bin.count));
+  // Fixed viewBox coordinates keep every drawing value finite, including an empty population.
+  const left=14,top=16,plotWidth=127,plotHeight=26,baseline=top+plotHeight;
+  const ticks=[...new Set([0,Math.ceil(peak/2),peak])];
+  const grid=ticks.map(value=>{const y=baseline-value/peak*plotHeight;return `<line x1="${left}" y1="${y}" x2="141" y2="${y}" stroke="#ded9d2"/><text x="11" y="${y+2.5}" text-anchor="end">${value}</text>`}).join("");
+  const bars=distribution.bins.map((bin,index)=>{const height=bin.count/peak*plotHeight;return `<rect data-count="${bin.count}" x="${left+index*plotWidth/10+1}" y="${baseline-height}" width="10.7" height="${height}" fill="${index===distribution.ownBin?"#FCCC8E":"#a7a29b"}"/>`}).join("");
+  const axes=Number.isFinite(maximum)?[0,maximum/2,maximum].map((value,index)=>`<text x="${left+index*plotWidth/2}" y="53" text-anchor="${["start","middle","end"][index]}">${score(value)}${index===2?"点":""}</text>`).join(""):"";
+  const marker=Number.isFinite(distribution.ownScore)&&Number.isFinite(maximum)?(()=>{
+    const x=left+distribution.ownScore/maximum*plotWidth;
+    return `<g class="return-distribution-marker"><line x1="${x}" y1="13" x2="${x}" y2="${baseline}" stroke="#292724" stroke-width="1.2"/><circle cx="${x}" cy="13" r="1.6" fill="#292724"/></g>`;
+  })():"";
+  return `<aside class="return-score-distribution" style="--distribution-width:${width*100}%;--distribution-scale:${scale}" aria-label="得点分布票"><div class="return-distribution-head"><h3 class="return-distribution-title">得点分布</h3><span class="return-distribution-scope">${options.rateScope==="grade"?"学年":"クラス"}・${count}人</span></div><div class="return-distribution-score"><strong>あなた ${score(distribution.ownScore)}点</strong><span class="return-distribution-average">平均 ${score(average)}点</span></div>${count?"":'<div class="return-distribution-empty">採点完了データなし</div>'}<svg class="return-distribution-chart" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 146 56" role="img" aria-label="得点帯ごとの人数とあなたの位置"><text x="0" y="8">人</text>${grid}${bars}${axes}${marker}</svg><div class="return-distribution-legend">棒：人数　線：あなた</div></aside>`;
+}
 function returnPracticeSheetHtml(session,className,person,items,pageIndex=0,pageCount=1,rowHeight=null,options={}){
   const title=session.testName||[session.subject,session.unit].filter(Boolean).join(" ")||"テスト";
   const paper=returnOutputPaperSpec(session,"practice",options),resolvedRowHeight=Number.isFinite(Number(rowHeight))?Number(rowHeight):returnPracticeRowHeight(session,items.length,options);
   const itemHtml=items.map(item=>`<article class="return-practice-item"><div class="return-practice-work"><div class="return-practice-details"><div class="return-practice-detail-first"><span class="return-practice-number">${String(item.q+1).padStart(2,"0")}${item.continued?"（続）":""}</span><span class="return-practice-detail-question">${escapeHtml(questionDisplayText(session,item.q,item.question))}</span></div><div class="return-practice-detail-second"><span class="return-practice-detail-rate">正答率 ${item.rate}%</span></div></div><div class="return-four-lines" aria-label="英語4線"><i></i><i></i><i></i><i></i>${item.answer?`<svg class="return-practice-model-layer" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="手本：${escapeHtml(item.answer)}"><text class="return-practice-model-answer" x="1.2%" y="61%">${escapeHtml(item.answer)}</text></svg>`:""}</div></div></article>`).join("");
-  return `<section class="return-sheet ${paper.className} return-practice-sheet" style="--return-paper-ratio:${paper.ratio}" aria-label="${escapeHtml(person.name)}の個別練習課題"><header class="return-practice-head"><div><div class="return-practice-title">個別練習プリント${pageCount>1?` ${pageIndex+1}`:""}</div><div class="return-practice-meta">${escapeHtml(title)}　正答率が高い問題から復習します</div></div><div class="return-practice-name">${escapeHtml(classFullDisplayName(className))}<br>${escapeHtml(String(person.no).padStart(2,"0"))} ${escapeHtml(person.name)}</div></header>${items.length?`<div class="return-practice-list" style="--practice-row-height:${resolvedRowHeight.toFixed(2)}cqw">${itemHtml}</div>`:'<div class="return-practice-empty">全問正解です。よくできました！</div>'}</section>`;
+  return `<section class="return-sheet ${paper.className} return-practice-sheet" style="--return-paper-ratio:${paper.ratio}" aria-label="${escapeHtml(person.name)}の個別練習課題"><header class="return-practice-head"><div><div class="return-practice-title">個別練習プリント${pageCount>1?` ${pageIndex+1}`:""}</div><div class="return-practice-meta">${escapeHtml(title)}　正答率が高い問題から復習します</div></div><div class="return-practice-name">${escapeHtml(classFullDisplayName(className))}<br>${escapeHtml(String(person.no).padStart(2,"0"))} ${escapeHtml(person.name)}</div></header>${items.length?`<div class="return-practice-list" style="--practice-row-height:${resolvedRowHeight.toFixed(2)}cqw">${itemHtml}</div>`:'<div class="return-practice-empty">全問正解です。よくできました！</div>'}${pageIndex===0&&options.showScoreDistribution?returnScoreDistributionHtml(session,className,person,options):""}</section>`;
 }
 function returnPracticePagesHtml(session,className,person,options){
   const candidates=options.fitPracticePage?{...options,practiceCount:arrayOrEmpty(session.questions).length}:options;

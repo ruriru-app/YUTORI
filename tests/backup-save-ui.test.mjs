@@ -27,13 +27,13 @@ async function setup() {
   });
 }
 
-test("v0.3.52 release is visible and accessible", async () => {
-  assert.equal(await page.title(), "YUTORI v0.3.52");
-  assert.equal(await page.locator(".brand-version").textContent(), "v0.3.52");
-  assert.equal(await page.locator(".brand").getAttribute("aria-label"), "YUTORI v0.3.52");
+test("v0.3.53 release is visible and accessible", async () => {
+  assert.equal(await page.title(), "YUTORI v0.3.53");
+  assert.equal(await page.locator(".brand-version").textContent(), "v0.3.53");
+  assert.equal(await page.locator(".brand").getAttribute("aria-label"), "YUTORI v0.3.53");
 });
 
-test("default backup metadata records v0.3.52 without explicit version configuration", async () => {
+test("default backup metadata records v0.3.53 without explicit version configuration", async () => {
   const version = await page.evaluate(async () => {
     const root = await navigator.storage.getDirectory();
     const handle = await root.getFileHandle("release.yutori", { create: true });
@@ -42,7 +42,7 @@ test("default backup metadata records v0.3.52 without explicit version configura
     if (!result.ok) throw new Error("release backup failed");
     return (await YutoriBackupArchive.readArchiveStream(await handle.getFile())).manifest.appVersion;
   });
-  assert.equal(version, "v0.3.52");
+  assert.equal(version, "v0.3.53");
 });
 
 test("backup waits for registered page persistence with zero bytes and an exclusive gate before idle", async () => {
