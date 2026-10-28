@@ -6949,9 +6949,14 @@ function loadLatestSessionForResults(){
   return sessions[0]||null;
 }
 
+function studentQuestionScore(session,q,mark){
+  const point=session.questionScores?.[q]||{
+    ok:Number(session.fullScore||1),partial:Number(session.partialScore||0.5)
+  };
+  return mark==="ok"?Number(point.ok||0):mark==="partial"?Number(point.partial||0):0;
+}
 function calculateStudentResult(session,className,person){
   const totalQuestions=arrayOrEmpty(session.questions).length;
-  const questionScores=session.questionScores||[];
   let score=0;
   let gradedCount=0;
 
@@ -6960,13 +6965,7 @@ function calculateStudentResult(session,className,person){
     if(!grade)continue;
     gradedCount++;
 
-    const point=questionScores[q]||{
-      ok:Number(session.fullScore||1),
-      partial:Number(session.partialScore||0.5)
-    };
-
-    if(grade.mark==="ok")score+=Number(point.ok||0);
-    else if(grade.mark==="partial")score+=Number(point.partial||0);
+    score+=studentQuestionScore(session,q,grade.mark);
   }
 
   return {
@@ -7431,8 +7430,9 @@ function normalizeReturnPracticeCount(input){
   changeReturnPracticeCount();
 }
 function returnQuestionRates(session,className,scope="class"){return resultQuestionRates(session,className,scope)}
+function returnQuestionMaximum(session,q){return Number(session.questionScores?.[q]?.ok??session.fullScore??1)}
 function returnMaximumScore(session){
-  return (session.questions||[]).reduce((sum,_,q)=>sum+Number(session.questionScores?.[q]?.ok??session.fullScore??1),0);
+  return (session.questions||[]).reduce((sum,_,q)=>sum+returnQuestionMaximum(session,q),0);
 }
 function returnClassStats(session,className,person,scope="class"){
   const rankingRows=resultRateClasses(session,className,scope).flatMap(name=>(session.answers?.[name]||[]).map(value=>({className:name,person:value,result:calculateStudentResult(session,name,value)})).filter(row=>row.result.complete));
@@ -7599,11 +7599,30 @@ function wrapReturnPracticeItems(items,rowHeight){
     return lines.map((answer,index)=>({...item,answer,continued:index>0}));
   });
 }
+function returnDistributionSum(values){
+  // Neumaier compensation removes accumulated addition error without decimal rounding.
+  // Keep non-finite inputs/overflow invalid rather than hiding them in compensation.
+  let sum=0,correction=0;
+  for(const value of values){
+    const next=sum+value;
+    if(Number.isFinite(sum)&&Number.isFinite(value)&&Number.isFinite(next)){
+      correction+=Math.abs(sum)>=Math.abs(value)?(sum-next)+value:(value-next)+sum;
+    }else correction=0;
+    sum=next;
+  }
+  return sum+correction;
+}
+function returnDistributionStudentResult(session,className,person){
+  const result=calculateStudentResult(session,className,person);
+  return {...result,score:returnDistributionSum(arrayOrEmpty(session.questions).map((_,q)=>
+    studentQuestionScore(session,q,session.grades?.[`${className}::${person.no}::${q}`]?.mark)))};
+}
 function returnScoreDistributionHtml(session,className,person,options={}){
   const scores=resultRateClasses(session,className,options.rateScope).flatMap(name=>(session.answers?.[name]||[])
-    .map(value=>calculateStudentResult(session,name,value)).filter(result=>result.complete).map(result=>result.score));
-  const own=calculateStudentResult(session,className,person);
-  const distribution=YutoriScoreDistribution.buildDistribution(scores,returnMaximumScore(session),own.complete?own.score:null);
+    .map(value=>returnDistributionStudentResult(session,name,value)).filter(result=>result.complete).map(result=>result.score));
+  const own=returnDistributionStudentResult(session,className,person);
+  const maximumScore=returnDistributionSum((session.questions||[]).map((_,q)=>returnQuestionMaximum(session,q)));
+  const distribution=YutoriScoreDistribution.buildDistribution(scores,maximumScore,own.complete?own.score:null);
   const paper=returnOutputPaperSpec(session,"practice",options),width=Math.min(.3,63/paper.width),scale=width/.3;
   // Suppress arithmetic drift without rounding away actual fractional point units.
   const score=value=>Number.isFinite(value)?escapeHtml(String(Number(value.toPrecision(12)))):"—";

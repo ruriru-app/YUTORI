@@ -130,6 +130,72 @@ test("summed decimal points print clean axis and own-score labels without floati
   assert.deepEqual(result.labels, ["0", "5", "10点"]);
 });
 
+// Catches real scoring accumulation putting a displayed boundary in the previous band.
+test("real fractional scoring counts and highlights the midpoint band without changing grades", async () => {
+  const result = await page.evaluate(() => {
+    const s = distributionFixture(40), p = s.answers.A[0];
+    s.fullScore = .3; s.partialScore = .15;
+    s.classes = ["A"]; s.answers = { A: [p] }; s.grades = {};
+    for (let q = 0; q < 40; q++) s.grades[`A::1::${q}`] = { mark: q < 20 ? "ok" : "ng" };
+    const before = JSON.stringify(s), own = calculateStudentResult(s, "A", p), maximum = returnMaximumScore(s);
+    const slip = slipSummary(returnScoreDistributionHtml(s, "A", p, returnOutputOptions()));
+    return { own, maximum, slip, unchanged: JSON.stringify(s) === before };
+  });
+  assert.equal(result.own.score, 5.999999999999998);
+  assert.equal(result.maximum, 12.000000000000007);
+  assert.equal(result.own.complete, true);
+  assert.match(result.slip.text, /あなた 6点/);
+  assert.deepEqual(result.slip.bars.map(bar => bar.count), [0, 0, 0, 0, 0, 1, 0, 0, 0, 0]);
+  assert.equal(result.slip.bars.findIndex(bar => bar.fill === "#FCCC8E"), 5);
+  assert.equal(result.slip.marker, 1);
+  assert.equal(result.slip.invalid, false);
+  assert.equal(result.unchanged, true);
+});
+
+// Literal counts follow correct fractions of questions; no scoring helper derives expectations.
+for (const [questions, points] of [[40, .3], [60, .1], [80, .7], [200, .1], [300, .2], [1000, .3]]) {
+  test(`real ${questions} x ${points} scoring retains every interior distribution boundary`, async () => {
+    const result = await page.evaluate(({ questions, points }) => {
+      const s = distributionFixture(questions); s.fullScore = points; s.partialScore = points / 2;
+      s.classes = ["A"]; s.answers = { A: [] }; s.grades = {};
+      for (let band = 0; band <= 10; band++) {
+        const p = { no: band + 1, name: `合成${band}` }; s.answers.A.push(p);
+        for (let q = 0; q < questions; q++) s.grades[`A::${p.no}::${q}`] = { mark: q < questions * band / 10 ? "ok" : "ng" };
+      }
+      const before = JSON.stringify(s);
+      const slips = s.answers.A.map(p => slipSummary(returnScoreDistributionHtml(s, "A", p, returnOutputOptions())));
+      return { counts: slips[0].bars.map(bar => bar.count), highlights: slips.map(slip => slip.bars.findIndex(bar => bar.fill === "#FCCC8E")),
+        unchanged: JSON.stringify(s) === before, finite: slips.every(slip => !slip.invalid && slip.marker === 1) };
+    }, { questions, points });
+    assert.deepEqual(result.counts, [1, 1, 1, 1, 1, 1, 1, 1, 1, 2]);
+    assert.deepEqual(result.highlights, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 9]);
+    assert.equal(result.unchanged, true);
+    assert.equal(result.finite, true);
+  });
+}
+
+// Catches decimal quantization of distinct partial-credit scores or altered general totals.
+test("distribution preserves genuinely nearby partial-score bands and original scoring rules", async () => {
+  const result = await page.evaluate(() => {
+    const s = distributionFixture(40); s.fullScore = .3; s.partialScore = .15;
+    s.classes = ["A"]; s.answers = { A: [1, 2, 3].map(no => ({ no, name: `合成${no}` })) }; s.grades = {};
+    s.questionScores = [{ ok: .3, partial: .3 - 24e-15 }, { ok: .3, partial: .3 + 24e-15 }];
+    for (const p of s.answers.A) for (let q = 0; q < 40; q++) {
+      s.grades[`A::${p.no}::${q}`] = { mark: q < 20 ? "ok" : "ng" };
+    }
+    s.grades["A::1::0"].mark = "partial"; s.grades["A::3::1"].mark = "partial";
+    const before = JSON.stringify(s);
+    const raw = s.answers.A.map(p => calculateStudentResult(s, "A", p));
+    const slips = s.answers.A.map(p => slipSummary(returnScoreDistributionHtml(s, "A", p, returnOutputOptions())));
+    return { counts: slips[0].bars.map(bar => bar.count), highlights: slips.map(slip => slip.bars.findIndex(bar => bar.fill === "#FCCC8E")),
+      raw, rawAfter: s.answers.A.map(p => calculateStudentResult(s, "A", p)), unchanged: JSON.stringify(s) === before };
+  });
+  assert.deepEqual(result.counts, [0, 0, 0, 0, 1, 2, 0, 0, 0, 0]);
+  assert.deepEqual(result.highlights, [4, 5, 5]);
+  assert.deepEqual(result.rawAfter, result.raw);
+  assert.equal(result.unchanged, true);
+});
+
 test("only the first practice page gets a slip; perfect scores retain the empty practice side", async () => {
   const result = await page.evaluate(() => {
     const s = distributionFixture(25), p = s.answers.A[0], options = { ...returnOutputOptions(), practiceCount: 25, fitPracticePage: false };

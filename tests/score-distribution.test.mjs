@@ -44,6 +44,21 @@ for (const fixture of [
   assert.equal(result.ownBin, 6);
 });
 
+// Catches snapping meaningful nearby scores or rounding to label precision.
+for (const { maximum, boundary, band } of [
+  { maximum: 12, boundary: 1.2, band: 1 },
+  { maximum: 12, boundary: 6, band: 5 },
+  { maximum: .7, boundary: .63, band: 9 }
+]) test(`preserves distinct scores beside band ${band} with maximum ${maximum}`, async () => {
+  const below = boundary - maximum * 2e-15, above = boundary + maximum * 2e-15;
+  const result = await buildDistribution([below, boundary, above], maximum, below);
+  assert.equal(result.bins[band - 1].count, 1);
+  assert.equal(result.bins[band].count, 2);
+  assert.equal(result.ownBin, band - 1);
+  assert.equal(result.ownScore, below);
+  assert.equal((await buildDistribution([below, boundary, above], maximum, above)).ownBin, band);
+});
+
 // Catches treating zero as missing or double-counting tied scores.
 for (const fixture of [
   { scores: [0, 0, 0], ownScore: 0, count: 3, average: 0, counts: [3, 0, 0, 0, 0, 0, 0, 0, 0, 0], ownBin: 0 },
