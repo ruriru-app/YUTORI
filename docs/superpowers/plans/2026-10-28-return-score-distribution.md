@@ -71,6 +71,21 @@
 - [ ] **Step 5: オフラインとPDFを検証。** 既存PWAテストに新規部品の初回precache・オフライン集計を追加する。Chromiumの`page.pdf({printBackground:true, preferCSSPageSize:true})`をpdf-libで読み、A4/B5/A5の表横・裏縦が実寸・従来のページ数であることを確認。PDFスキルに従い、ローカル一時フォルダーへ合成PDFを作り、レンダリングした最初の裏面を目視確認する。実データはコミットしない。
 - [ ] **Step 6: GREENと回帰を確認。** `node --test --test-concurrency=2 --test-reporter=spec tests/score-distribution.test.mjs tests/return-score-distribution.test.mjs tests/return-paper-layout.test.mjs tests/return-practice-defaults.test.mjs tests/backup-pwa.test.mjs tests/backup-save-ui.test.mjs`、続いて`node --test --test-concurrency=2 --test-reporter=spec tests/*.test.mjs`が全件成功すること。差分確認と独立レビュー後、対象ファイルを`feat: overlay compact score distributions on return practice sheets`としてコミットする。
 
+### Task 3: Correct actual return-PDF content scale (user-approved addition)
+
+**Authorization:** ユーザーが2026-10-28に既存の本文縮小も今回修正するよう明示的に承認。Task 2の独立レビュー後、別の新しい実装担当が開始する。v0.3.53の同じ更新に含め、別の公開操作は行わない。
+
+**Files:** Modify `index.html` and `README.md`; create `tests/return-print-scale.test.mjs`. 既存のPDF寸法テストを必要な範囲で拡張してもよいが、無関係な印刷方式や保存方式へ作り替えない。
+
+**Interfaces:** 既存の`printReturnPdfs()`、`returnPrintPagesForPerson(session, className, person, options)`、`returnOutputPaperSpec(session, side, options)`を維持する。原因に応じた最小の印刷CSS／ページ設定修正だけを行い、新しい保存形式や依存関係は追加しない。
+
+- [ ] **Step 1: 原因を特定する。** `F:/YUTORI/tmp/pdfs/return-distribution-qa/investigate-scale.mjs`とTask 2報告を読み、同一fixtureのプレビュー・印刷DOM・実際のPDFの違いを再現する。初期viewportや表示ズーム、ページ設定、向きの組合せを１要因ずつ比較し、具体的な根本原因を記録する。推測による固定倍率補正はしない。
+- [ ] **Step 2: 実際の本文寸法を検証する失敗テストを書く。** 新規テストでA4(210×297mm)/B5(182×257mm)/A5(148×210mm)について、表横・裏縦、表縦・裏横、両面縦、両面横を出力。pdf-libの用紙外形に加え、PDF.jsで実際のPDFを描画して色の付いた罫線の座標を測り、課題見出しの幅が縦用紙幅の88%、横用紙幅の90%であることを2pt以内の許容差で検証する。既存の6%/5%左右余白に基づく、制作コードとは独立した値を使う。答案表面も合成画像の境界を測り、用紙に合わせる場合とA5原寸をA4の左上へ置く場合に意図した実寸を保つことを確認する。分布票オン／オフで本文サイズが同じことと、票の実際の幅が用紙幅30%かつ63mm以下であることも検証する。
+- [ ] **Step 3: REDを記録する。** `node --test tests/return-print-scale.test.mjs`で、紙の外形は正しいのに本文が小さくなる失敗を確認する。もし同じ向きや特定用紙では症状が出ない場合、その対照ケースも残す。
+- [ ] **Step 4: 最小修正とGREEN。** 原因が確認できたCSS／印刷ページ設定だけを修正し、新規テストと既存の返却レイアウト・答案位置・A5印刷テストを通す。任意の拡大係数で帳尻を合わせたり、答案や課題データを書き換えたりしない。
+- [ ] **Step 5: PDFを再生成して確認する。** 同じ合成PDFを再生成し、Popplerで裏面を描画して実寸と余白、文字・分布票・４線を目視確認。例外的な長い手本、続きページ、調整用白紙も維持する。READMEに必要な説明だけ追記する。
+- [ ] **Step 6: 全体確認・保存。** `node --test --test-concurrency=2 --test-reporter=spec tests/*.test.mjs`が全件成功することを確認し、自己レビュー後に対象ファイルだけを`fix: preserve physical content scale in return PDFs`としてコミット。担当は報告に根本原因、RED/GREEN、全体テスト、実寸測定とPNG/PDFの場所を記載する。独立したタスクレビューを受ける。
+
 ## Handoff and final gate
 
 実行前にこの計画をユーザーへ提示し確認を待つ。承認後は各タスクのRED/GREEN証拠・独立レビューを残し、最後に全差分をレビューする。公開前の状態で変更点、テスト結果、合成PDFの見本を報告し、GitHub公開の可否を確認する。
